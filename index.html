@@ -142,6 +142,7 @@
       transform: translateY(-1px);
     }
 
+    /* メイン大画面スクリーンラッパー（本番・ドリル共通で最大サイズを確保） */
     .screen-wrapper {
       position: relative;
       width: 100%;
@@ -152,15 +153,21 @@
       align-items: center;
       justify-content: center;
       flex: 1;
-      min-height: 140px;
+      min-height: 180px;
       border: 2px solid #a855f7;
       box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+      transition: border-color 0.25s ease;
+    }
+
+    .screen-wrapper.drill-active {
+      border-color: #10b981 !important;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.3), inset 0 2px 10px rgba(0, 0, 0, 0.7);
     }
 
     /* 全身検知セーフエリア・境界枠 */
     .safe-boundary-box {
       position: absolute;
-      inset: 6%;
+      inset: 5%;
       border: 2px dashed rgba(168, 85, 247, 0.4);
       border-radius: 12px;
       pointer-events: none;
@@ -232,6 +239,37 @@
       100% { transform: scale(1.0); opacity: 0.9; }
     }
 
+    /* 🎮 本番大画面に被せる骨格誘導HUDオーバーレイ */
+    .drill-hud-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 30;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .drill-hud-overlay.active {
+      display: flex;
+    }
+
+    .drill-hud-overlay.matched {
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, transparent 70%);
+      box-shadow: inset 0 0 28px rgba(16, 185, 129, 0.75);
+    }
+
+    .match-banner {
+      animation: matchPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes matchPop {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -275,11 +313,10 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* リプレイ動画プレイヤー枠 */
     .replay-video-box {
       position: relative;
       width: 100%;
-      height: 150px;
+      height: 155px;
       background: #060913;
       border-radius: 10px;
       overflow: hidden;
@@ -296,21 +333,6 @@
       object-fit: cover;
       transform: scaleX(-1);
     }
-
-    /* 骨格誘導ゲームのゲージ演出 */
-    .pose-match-glow {
-      box-shadow: 0 0 24px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(16, 185, 129, 0.6) !important;
-      border-color: #10b981 !important;
-    }
-
-    .match-banner {
-      animation: matchPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-
-    @keyframes matchPop {
-      0% { transform: scale(0.6); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
   </style>
 </head>
 <body>
@@ -319,12 +341,12 @@
   <div class="sunburst"></div>
 
   <!-- ヘッダー -->
-  <header class="w-full max-w-md flex flex-col gap-1 flex-shrink-0 z-10 mb-1">
+  <header class="w-full max-w-md flex flex-col gap-1 flex-shrink-0 z-10 mb-1" id="app-header">
     <div class="flex items-center justify-between">
       <a href="./index.html" class="btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-sky-400 text-xs font-black no-underline">
         🏠 ロビー
       </a>
-      <h1 class="text-sm font-black text-purple-300 flex items-center gap-1">
+      <h1 class="text-sm font-black text-purple-300 flex items-center gap-1" id="header-title">
         🧠 身体図式・脳内GPSドック 📡
       </h1>
       <button id="btn-switch-camera" class="btn-3d px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
@@ -332,8 +354,8 @@
       </button>
     </div>
 
-    <!-- 3大テスト選択タブ -->
-    <div class="grid grid-cols-3 gap-1.5 mt-0.5">
+    <!-- 3大テスト選択タブ（ドリル中は非表示） -->
+    <div class="grid grid-cols-3 gap-1.5 mt-0.5" id="test-tabs-container">
       <button class="test-tab active" id="tab-step" onclick="selectTestMode('STEPPING')">
         👣 ① 目隠し足踏み<br><span class="text-[9px] text-purple-300">骨盤ねじれ・GPS</span>
       </button>
@@ -348,8 +370,8 @@
 
   <main class="w-full max-w-md flex-1 brawl-panel p-2 flex flex-col gap-1.5 min-h-0 relative z-10 overflow-hidden">
     
-    <!-- ガイダンスバナー -->
-    <div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2">
+    <!-- ガイダンスバナー（テスト時・ドリル時で切り替え） -->
+    <div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2" id="guidance-banner">
       <span class="text-xl flex-shrink-0" id="guide-icon">👣</span>
       <div class="flex flex-col flex-1 min-w-0">
         <span class="text-[11px] font-black text-purple-200 truncate" id="guide-title">
@@ -366,33 +388,33 @@
       </div>
     </div>
 
-    <!-- カメラ＆骨格キャンバス画面 -->
+    <!-- カメラ＆骨格キャンバス画面（テスト・ドリル共通の最大サイズ大画面） -->
     <div class="screen-wrapper" id="camera-screen-wrapper">
       <video id="webcam-video" playsinline muted autoplay></video>
       <canvas id="output-canvas"></canvas>
 
-      <!-- セーフ境界枠（見切れ警告枠） -->
+      <!-- セーフ境界枠（テスト時のみ） -->
       <div class="safe-boundary-box" id="safe-boundary"></div>
 
-      <!-- リアルタイム・センサーバッジ -->
-      <div class="absolute top-2 left-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-purple-400 text-xs font-black text-purple-300 flex items-center gap-1.5 z-20">
+      <!-- リアルタイム・センサーバッジ（テスト時） -->
+      <div class="absolute top-2 left-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-purple-400 text-xs font-black text-purple-300 flex items-center gap-1.5 z-20" id="test-badge-left">
         <span id="metric-main-label">ズレ移動:</span>
         <span class="text-amber-400 font-mono text-sm" id="metric-main-val">0.0 cm</span>
       </div>
 
-      <div class="absolute top-2 right-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-black text-slate-300 flex items-center gap-1.5 z-20">
+      <div class="absolute top-2 right-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-black text-slate-300 flex items-center gap-1.5 z-20" id="test-badge-right">
         <span id="metric-sub-label">回転ズレ:</span>
         <span class="text-cyan-400 font-mono text-sm" id="metric-sub-val">0 °</span>
       </div>
 
-      <!-- カウントダウン演出レイヤー -->
+      <!-- カウントダウン演出レイヤー（テスト時） -->
       <div class="countdown-overlay" id="countdown-box">
         <span class="text-xs font-black text-purple-300 uppercase tracking-widest">TEST STARTING...</span>
         <div class="countdown-number" id="countdown-num">3</div>
         <span class="text-sm font-black text-white" id="countdown-sub">目を閉じてスタンバイ！</span>
       </div>
 
-      <!-- 測定中インジケーター -->
+      <!-- 測定中インジケーター（テスト時） -->
       <div class="absolute bottom-2 left-2 bg-purple-950/90 border border-purple-500 px-3 py-1 rounded-full text-[10px] font-black text-purple-200 hidden items-center gap-2 z-20" id="measuring-badge">
         <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
         <span id="measuring-text">🧠 脳内GPSを記録中... (残り 15 秒)</span>
@@ -403,19 +425,47 @@
         <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
         <span>REC (端末内のみ)</span>
       </div>
+
+      <!-- 🎮 【完全大画面】AI骨格誘導ゲーム HUDオーバーレイ -->
+      <div class="drill-hud-overlay" id="drill-hud">
+        <!-- 上部：指示＆リアルタイム角度 -->
+        <div class="flex items-center justify-between w-full">
+          <div class="bg-slate-950/90 px-3 py-1 rounded-full border border-emerald-500 text-[11px] font-black flex items-center gap-1.5 shadow" id="drill-angle-badge">
+            <span id="drill-status-text">スマホの横を向いて立とう！</span>
+          </div>
+          <button onclick="exitDrillMode()" class="pointer-events-auto btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
+            ✕ テストへ戻る
+          </button>
+        </div>
+
+        <!-- 中央：3秒キープのド迫力カウンター -->
+        <div id="drill-hold-box" class="hidden flex-col items-center justify-center match-banner my-auto">
+          <span class="text-sm font-black text-emerald-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">✨ ピッタリ一致！キープ！</span>
+          <span class="text-7xl font-black text-emerald-400 font-mono drop-shadow-[0_0_24px_rgba(16,185,129,0.9)]" id="drill-hold-counter">3</span>
+        </div>
+
+        <!-- 下部：クリアカウント -->
+        <div class="flex items-center justify-between w-full bg-slate-950/85 px-3 py-1.5 rounded-xl border border-slate-800">
+          <span class="text-[10px] text-slate-300 font-bold">緑に光らせて3秒キープ！</span>
+          <div class="flex items-center gap-1.5 text-xs font-black">
+            <span class="text-slate-400 text-[11px]">成功:</span>
+            <span class="text-amber-400 font-mono text-sm" id="drill-success-count">0 / 3 回</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 下部操作ボタン -->
-    <div class="w-full flex flex-col gap-1.5 flex-shrink-0">
+    <!-- 下部操作ボタン（テスト時） -->
+    <div class="w-full flex flex-col gap-1.5 flex-shrink-0" id="test-controls-container">
       <button id="btn-start-test" class="btn-3d btn-purple w-full py-2.5 rounded-xl text-sm font-black shadow-md">
-        🚀 目隠しテストを開始する！
+        🚀 全身を映すと自動スタート！
       </button>
       <div class="grid grid-cols-2 gap-1.5">
         <button id="btn-open-result-preview" class="btn-3d py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-black text-slate-300">
           📋 診断レポートを見る
         </button>
         <button id="btn-open-reset-drill" class="btn-3d py-1.5 rounded-lg btn-emerald text-xs font-black shadow">
-          🎮 AI骨格誘導ドリルへ
+          🎮 大画面AI骨格ドリルへ
         </button>
       </div>
     </div>
@@ -455,7 +505,7 @@
             </div>
           </div>
           <p class="text-[9px] text-slate-400 leading-tight text-center">
-            ※ 動画はサーバーに送られず、この画面を閉じると端末のメモリから自動消滅します。
+            ※ 動画はサーバーに送られず、この画面を閉じると端末のメモリから消滅します。
           </p>
         </div>
 
@@ -489,63 +539,10 @@
         <button onclick="saveAndSyncToHome()" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
           💾 ホームに保存
         </button>
-        <button onclick="startAiSkeletonDrill()" class="flex-1 btn-3d py-2 btn-emerald text-xs font-black rounded-xl shadow">
-          🎮 骨格誘導ゲームへ
+        <button onclick="enterDrillMode()" class="flex-1 btn-3d py-2 btn-emerald text-xs font-black rounded-xl shadow">
+          🎮 大画面ドリルへ
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- 【機能②】言葉不要！AI骨格を緑に光らせる型はめ誘導ゲームモーダル -->
-  <div id="drill-modal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'drill-modal')">
-    <div class="brawl-panel p-3 max-w-sm w-full bg-slate-900 border-emerald-500 space-y-2 flex flex-col max-h-[92dvh]">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-1.5">
-        <div>
-          <h3 class="font-black text-emerald-400 text-xs">🎮 AI骨格を【緑色】に光らせろ！</h3>
-          <span class="text-[9px] text-slate-400">言葉はいらない！骨格を緑にして3秒キープ！</span>
-        </div>
-        <button onclick="closeDrillModal()" class="text-slate-400 hover:text-white font-black text-base">✕</button>
-      </div>
-
-      <!-- リアルタイム誘導キャンバス -->
-      <div class="relative w-full h-[230px] bg-slate-950 rounded-xl overflow-hidden border-2 border-emerald-500/50 flex items-center justify-center" id="drill-screen-wrapper">
-        <video id="drill-video" playsinline muted autoplay class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-75"></video>
-        <canvas id="drill-canvas" class="absolute inset-0 w-full h-full transform scale-x-[-1]"></canvas>
-
-        <!-- ポーズ一致時の緑発光レイヤー -->
-        <div id="drill-match-overlay" class="absolute inset-0 pointer-events-none transition-all duration-150 border-4 border-transparent flex flex-col items-center justify-between p-2">
-          <!-- 上部：角度＆ガイド状態 -->
-          <div class="bg-slate-950/85 px-3 py-1 rounded-full border border-slate-700 text-[10px] font-black flex items-center gap-1.5" id="drill-status-badge">
-            <span id="drill-status-text">スマホの横を向いて立とう！</span>
-          </div>
-
-          <!-- 中央：キープカウントダウン -->
-          <div id="drill-hold-box" class="hidden flex-col items-center match-banner">
-            <span class="text-xs font-black text-emerald-300">✨ ピッタリ一致！キープ！</span>
-            <span class="text-5xl font-black text-emerald-400 font-mono drop-shadow-[0_0_12px_rgba(16,185,129,0.8)]" id="drill-hold-counter">3</span>
-          </div>
-
-          <!-- 下部：クリアカウント -->
-          <div class="flex items-center gap-2 bg-slate-950/85 px-3 py-1 rounded-full border border-slate-700 text-[10px] font-black">
-            <span>成功カウント:</span>
-            <span class="text-amber-400 text-xs" id="drill-success-count">0 / 3 回</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- シンプルな指示バナー -->
-      <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 text-center space-y-1">
-        <div class="text-[11px] font-black text-emerald-300" id="drill-instruction-text">
-          スマホの横を向き、骨格が【緑色】に光る姿勢を探そう！
-        </div>
-        <div class="text-[9px] text-slate-300">
-          緑色に光ったまま「3秒キープ」を3回成功させると、脳内GPSが完全に覚醒するぜ！
-        </div>
-      </div>
-
-      <button onclick="closeDrillModal(); showToast('🎉 身体図式リセット完了！もう一度テストしてズレを比べよう！');" class="btn-3d py-2 w-full bg-slate-800 text-white font-bold rounded-xl text-xs">
-        完了してもう一度テストする！
-      </button>
     </div>
   </div>
 
@@ -553,8 +550,11 @@
 
   <script>
     // ==========================================
-    // 1. Web Audio API シンセサイザー ＆ 音声読み上げ
+    // 1. システム状態管理（完全排他ロック）
     // ==========================================
+    // モード: 'TEST_IDLE' | 'TEST_RUNNING' | 'DRILL_ACTIVE'
+    let currentAppMode = 'TEST_IDLE';
+
     let audioCtx = null;
     function getAudioContext() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -598,7 +598,6 @@
       });
     }
 
-    // 骨格がピタッと一致したときの「ピロリン♪」成功音
     function playMatchPing() {
       playSound(880, 0.12, 'triangle', 0.3);
       setTimeout(() => playSound(1320, 0.2, 'triangle', 0.35), 100);
@@ -639,7 +638,6 @@
         subUnit: "°",
         sensorReason: "【骨盤・股関節の回旋マップ＆脳内垂直軸】が狂っています。本人はまっすぐ歩いているつもりですが、骨盤の張り（筋緊張）に左右差があるため、体が勝手に旋回してしまいます。",
         baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。",
-        drillTargetPose: "HIP_HINGE",
         drillGuide: "スマホの真横を向いて立ち、骨盤を引き込んで【緑色】に光らせよう！"
       },
       TPOSE: {
@@ -653,7 +651,6 @@
         subUnit: "°",
         sensorReason: "【肩甲帯（肩甲骨）の空間位置覚】がズレています。投球側またはバット側の肩甲骨が下に落ちているのに、脳が『水平に上がっている』と錯覚しています。",
         baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。",
-        drillTargetPose: "TPOSE_ALIGN",
         drillGuide: "カメラに向き合い、左右の腕を真横に水平に合わせて【緑色】に光らせよう！"
       },
       BALANCE: {
@@ -667,13 +664,11 @@
         subUnit: "cm",
         sensorReason: "【足裏のメカノレセプター（圧力センサー）とお尻（中殿筋）】の通信が遅れています。視覚のカンニングが消えた瞬間、足裏のどこに重心があるか見失っています。",
         baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。",
-        drillTargetPose: "SINGLE_LEG",
         drillGuide: "片足立ちで骨盤を水平にキープし、骨格を【緑色】に光らせよう！"
       }
     };
 
     let currentTestMode = 'STEPPING';
-    let isTesting = false;
     let isCountingDown = false;
     let cameraFacing = 'user';
     let pose = null;
@@ -682,6 +677,7 @@
     const videoEl = document.getElementById('webcam-video');
     const canvasEl = document.getElementById('output-canvas');
     const ctx = canvasEl.getContext('2d');
+    const screenWrapperEl = document.getElementById('camera-screen-wrapper');
     const safeBoundaryEl = document.getElementById('safe-boundary');
 
     // 全身認識・自動スタート追跡
@@ -716,7 +712,6 @@
     let localReplayBlobUrl = null;
 
     function startLocalRecording() {
-      // 古いリプレイ動画のメモリを解放
       if (localReplayBlobUrl) {
         URL.revokeObjectURL(localReplayBlobUrl);
         localReplayBlobUrl = null;
@@ -724,11 +719,9 @@
       recordedChunks = [];
 
       try {
-        // キャンバス（骨格オーバーレイ付き映像）からストリームを取得
         const stream = canvasEl.captureStream(24);
         const options = { mimeType: 'video/webm;codecs=vp8' };
         
-        // Safari/iOS互換フォールバック
         if (!MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
           mediaRecorder = new MediaRecorder(stream);
         } else {
@@ -742,7 +735,6 @@
         };
 
         mediaRecorder.onstop = () => {
-          // ネット送信ゼロ：ブラウザの一時メモリ内にのみBlob URLを生成
           const blob = new Blob(recordedChunks, { type: 'video/webm' });
           localReplayBlobUrl = URL.createObjectURL(blob);
           const replayVideo = document.getElementById('replay-video');
@@ -809,9 +801,7 @@
         facingMode: cameraFacing
       });
 
-      cameraHelper.start().then(() => {
-        isCameraRunning = true;
-      }).catch(() => {
+      cameraHelper.start().catch(() => {
         showToast("⚠️ カメラの起動に失敗しました。カメラ権限を確認してください。");
       });
     }
@@ -826,13 +816,13 @@
     });
 
     // ==========================================
-    // 5. リアルタイム骨格解析＆身体図式判定
+    // 5. リアルタイム骨格解析＆身体図式判定（完全分離）
     // ==========================================
     function onPoseResults(results) {
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
 
       if (!results.poseLandmarks) {
-        updateDetectBadge(false);
+        if (currentAppMode === 'TEST_IDLE') updateDetectBadge(false);
         return;
       }
 
@@ -840,13 +830,19 @@
       const w = canvasEl.width;
       const h = canvasEl.height;
 
+      // ★ ドリルモード中は、テスト側の処理を100%遮断！ドリル専用エンジンのみ動かす！
+      if (currentAppMode === 'DRILL_ACTIVE') {
+        processSkeletonGameInDrill(l, w, h);
+        return;
+      }
+
+      // --- 以下、通常テストモード時のロジック ---
       const NOSE = l[0];
       const L_SHOULDER = l[11], R_SHOULDER = l[12];
       const L_WRIST = l[15], R_WRIST = l[16];
       const L_HIP = l[23], R_HIP = l[24];
       const L_ANKLE = l[27], R_ANKLE = l[28];
 
-      // 全身認識の判定
       const hasFullBody = Boolean(
         NOSE && L_ANKLE && R_ANKLE &&
         NOSE.visibility > 0.4 &&
@@ -854,7 +850,6 @@
         R_ANKLE.visibility > 0.3
       );
 
-      // 見切れ判定（マージン約6%）
       const isTouchingEdge = (
         (NOSE && (NOSE.y < 0.05 || NOSE.x < 0.05 || NOSE.x > 0.95)) ||
         (L_HIP && (L_HIP.x < 0.05 || L_HIP.x > 0.95 || L_HIP.y > 0.94)) ||
@@ -863,7 +858,6 @@
         (R_ANKLE && R_ANKLE.y > 0.96)
       );
 
-      // 身長ピクセル補正
       if (hasFullBody) {
         const measuredHeightPx = Math.abs(Math.max(L_ANKLE.y, R_ANKLE.y) - NOSE.y) * h;
         if (measuredHeightPx > 100) {
@@ -872,7 +866,7 @@
       }
 
       // ① 待機中：全身検知で自動スタートトリガー
-      if (!isTesting && !isCountingDown) {
+      if (currentAppMode === 'TEST_IDLE' && !isCountingDown) {
         if (hasFullBody && !isTouchingEdge) {
           fullBodyDetectedFrames++;
           updateDetectBadge(true, fullBodyDetectedFrames);
@@ -891,15 +885,15 @@
       }
 
       // ② 測定中：見切れ検知（前方突進の即時判定＆反転バグ完全防止）
-      if (isTesting) {
+      if (currentAppMode === 'TEST_RUNNING') {
         if (isTouchingEdge || !hasFullBody) {
           handleFrameOutBreakthrough();
           return;
         }
       }
 
-      // 骨格のリアルタイム描画
-      drawSkeleton(l, w, h);
+      // テスト時の骨格描画（パープル）
+      drawSkeleton(ctx, l, w, h, "rgba(192, 132, 252, 0.85)");
 
       // テストごとの測定ロジック
       if (currentTestMode === 'STEPPING') {
@@ -908,13 +902,12 @@
           const midHipY = (L_HIP.y + R_HIP.y) / 2 * h;
           let hipAngle = Math.atan2((R_HIP.y - L_HIP.y) * h, (R_HIP.x - L_HIP.x) * w) * (180 / Math.PI);
 
-          if (isTesting) {
+          if (currentAppMode === 'TEST_RUNNING') {
             if (!baselineData) {
               baselineData = { x: midHipX, y: midHipY, angle: hipAngle };
               previousValidAngle = hipAngle;
             }
 
-            // 反転急変フィルター（50度以上のジャンプは無視）
             if (Math.abs(hipAngle - previousValidAngle) > 50 && Math.abs(hipAngle - previousValidAngle) < 310) {
               hipAngle = previousValidAngle;
             } else {
@@ -947,7 +940,7 @@
         }
       } else if (currentTestMode === 'BALANCE') {
         if (NOSE && L_ANKLE && R_ANKLE) {
-          if (isTesting) {
+          if (currentAppMode === 'TEST_RUNNING') {
             if (!baselineData) {
               baselineData = { noseX: NOSE.x * w, noseY: NOSE.y * h };
             }
@@ -977,10 +970,9 @@
       }
     }
 
-    // 見切れ・前方ワープ突破の即時判定
     function handleFrameOutBreakthrough() {
-      if (!isTesting) return;
-      isTesting = false;
+      if (currentAppMode !== 'TEST_RUNNING') return;
+      currentAppMode = 'TEST_IDLE';
       clearInterval(testTimerInterval);
       clearInterval(metronomeInterval);
       stopLocalRecording();
@@ -1000,33 +992,33 @@
       }, 700);
     }
 
-    function drawSkeleton(landmarks, w, h, overrideColor = null) {
+    function drawSkeleton(targetCtx, landmarks, w, h, strokeColor) {
       const connections = [
         [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
         [11, 23], [12, 24], [23, 24],
         [23, 25], [25, 27], [24, 26], [26, 28]
       ];
 
-      ctx.strokeStyle = overrideColor || "rgba(192, 132, 252, 0.85)";
-      ctx.lineWidth = 3.5;
+      targetCtx.strokeStyle = strokeColor;
+      targetCtx.lineWidth = 4;
       connections.forEach(([i, j]) => {
         if (landmarks[i] && landmarks[j]) {
-          ctx.beginPath();
-          ctx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
-          ctx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
-          ctx.stroke();
+          targetCtx.beginPath();
+          targetCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
+          targetCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
+          targetCtx.stroke();
         }
       });
 
       [11, 12, 15, 16, 23, 24, 27, 28].forEach(idx => {
         if (landmarks[idx]) {
-          ctx.beginPath();
-          ctx.arc(landmarks[idx].x * w, landmarks[idx].y * h, 6, 0, Math.PI * 2);
-          ctx.fillStyle = overrideColor || ((idx === 15 || idx === 16) ? "#facc15" : "#a855f7");
-          ctx.fill();
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          targetCtx.beginPath();
+          targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, 6.5, 0, Math.PI * 2);
+          targetCtx.fillStyle = strokeColor;
+          targetCtx.fill();
+          targetCtx.strokeStyle = "#ffffff";
+          targetCtx.lineWidth = 2;
+          targetCtx.stroke();
         }
       });
     }
@@ -1037,7 +1029,7 @@
     function selectTestMode(mode) {
       playSound(600, 0.08);
       currentTestMode = mode;
-      isTesting = false;
+      currentAppMode = 'TEST_IDLE';
       isCountingDown = false;
       autoStartTriggered = false;
       fullBodyDetectedFrames = 0;
@@ -1072,7 +1064,7 @@
     }
 
     document.getElementById('btn-start-test').addEventListener('click', () => {
-      if (isTesting || isCountingDown) return;
+      if (currentAppMode !== 'TEST_IDLE' || isCountingDown) return;
       triggerCountdownAndStart();
     });
 
@@ -1109,7 +1101,7 @@
     }
 
     function runActiveTest() {
-      isTesting = true;
+      currentAppMode = 'TEST_RUNNING';
       baselineData = null;
       currentMetrics.isWarpOut = false;
       const config = TEST_CONFIGS[currentTestMode];
@@ -1119,12 +1111,10 @@
       badge.classList.replace('hidden', 'flex');
       document.getElementById('measuring-text').textContent = `🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)`;
 
-      // 【機能①】ローカル録画開始（ネット送信ゼロ）
       startLocalRecording();
 
-      // メトロノーム音
       metronomeInterval = setInterval(() => {
-        if (isTesting) playMetronomeTick();
+        if (currentAppMode === 'TEST_RUNNING') playMetronomeTick();
       }, 550);
 
       testTimerInterval = setInterval(() => {
@@ -1149,7 +1139,7 @@
     }
 
     function finishTestNormally() {
-      isTesting = false;
+      currentAppMode = 'TEST_IDLE';
       document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
       stopLocalRecording();
 
@@ -1165,7 +1155,7 @@
     }
 
     // ==========================================
-    // 7. 診断結果・アハ体験レポート出力
+    // 7. 診断結果出力
     // ==========================================
     function renderDiagnosisResult() {
       const config = TEST_CONFIGS[currentTestMode];
@@ -1231,51 +1221,20 @@
     }
 
     // ==========================================
-    // 8. 【機能②】言葉不要！AI骨格を緑に光らせる型はめ誘導ゲーム
+    // 8. 【機能②】大画面・AI骨格誘導ゲーム（本番画面と100%同一サイズ）
     // ==========================================
-    let isDrillActive = false;
-    let drillPoseMatcher = null;
     let drillSuccessCount = 0;
     let drillHoldTimer = null;
     let drillHoldSeconds = 3;
     let isHoldingPose = false;
 
-    const drillVideo = document.getElementById('drill-video');
-    const drillCanvas = document.getElementById('drill-canvas');
-    const drillCtx = drillCanvas.getContext('2d');
-    const drillMatchOverlay = document.getElementById('drill-match-overlay');
+    const drillHud = document.getElementById('drill-hud');
     const drillHoldBox = document.getElementById('drill-hold-box');
     const drillHoldCounter = document.getElementById('drill-hold-counter');
     const drillSuccessCountEl = document.getElementById('drill-success-count');
     const drillStatusText = document.getElementById('drill-status-text');
 
-    function startAiSkeletonDrill() {
-      closeModal('result-modal');
-      openModal('drill-modal');
-
-      isDrillActive = true;
-      drillSuccessCount = 0;
-      drillSuccessCountEl.textContent = `0 / 3 回`;
-      drillHoldSeconds = 3;
-      isHoldingPose = false;
-      drillHoldBox.classList.add('hidden');
-
-      const config = TEST_CONFIGS[currentTestMode];
-      document.getElementById('drill-instruction-text').textContent = config.drillGuide;
-
-      // カメラをドリル側キャンバスにも反映開始
-      drillVideo.srcObject = videoEl.srcObject;
-      speakVoice("スマホの横を向いて立とう！骨盤を引いて、骨格を緑色に光らせてね！");
-    }
-
-    function closeDrillModal() {
-      isDrillActive = false;
-      clearInterval(drillHoldTimer);
-      drillHoldTimer = null;
-      closeModal('drill-modal');
-    }
-
-    // 3点間の角度計算（関節角度）
+    // 角度計算
     function calcAngle(p1, p2, p3) {
       if (!p1 || !p2 || !p3) return 0;
       const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
@@ -1287,38 +1246,92 @@
       return Math.round((Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2)))) * 180) / Math.PI);
     }
 
-    // リアルタイム骨格誘導ゲームループ（メインポーズ結果から連動）
-    function processSkeletonGameInDrill(landmarks) {
-      if (!isDrillActive || !landmarks) return;
+    // ドリルモードへ突入（本番大画面をそのままドリル画面に変身させる！）
+    function enterDrillMode() {
+      closeModal('result-modal');
+      playSound(660, 0.1);
 
-      drillCanvas.width = canvasEl.width;
-      drillCanvas.height = canvasEl.height;
-      const dw = drillCanvas.width;
-      const dh = drillCanvas.height;
+      // ① テスト側を完全停止＆非表示化
+      currentAppMode = 'DRILL_ACTIVE';
+      clearInterval(testTimerInterval);
+      clearInterval(metronomeInterval);
+      stopLocalRecording();
+      isCountingDown = false;
+      autoStartTriggered = false;
 
-      drillCtx.clearRect(0, 0, dw, dh);
+      document.getElementById('test-tabs-container').classList.add('hidden');
+      document.getElementById('test-controls-container').classList.add('hidden');
+      document.getElementById('test-badge-left').classList.add('hidden');
+      document.getElementById('test-badge-right').classList.add('hidden');
+      safeBoundaryEl.classList.add('hidden');
 
+      // ② 大画面スクリーンをドリル仕様に装飾
+      screenWrapperEl.classList.add('drill-active');
+      drillHud.classList.add('active');
+
+      drillSuccessCount = 0;
+      drillSuccessCountEl.textContent = `0 / 3 回`;
+      drillHoldSeconds = 3;
+      isHoldingPose = false;
+      drillHoldBox.classList.add('hidden');
+
+      // ガイダンス更新
+      document.getElementById('guide-icon').textContent = "🎮";
+      document.getElementById('guide-title').textContent = "AI骨格を【緑色】に光らせろ！";
+      document.getElementById('guide-desc').textContent = "言葉はいらない！スマホの横を向いて立ち、骨格が緑になる姿勢を探そう！";
+      document.getElementById('detect-text').textContent = "ドリル実行中";
+
+      speakVoice("大画面ドリルスタート！スマホの横を向いて立とう！骨格を緑色に光らせてね！");
+    }
+
+    // ドリルモードからテスト待機状態へ安全に復帰
+    function exitDrillMode() {
+      playSound(600, 0.08);
+      clearInterval(drillHoldTimer);
+      drillHoldTimer = null;
+      isHoldingPose = false;
+
+      // ① ドリルUIを撤収
+      drillHud.classList.remove('active');
+      drillHud.classList.remove('matched');
+      screenWrapperEl.classList.remove('drill-active');
+
+      // ② テストUIを再点灯
+      document.getElementById('test-tabs-container').classList.remove('hidden');
+      document.getElementById('test-controls-container').classList.remove('hidden');
+      document.getElementById('test-badge-left').classList.remove('hidden');
+      document.getElementById('test-badge-right').classList.remove('hidden');
+      safeBoundaryEl.classList.remove('hidden');
+
+      // ③ テスト状態を初期化
+      currentAppMode = 'TEST_IDLE';
+      selectTestMode(currentTestMode);
+
+      showToast("🔄 テスト待機画面に戻りました！");
+    }
+
+    // 大画面ドリル専用リアルタイム骨格エンジン
+    function processSkeletonGameInDrill(landmarks, w, h) {
       const SHOULDER = landmarks[11];
       const HIP = landmarks[23];
       const KNEE = landmarks[25];
       const ANKLE = landmarks[27];
 
-      // ① 股関節ヒンジ（肩-股関節-膝）の角度を測定
       const hipAngle = calcAngle(SHOULDER, HIP, KNEE);
       const kneeAngle = calcAngle(HIP, KNEE, ANKLE);
 
-      // 目標判定：股関節が110°〜140°（クッと引き込まれている）かつ膝が曲がりすぎていない
+      // 目標判定：股関節が105°〜145°（クッと引き込まれている）かつ膝が曲がりすぎていない
       const isTargetMatched = (hipAngle >= 105 && hipAngle <= 145 && kneeAngle >= 120 && kneeAngle <= 165);
 
-      // 骨格の色を動的に決定：一致時はエメラルドグリーン！不一致時はパープル/イエロー
+      // 骨格の色：一致時はエメラルドグリーン！不一致時は黄色
       const skeletonColor = isTargetMatched ? "#10b981" : "rgba(250, 204, 21, 0.85)";
 
-      // ドリル用キャンバスに骨格を描画
-      drawSkeletonOnContext(drillCtx, landmarks, dw, dh, skeletonColor);
+      // 大画面キャンバスにフルサイズで描画
+      drawSkeleton(ctx, landmarks, w, h, skeletonColor);
 
-      // UI発光＆キープゲーム処理
+      // UI発光＆キープ処理
       if (isTargetMatched) {
-        drillMatchOverlay.classList.add('pose-match-glow');
+        drillHud.classList.add('matched');
         drillStatusText.innerHTML = `🟢 <b>完璧な角度！</b>（股関節 ${hipAngle}°）`;
         drillStatusText.className = "text-emerald-300 font-black";
 
@@ -1335,7 +1348,6 @@
               drillHoldCounter.textContent = drillHoldSeconds;
               playSound(950, 0.08, 'sine');
             } else {
-              // 3秒キープ成功！
               clearInterval(drillHoldTimer);
               drillHoldTimer = null;
               isHoldingPose = false;
@@ -1348,10 +1360,10 @@
 
               if (drillSuccessCount >= 3) {
                 showToast("🏆 ゲームクリア！骨盤と重心が完全にリセットされたぜ！");
+                speakVoice("ゲームクリア！骨盤リセット完了！もう一度テストしてみよう！");
                 setTimeout(() => {
-                  closeDrillModal();
-                  openModal('result-modal');
-                }, 1000);
+                  exitDrillMode();
+                }, 1200);
               } else {
                 drillStatusText.innerHTML = `🌟 ナイス！あと ${3 - drillSuccessCount} 回！`;
               }
@@ -1359,7 +1371,7 @@
           }, 1000);
         }
       } else {
-        drillMatchOverlay.classList.remove('pose-match-glow');
+        drillHud.classList.remove('matched');
         drillStatusText.innerHTML = `🟡 <b>緑に光る姿勢を探そう！</b>（現在 ${hipAngle}°）`;
         drillStatusText.className = "text-yellow-300 font-black";
 
@@ -1371,46 +1383,6 @@
         }
       }
     }
-
-    function drawSkeletonOnContext(targetCtx, landmarks, w, h, strokeColor) {
-      const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
-      ];
-
-      targetCtx.strokeStyle = strokeColor;
-      targetCtx.lineWidth = 4.5;
-      connections.forEach(([i, j]) => {
-        if (landmarks[i] && landmarks[j]) {
-          targetCtx.beginPath();
-          targetCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
-          targetCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
-          targetCtx.stroke();
-        }
-      });
-
-      [11, 12, 15, 16, 23, 24, 27, 28].forEach(idx => {
-        if (landmarks[idx]) {
-          targetCtx.beginPath();
-          targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, 7, 0, Math.PI * 2);
-          targetCtx.fillStyle = strokeColor;
-          targetCtx.fill();
-          targetCtx.strokeStyle = "#ffffff";
-          targetCtx.lineWidth = 2.5;
-          targetCtx.stroke();
-        }
-      });
-    }
-
-    // MediaPipeコールバックにドリル側フックを追加
-    const originalOnPoseResults = onPoseResults;
-    onPoseResults = function(results) {
-      originalOnPoseResults(results);
-      if (isDrillActive && results.poseLandmarks) {
-        processSkeletonGameInDrill(results.poseLandmarks);
-      }
-    };
 
     // ==========================================
     // 9. モーダル制御
@@ -1434,7 +1406,7 @@
     });
 
     document.getElementById('btn-open-reset-drill').addEventListener('click', () => {
-      startAiSkeletonDrill();
+      enterDrillMode();
     });
 
     document.addEventListener('DOMContentLoaded', () => {
