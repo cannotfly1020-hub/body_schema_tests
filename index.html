@@ -142,7 +142,7 @@
       transform: translateY(-1px);
     }
 
-    /* メイン大画面スクリーンラッパー（本番・ドリル共通で最大サイズを確保） */
+    /* メイン大画面スクリーンラッパー */
     .screen-wrapper {
       position: relative;
       width: 100%;
@@ -261,6 +261,49 @@
       box-shadow: inset 0 0 28px rgba(16, 185, 129, 0.75);
     }
 
+    /* 🎯 リアルタイム曲げ度ゲージ（ヒントメーター） */
+    .drill-gauge-container {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 160px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 2px solid #334155;
+      border-radius: 9999px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 35;
+    }
+
+    .gauge-track {
+      position: relative;
+      width: 10px;
+      height: 100%;
+      border-radius: 9999px;
+      background: linear-gradient(180deg, #38bdf8 0%, #10b981 45%, #10b981 55%, #f43f5e 100%);
+      overflow: hidden;
+    }
+
+    .gauge-indicator {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px;
+      height: 8px;
+      background: #ffffff;
+      border: 2px solid #0f172a;
+      border-radius: 4px;
+      box-shadow: 0 0 8px #ffffff;
+      transition: top 0.08s linear;
+    }
+
     .match-banner {
       animation: matchPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
@@ -370,7 +413,7 @@
 
   <main class="w-full max-w-md flex-1 brawl-panel p-2 flex flex-col gap-1.5 min-h-0 relative z-10 overflow-hidden">
     
-    <!-- ガイダンスバナー（テスト時・ドリル時で切り替え） -->
+    <!-- ガイダンスバナー -->
     <div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2" id="guidance-banner">
       <span class="text-xl flex-shrink-0" id="guide-icon">👣</span>
       <div class="flex flex-col flex-1 min-w-0">
@@ -388,7 +431,7 @@
       </div>
     </div>
 
-    <!-- カメラ＆骨格キャンバス画面（テスト・ドリル共通の最大サイズ大画面） -->
+    <!-- カメラ＆骨格キャンバス画面 -->
     <div class="screen-wrapper" id="camera-screen-wrapper">
       <video id="webcam-video" playsinline muted autoplay></video>
       <canvas id="output-canvas"></canvas>
@@ -428,14 +471,24 @@
 
       <!-- 🎮 【完全大画面】AI骨格誘導ゲーム HUDオーバーレイ -->
       <div class="drill-hud-overlay" id="drill-hud">
-        <!-- 上部：指示＆リアルタイム角度 -->
+        <!-- 上部：指示＆リアルタイムナビゲーション -->
         <div class="flex items-center justify-between w-full">
-          <div class="bg-slate-950/90 px-3 py-1 rounded-full border border-emerald-500 text-[11px] font-black flex items-center gap-1.5 shadow" id="drill-angle-badge">
-            <span id="drill-status-text">スマホの横を向いて立とう！</span>
+          <div class="bg-slate-950/95 px-3 py-1.5 rounded-xl border border-emerald-500 text-xs font-black flex items-center gap-2 shadow-lg" id="drill-angle-badge">
+            <span id="drill-status-icon">🟡</span>
+            <span id="drill-status-text">スマホの真横を向いて立とう！</span>
           </div>
           <button onclick="exitDrillMode()" class="pointer-events-auto btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
             ✕ テストへ戻る
           </button>
+        </div>
+
+        <!-- 🎯 リアルタイム曲げ度ゲージ（右サイドに配置：青=浅い / 緑=ジャスト / 赤=深すぎ） -->
+        <div class="drill-gauge-container" id="drill-gauge">
+          <span class="text-[8px] font-black text-sky-300">浅い</span>
+          <div class="gauge-track">
+            <div class="gauge-indicator" id="gauge-pin" style="top: 10%;"></div>
+          </div>
+          <span class="text-[8px] font-black text-rose-400">深すぎ</span>
         </div>
 
         <!-- 中央：3秒キープのド迫力カウンター -->
@@ -444,12 +497,20 @@
           <span class="text-7xl font-black text-emerald-400 font-mono drop-shadow-[0_0_24px_rgba(16,185,129,0.9)]" id="drill-hold-counter">3</span>
         </div>
 
-        <!-- 下部：クリアカウント -->
-        <div class="flex items-center justify-between w-full bg-slate-950/85 px-3 py-1.5 rounded-xl border border-slate-800">
-          <span class="text-[10px] text-slate-300 font-bold">緑に光らせて3秒キープ！</span>
-          <div class="flex items-center gap-1.5 text-xs font-black">
-            <span class="text-slate-400 text-[11px]">成功:</span>
-            <span class="text-amber-400 font-mono text-sm" id="drill-success-count">0 / 3 回</span>
+        <!-- 下部：クリアカウント ＆ 具体的な動かし方ヒント -->
+        <div class="flex flex-col gap-1 w-full">
+          <!-- アクションヒントバナー -->
+          <div class="w-full bg-slate-950/90 px-3 py-1 rounded-lg border border-slate-800 text-center" id="drill-hint-box">
+            <span class="text-[11px] font-black text-amber-300" id="drill-hint-text">
+              💡 足の付け根（コマネチ）に手刀を挟んで、お辞儀するように腰を引こう！
+            </span>
+          </div>
+          <div class="flex items-center justify-between w-full bg-slate-950/85 px-3 py-1.5 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-300 font-bold">緑に光らせて3秒キープ！</span>
+            <div class="flex items-center gap-1.5 text-xs font-black">
+              <span class="text-slate-400 text-[11px]">成功:</span>
+              <span class="text-amber-400 font-mono text-sm" id="drill-success-count">0 / 3 回</span>
+            </div>
           </div>
         </div>
       </div>
@@ -552,7 +613,6 @@
     // ==========================================
     // 1. システム状態管理（完全排他ロック）
     // ==========================================
-    // モード: 'TEST_IDLE' | 'TEST_RUNNING' | 'DRILL_ACTIVE'
     let currentAppMode = 'TEST_IDLE';
 
     let audioCtx = null;
@@ -637,8 +697,7 @@
         subLabel: "回転ズレ:",
         subUnit: "°",
         sensorReason: "【骨盤・股関節の回旋マップ＆脳内垂直軸】が狂っています。本人はまっすぐ歩いているつもりですが、骨盤の張り（筋緊張）に左右差があるため、体が勝手に旋回してしまいます。",
-        baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。",
-        drillGuide: "スマホの真横を向いて立ち、骨盤を引き込んで【緑色】に光らせよう！"
+        baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。"
       },
       TPOSE: {
         icon: "⚖️",
@@ -650,8 +709,7 @@
         subLabel: "傾斜角:",
         subUnit: "°",
         sensorReason: "【肩甲帯（肩甲骨）の空間位置覚】がズレています。投球側またはバット側の肩甲骨が下に落ちているのに、脳が『水平に上がっている』と錯覚しています。",
-        baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。",
-        drillGuide: "カメラに向き合い、左右の腕を真横に水平に合わせて【緑色】に光らせよう！"
+        baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。"
       },
       BALANCE: {
         icon: "⚓",
@@ -663,8 +721,7 @@
         subLabel: "頭部ブレ幅:",
         subUnit: "cm",
         sensorReason: "【足裏のメカノレセプター（圧力センサー）とお尻（中殿筋）】の通信が遅れています。視覚のカンニングが消えた瞬間、足裏のどこに重心があるか見失っています。",
-        baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。",
-        drillGuide: "片足立ちで骨盤を水平にキープし、骨格を【緑色】に光らせよう！"
+        baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。"
       }
     };
 
@@ -705,7 +762,7 @@
     let metronomeInterval = null;
 
     // ==========================================
-    // 3. 【機能①】ネット送信ゼロ・完全ローカル自動録画（MediaRecorder）
+    // 3. 完全ローカル自動録画（MediaRecorder）
     // ==========================================
     let mediaRecorder = null;
     let recordedChunks = [];
@@ -816,7 +873,7 @@
     });
 
     // ==========================================
-    // 5. リアルタイム骨格解析＆身体図式判定（完全分離）
+    // 5. リアルタイム骨格解析＆身体図式判定
     // ==========================================
     function onPoseResults(results) {
       ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -830,13 +887,13 @@
       const w = canvasEl.width;
       const h = canvasEl.height;
 
-      // ★ ドリルモード中は、テスト側の処理を100%遮断！ドリル専用エンジンのみ動かす！
+      // ★ ドリルモード中は、専用エンジンのみ動かす
       if (currentAppMode === 'DRILL_ACTIVE') {
         processSkeletonGameInDrill(l, w, h);
         return;
       }
 
-      // --- 以下、通常テストモード時のロジック ---
+      // --- 通常テストモード時のロジック ---
       const NOSE = l[0];
       const L_SHOULDER = l[11], R_SHOULDER = l[12];
       const L_WRIST = l[15], R_WRIST = l[16];
@@ -884,7 +941,7 @@
         }
       }
 
-      // ② 測定中：見切れ検知（前方突進の即時判定＆反転バグ完全防止）
+      // ② 測定中：見切れ検知（前方突進の即時判定）
       if (currentAppMode === 'TEST_RUNNING') {
         if (isTouchingEdge || !hasFullBody) {
           handleFrameOutBreakthrough();
@@ -992,15 +1049,18 @@
       }, 700);
     }
 
-    function drawSkeleton(targetCtx, landmarks, w, h, strokeColor) {
+    function drawSkeleton(targetCtx, landmarks, w, h, strokeColor, isDashed = false) {
       const connections = [
         [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
         [11, 23], [12, 24], [23, 24],
         [23, 25], [25, 27], [24, 26], [26, 28]
       ];
 
+      targetCtx.save();
       targetCtx.strokeStyle = strokeColor;
-      targetCtx.lineWidth = 4;
+      targetCtx.lineWidth = isDashed ? 3 : 4;
+      if (isDashed) targetCtx.setLineDash([6, 6]);
+
       connections.forEach(([i, j]) => {
         if (landmarks[i] && landmarks[j]) {
           targetCtx.beginPath();
@@ -1013,14 +1073,15 @@
       [11, 12, 15, 16, 23, 24, 27, 28].forEach(idx => {
         if (landmarks[idx]) {
           targetCtx.beginPath();
-          targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, 6.5, 0, Math.PI * 2);
+          targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, isDashed ? 4.5 : 6.5, 0, Math.PI * 2);
           targetCtx.fillStyle = strokeColor;
           targetCtx.fill();
           targetCtx.strokeStyle = "#ffffff";
-          targetCtx.lineWidth = 2;
+          targetCtx.lineWidth = 1.5;
           targetCtx.stroke();
         }
       });
+      targetCtx.restore();
     }
 
     // ==========================================
@@ -1221,7 +1282,7 @@
     }
 
     // ==========================================
-    // 8. 【機能②】大画面・AI骨格誘導ゲーム（本番画面と100%同一サイズ）
+    // 8. 【機能②】大画面・AI骨格誘導ゲーム（ヒント＆曲げ度ゲージ搭載）
     // ==========================================
     let drillSuccessCount = 0;
     let drillHoldTimer = null;
@@ -1233,6 +1294,9 @@
     const drillHoldCounter = document.getElementById('drill-hold-counter');
     const drillSuccessCountEl = document.getElementById('drill-success-count');
     const drillStatusText = document.getElementById('drill-status-text');
+    const drillStatusIcon = document.getElementById('drill-status-icon');
+    const drillHintText = document.getElementById('drill-hint-text');
+    const gaugePin = document.getElementById('gauge-pin');
 
     // 角度計算
     function calcAngle(p1, p2, p3) {
@@ -1246,12 +1310,11 @@
       return Math.round((Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2)))) * 180) / Math.PI);
     }
 
-    // ドリルモードへ突入（本番大画面をそのままドリル画面に変身させる！）
+    // ドリルモードへ突入
     function enterDrillMode() {
       closeModal('result-modal');
       playSound(660, 0.1);
 
-      // ① テスト側を完全停止＆非表示化
       currentAppMode = 'DRILL_ACTIVE';
       clearInterval(testTimerInterval);
       clearInterval(metronomeInterval);
@@ -1265,7 +1328,6 @@
       document.getElementById('test-badge-right').classList.add('hidden');
       safeBoundaryEl.classList.add('hidden');
 
-      // ② 大画面スクリーンをドリル仕様に装飾
       screenWrapperEl.classList.add('drill-active');
       drillHud.classList.add('active');
 
@@ -1275,65 +1337,97 @@
       isHoldingPose = false;
       drillHoldBox.classList.add('hidden');
 
-      // ガイダンス更新
       document.getElementById('guide-icon').textContent = "🎮";
       document.getElementById('guide-title').textContent = "AI骨格を【緑色】に光らせろ！";
-      document.getElementById('guide-desc').textContent = "言葉はいらない！スマホの横を向いて立ち、骨格が緑になる姿勢を探そう！";
+      document.getElementById('guide-desc').textContent = "右のメーターを見ながら、コマネチラインに手を挟んで腰を引こう！";
       document.getElementById('detect-text').textContent = "ドリル実行中";
 
-      speakVoice("大画面ドリルスタート！スマホの横を向いて立とう！骨格を緑色に光らせてね！");
+      speakVoice("大画面ドリルスタート！スマホの横を向いて立とう！右のメーターが緑になる位置を探してね！");
     }
 
-    // ドリルモードからテスト待機状態へ安全に復帰
+    // ドリルモードから復帰
     function exitDrillMode() {
       playSound(600, 0.08);
       clearInterval(drillHoldTimer);
       drillHoldTimer = null;
       isHoldingPose = false;
 
-      // ① ドリルUIを撤収
       drillHud.classList.remove('active');
       drillHud.classList.remove('matched');
       screenWrapperEl.classList.remove('drill-active');
 
-      // ② テストUIを再点灯
       document.getElementById('test-tabs-container').classList.remove('hidden');
       document.getElementById('test-controls-container').classList.remove('hidden');
       document.getElementById('test-badge-left').classList.remove('hidden');
       document.getElementById('test-badge-right').classList.remove('hidden');
       safeBoundaryEl.classList.remove('hidden');
 
-      // ③ テスト状態を初期化
       currentAppMode = 'TEST_IDLE';
       selectTestMode(currentTestMode);
 
       showToast("🔄 テスト待機画面に戻りました！");
     }
 
-    // 大画面ドリル専用リアルタイム骨格エンジン
+    // 大画面ドリル専用リアルタイム骨格エンジン（ヒント・メーター・ゴースト骨格完全統合）
     function processSkeletonGameInDrill(landmarks, w, h) {
-      const SHOULDER = landmarks[11];
-      const HIP = landmarks[23];
-      const KNEE = landmarks[25];
-      const ANKLE = landmarks[27];
+      // ユーザーが向いている方向（左向きか右向きか）を判定
+      // 鼻(0)と耳/肩の位置関係または左右どちらのランドマークが強く出ているか
+      const L_HIP = landmarks[23], R_HIP = landmarks[24];
+      const L_SHOULDER = landmarks[11], R_SHOULDER = landmarks[12];
+      const L_KNEE = landmarks[25], R_KNEE = landmarks[26];
+      const L_ANKLE = landmarks[27], R_ANKLE = landmarks[28];
+
+      // 前面に出ている側（カメラに近い側）を採用
+      const isFacingRight = (landmarks[0] && L_HIP && landmarks[0].x > L_HIP.x);
+      const SHOULDER = isFacingRight ? (R_SHOULDER || L_SHOULDER) : (L_SHOULDER || R_SHOULDER);
+      const HIP = isFacingRight ? (R_HIP || L_HIP) : (L_HIP || R_HIP);
+      const KNEE = isFacingRight ? (R_KNEE || L_KNEE) : (L_KNEE || R_KNEE);
+      const ANKLE = isFacingRight ? (R_ANKLE || L_ANKLE) : (L_ANKLE || R_ANKLE);
+
+      if (!SHOULDER || !HIP || !KNEE || !ANKLE) return;
 
       const hipAngle = calcAngle(SHOULDER, HIP, KNEE);
       const kneeAngle = calcAngle(HIP, KNEE, ANKLE);
 
-      // 目標判定：股関節が105°〜145°（クッと引き込まれている）かつ膝が曲がりすぎていない
-      const isTargetMatched = (hipAngle >= 105 && hipAngle <= 145 && kneeAngle >= 120 && kneeAngle <= 165);
+      // --- ① 理想ゴースト骨格（お手本の半透明点線）をユーザーの位置に合わせて描画 ---
+      drawGhostSkeleton(ctx, HIP, ANKLE, w, h, isFacingRight);
 
-      // 骨格の色：一致時はエメラルドグリーン！不一致時は黄色
-      const skeletonColor = isTargetMatched ? "#10b981" : "rgba(250, 204, 21, 0.85)";
+      // --- ② 角度の状態判定（3段階） ---
+      // 目標範囲：股関節 110°〜140°（程よいヒンジ）、膝 125°〜165°（曲げすぎない）
+      let statusType = "TOO_SHALLOW"; // 'TOO_SHALLOW' | 'MATCHED' | 'TOO_DEEP'
+      
+      if (hipAngle > 142) {
+        statusType = "TOO_SHALLOW"; // 棒立ち・曲げ足りない
+      } else if (hipAngle < 100 || kneeAngle < 115) {
+        statusType = "TOO_DEEP";    // 曲げすぎ・しゃがみこみすぎ！
+      } else if (hipAngle >= 105 && hipAngle <= 142 && kneeAngle >= 118 && kneeAngle <= 165) {
+        statusType = "MATCHED";     // 黄金の股関節ヒンジ！
+      } else {
+        statusType = "TOO_SHALLOW";
+      }
 
-      // 大画面キャンバスにフルサイズで描画
+      // --- ③ メーターピンの上下移動（180°〜70°を 0%〜100% にマッピング） ---
+      // 180°(棒立ち)=0%, 125°(ジャスト)=50%, 70°(しゃがみすぎ)=100%
+      const clampedAngle = Math.max(70, Math.min(180, hipAngle));
+      const gaugePercent = Math.round(((180 - clampedAngle) / 110) * 100);
+      gaugePin.style.top = `${Math.max(5, Math.min(95, gaugePercent))}%`;
+
+      // --- ④ ユーザーの骨格を描画（状態に応じた色） ---
+      let skeletonColor = "rgba(56, 189, 248, 0.9)"; // 青（浅い）
+      if (statusType === "MATCHED") {
+        skeletonColor = "#10b981"; // 緑（完璧）
+      } else if (statusType === "TOO_DEEP") {
+        skeletonColor = "#f43f5e"; // 赤（曲げすぎ）
+      }
       drawSkeleton(ctx, landmarks, w, h, skeletonColor);
 
-      // UI発光＆キープ処理
-      if (isTargetMatched) {
+      // --- ⑤ 状態に応じたリアルタイム指示テキスト＆ヒント ---
+      if (statusType === "MATCHED") {
         drillHud.classList.add('matched');
-        drillStatusText.innerHTML = `🟢 <b>完璧な角度！</b>（股関節 ${hipAngle}°）`;
+        drillStatusIcon.textContent = "🟢";
+        drillStatusText.innerHTML = `<b>✨ 完璧な角度！</b>（股関節 ${hipAngle}°）そのままキープ！`;
         drillStatusText.className = "text-emerald-300 font-black";
+        drillHintText.innerHTML = `🎯 <b>その姿勢！</b> お尻と太ももで手をしっかり挟めてるぞ！`;
 
         if (!isHoldingPose) {
           isHoldingPose = true;
@@ -1370,10 +1464,25 @@
             }
           }, 1000);
         }
-      } else {
+      } else if (statusType === "TOO_SHALLOW") {
         drillHud.classList.remove('matched');
-        drillStatusText.innerHTML = `🟡 <b>緑に光る姿勢を探そう！</b>（現在 ${hipAngle}°）`;
-        drillStatusText.className = "text-yellow-300 font-black";
+        drillStatusIcon.textContent = "🔵";
+        drillStatusText.innerHTML = `<b>⬇️ もう少し腰を引こう！</b>（現在 ${hipAngle}° / 目標 125°）`;
+        drillStatusText.className = "text-sky-300 font-black";
+        drillHintText.innerHTML = `💡 <b>ヒント：</b>足の付け根（コマネチ）に手刀を挟んで、お辞儀するように腰を引こう！`;
+
+        if (isHoldingPose) {
+          isHoldingPose = false;
+          clearInterval(drillHoldTimer);
+          drillHoldTimer = null;
+          drillHoldBox.classList.add('hidden');
+        }
+      } else if (statusType === "TOO_DEEP") {
+        drillHud.classList.remove('matched');
+        drillStatusIcon.textContent = "🔴";
+        drillStatusText.innerHTML = `<b>⬆️ 曲げすぎ！少し腰を上げて！</b>（しゃがみすぎ ${hipAngle}°）`;
+        drillStatusText.className = "text-rose-400 font-black";
+        drillHintText.innerHTML = `⚠️ <b>注意：</b>しゃがみ込みすぎると膝が前に出ちゃうぞ！少し腰を浮かせよう！`;
 
         if (isHoldingPose) {
           isHoldingPose = false;
@@ -1382,6 +1491,64 @@
           drillHoldBox.classList.add('hidden');
         }
       }
+    }
+
+    // 理想ゴースト骨格（半透明の点線）をユーザーの位置・足元に合わせて自動レンダリング
+    function drawGhostSkeleton(targetCtx, userHip, userAnkle, w, h, isFacingRight) {
+      if (!userHip || !userAnkle) return;
+
+      const hipX = userHip.x * w;
+      const hipY = userHip.y * h;
+      const ankleX = userAnkle.x * w;
+      const ankleY = userAnkle.y * h;
+      const legHeight = Math.abs(ankleY - hipY);
+
+      if (legHeight < 40) return;
+
+      // 理想の骨盤ヒンジ角度（股関節約125度、膝約140度、体幹前傾約30度）のオフセットを計算
+      const dir = isFacingRight ? 1 : -1;
+      const idealKneeX = ankleX - (legHeight * 0.08 * dir);
+      const idealKneeY = ankleY - (legHeight * 0.48);
+      const idealHipX = ankleX - (legHeight * 0.28 * dir); // お尻が後ろに引ける
+      const idealHipY = idealKneeY - (legHeight * 0.45);
+      const idealShoulderX = ankleX + (legHeight * 0.05 * dir); // 上体はお辞儀してやや前
+      const idealShoulderY = idealHipY - (legHeight * 0.65);
+
+      targetCtx.save();
+      targetCtx.strokeStyle = "rgba(16, 185, 129, 0.45)"; // 薄い半透明エメラルド
+      targetCtx.lineWidth = 3;
+      targetCtx.setLineDash([8, 6]);
+
+      // 背中〜腰〜膝〜足首のお手本ライン
+      targetCtx.beginPath();
+      targetCtx.moveTo(idealShoulderX, idealShoulderY);
+      targetCtx.lineTo(idealHipX, idealHipY);
+      targetCtx.lineTo(idealKneeX, idealKneeY);
+      targetCtx.lineTo(ankleX, ankleY);
+      targetCtx.stroke();
+
+      // 目標ジョイントマーカー
+      [
+        { x: idealShoulderX, y: idealShoulderY },
+        { x: idealHipX, y: idealHipY },
+        { x: idealKneeX, y: idealKneeY }
+      ].forEach(pt => {
+        targetCtx.beginPath();
+        targetCtx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+        targetCtx.fillStyle = "rgba(16, 185, 129, 0.5)";
+        targetCtx.fill();
+        targetCtx.strokeStyle = "#ffffff";
+        targetCtx.lineWidth = 1;
+        targetCtx.stroke();
+      });
+
+      // 「理想のお手本」文字タグ
+      targetCtx.fillStyle = "rgba(52, 211, 153, 0.75)";
+      targetCtx.font = "bold 9px sans-serif";
+      targetCtx.textAlign = isFacingRight ? "right" : "left";
+      targetCtx.fillText("✨ 理想の型（ここを目指そう！）", idealHipX - (10 * dir), idealHipY);
+
+      targetCtx.restore();
     }
 
     // ==========================================
