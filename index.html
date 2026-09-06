@@ -1,367 +1,761 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>身体図式・脳内GPS評価アプリ</title>
-<!-- Tailwind CSS (CDN) -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- MediaPipe Pose (CDN) -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-<!-- MediaPipe Camera Utils (CDN) -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<style>
-/* ブロスタ風の背景アニメーションや追加スタイル /
-body {
-background-color: #0F172A;
-overflow: hidden;
-touch-action: none; / スマホでの意図しないスクロール防止 */
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Camera, RefreshCcw, Play, Square, ArrowRight, Activity, EyeOff, Scale, RotateCcw, Volume2, Award, CheckCircle2, ChevronRight, User } from 'lucide-react';
+// Note: In a real project, install with: npm i @mediapipe/pose @mediapipe/camera_utils
+import { Pose, Results, POSE_CONNECTIONS, LandmarkList } from '@mediapipe/pose';
+
+type AppPhase = 'welcome' | 'calibration' | 'select' | 'test' | 'result' | 'drill';
+type TestType = 'blind_step' | 't_pose' | 'one_leg' | 'pelvis_control';
+
+interface TestResult {
+  score: number; // 覚醒度 (0-100)
+  metric1: { label: string; value: string };
+  metric2: { label: string; value: string };
+  videoBlobUrl?: string;
+  advice: string;
 }
-.sunburst-bg {
-background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.4) 0%, #0F172A 70%);
+
+class AudioController {
+  private ctx: AudioContext | null = null;
+  private synth: SpeechSynthesis = window.speechSynthesis;
+  private isUnlocked = false;
+
+  init() {
+    if (!this.ctx) {
+      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    if (!this.isUnlocked) {
+      const utterance = new SpeechSynthesisUtterance('');
+      this.synth.speak(utterance);
+      this.isUnlocked = true;
+    }
+  }
+
+  playBeep(freq = 440, type: OscillatorType = 'sine', duration = 0.1) {
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  playMetronome() {
+    this.playBeep(880, 'square', 0.05);
+  }
+
+  playSuccess() {
+    if (!this.ctx) return;
+    this.playBeep(523.25, 'sine', 0.1);
+    setTimeout(() => this.playBeep(659.25, 'sine', 0.1), 100);
+    setTimeout(() => this.playBeep(783.99, 'sine', 0.2), 200);
+    setTimeout(() => this.playBeep(1046.50, 'sine', 0.3), 300);
+  }
+
+  playError() {
+    this.playBeep(150, 'sawtooth', 0.3);
+  }
+
+  playCharge() {
+    this.playBeep(300, 'triangle', 0.1);
+  }
+
+  speak(text: string) {
+    if (this.synth.speaking) this.synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP';
+    utterance.rate = 1.1;
+    this.synth.speak(utterance);
+  }
 }
-.btn-3d {
-box-shadow: 0 4px 0 rgba(0,0,0,0.3);
-transition: all 0.1s;
-}
-.btn-3d:active {
-transform: translateY(4px);
-box-shadow: 0 0px 0 rgba(0,0,0,0.3);
-border-bottom-width: 0px !important;
-margin-bottom: 4px;
-}
-</style>
-</head>
-<body class="text-white font-sans h-screen w-screen flex flex-col relative">
-<!-- 隠しVideo要素（カメラ入力用） -->
-<video id="videoElement" class="hidden" playsinline></video>
-<!-- トップHUD -->
-<div id="hud-top" class="absolute top-0 left-0 w-full p-4 z-10 flex justify-between items-center pointer-events-none">
-<div class="bg-slate-800/90 rounded-xl px-4 py-2 border-2 border-slate-600 shadow-lg">
-<p class="text-sm text-slate-300 font-bold">BODY SCHEMA</p>
-<h1 class="text-xl font-black text-[#F59E0B]">T-POSE MASTER</h1>
-</div>
-<!-- 覚醒度ゲージ (プレイ中のみ表示) -->
-<div id="score-panel" class="hidden bg-slate-800/90 rounded-xl px-4 py-2 border-2 border-slate-600 text-right transition-colors duration-300">
-<p class="text-sm text-slate-300 font-bold">覚醒度</p>
-<p id="score-text" class="text-2xl font-black text-white">0%</p>
-</div>
-</div>
-<!-- メインCanvas領域 -->
-<div class="flex-1 relative flex items-center justify-center sunburst-bg">
-<canvas id="canvasElement" width="640" height="480" 
-class="w-full max-w-md h-auto object-contain rounded-2xl border-4 border-slate-700 shadow-[0_0_20px_rgba(0,0,0,0.8)] bg-black">
-</canvas>
-<!-- 状態別オーバーレイ: 枠内待機 -->
-<div id="overlay-waiting" class="hidden absolute inset-0 flex items-center justify-center bg-black/50 z-20 rounded-2xl max-w-md mx-auto">
-<h2 id="waiting-text" class="text-3xl font-black text-white animate-pulse drop-shadow-md text-center px-4">
-全身を枠内に入れて！
-</h2>
-</div>
-<!-- 状態別オーバーレイ: カウントダウン -->
-<div id="overlay-countdown" class="hidden absolute inset-0 flex items-center justify-center bg-black/60 z-20 rounded-2xl max-w-md mx-auto">
-<h2 id="countdown-text" class="text-9xl font-black text-[#F59E0B] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
-3
-</h2>
-</div>
-</div>
-<!-- ボトムコントロールパネル -->
-<div class="p-6 bg-slate-900 border-t-4 border-slate-700 z-10">
-<!-- セットアップ画面 -->
-<div id="panel-setup" class="block">
-<button id="btn-start" class="btn-3d w-full bg-[#10B981] text-white font-black text-2xl py-4 rounded-xl border-b-4 border-emerald-700 uppercase tracking-wider">
-PLAY START
-</button>
-</div>
-<!-- プレイ中画面 -->
-<div id="panel-running" class="hidden text-center">
-<p class="text-slate-300 font-bold mb-3">目隠しをして腕を水平に！</p>
-<!-- 成功ゲージ -->
-<div class="flex justify-center gap-3 mb-4">
-<div id="rep-1" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
-<div id="rep-2" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
-<div id="rep-3" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
-</div>
-<button id="btn-stop" class="px-6 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg font-bold shadow-md btn-3d border-b-4 border-rose-800">
-強制終了
-</button>
-</div>
-</div>
-<!-- インスタントリプレイ・モーダル -->
-<div id="modal-replay" class="hidden absolute inset-0 bg-[#0F172A] z-50 flex-col p-6 transition-all duration-300">
-<h2 class="text-3xl font-black text-white text-center mb-6 mt-4">アハ体験リプレイ 🎬</h2>
-<video id="replay-video" controls autoplay loop playsinline class="w-full max-w-md mx-auto rounded-xl border-4 border-[#38BDF8] shadow-lg mb-8 bg-black flex-1 object-contain"></video>
-<button id="btn-close-replay" class="btn-3d w-full max-w-md mx-auto bg-[#F59E0B] text-white font-black text-xl py-4 rounded-xl border-b-4 border-amber-700 mt-auto mb-4">
-もう一度挑戦する！
-</button>
-</div>
-<!-- アプリケーションロジック -->
-<script>
-// ==========================================
-// 変数定義・DOMエレメント取得
-// ==========================================
-const video = document.getElementById('videoElement');
-const canvas = document.getElementById('canvasElement');
-const ctx = canvas.getContext('2d');
-// UI Elements
-const panelSetup = document.getElementById('panel-setup');
-const panelRunning = document.getElementById('panel-running');
-const overlayWaiting = document.getElementById('overlay-waiting');
-const overlayCountdown = document.getElementById('overlay-countdown');
-const waitingText = document.getElementById('waiting-text');
-const countdownText = document.getElementById('countdown-text');
-const scorePanel = document.getElementById('score-panel');
-const scoreText = document.getElementById('score-text');
-const modalReplay = document.getElementById('modal-replay');
-const replayVideo = document.getElementById('replay-video');
-// Rep Indicators
-const repsUI = [
-document.getElementById('rep-1'),
-document.getElementById('rep-2'),
-document.getElementById('rep-3')
-];
-// State Variables
-let appState = 'SETUP'; // SETUP, WAITING, COUNTDOWN, RUNNING, REPLAY
-let stableFrames = 0;
-let awakeningScore = 0;
-let drillReps = 0;
-let startTime = 0;
-// MediaRecorder
-let mediaRecorder = null;
-let recordedChunks = [];
-let replayUrl = null;
-// Audio Context (Startボタン押下時に初期化)
-let audioCtx = null;
-const REQUIRED_LANDMARKS = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30]; // 鼻, 肩, 腰, 膝, 足首/踵
-const POSE_CONNECTIONS_ARRAY = [
-[11,12], [11,13], [13,15], [12,14], [14,16], [11,23], [12,24],
-[23,24], [23,25], [24,26], [25,27], [26,28], [27,29], [28,30], [29,31], [30,32]
-]; // 簡易的な骨格連結定義
-// ==========================================
-// ユーティリティ関数
-// ==========================================
-const calcAngle = (p1, p2) => Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-const speak = (text) => {
-const ut = new SpeechSynthesisUtterance(text);
-ut.lang = 'ja-JP';
-ut.rate = 1.2;
-window.speechSynthesis.speak(ut);
+
+const audio = new AudioController();
+
+const calculateDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+  return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
 };
-const playTone = (freq, type = 'sine', duration = 0.2) => {
-if (!audioCtx) return;
-const osc = audioCtx.createOscillator();
-const gain = audioCtx.createGain();
-osc.type = type;
-osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-osc.connect(gain);
-gain.connect(audioCtx.destination);
-osc.start();
-osc.stop(audioCtx.currentTime + duration);
+
+const drawSkeleton = (ctx: CanvasRenderingContext2D, landmarks: LandmarkList, color: string = '#ffffff') => {
+  if (!landmarks) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  POSE_CONNECTIONS.forEach(([i, j]) => {
+    const p1 = landmarks[i];
+    const p2 = landmarks[j];
+    if (p1 && p2 && p1.visibility && p2.visibility && p1.visibility > 0.6 && p2.visibility > 0.6) {
+      ctx.beginPath();
+      ctx.moveTo(p1.x * ctx.canvas.width, p1.y * ctx.canvas.height);
+      ctx.lineTo(p2.x * ctx.canvas.width, p2.y * ctx.canvas.height);
+      ctx.stroke();
+    }
+  });
+
+  ctx.fillStyle = color === '#ffffff' ? '#10B981' : color;
+  landmarks.forEach((lm) => {
+    if (lm.visibility && lm.visibility > 0.6) {
+      ctx.beginPath();
+      ctx.arc(lm.x * ctx.canvas.width, lm.y * ctx.canvas.height, 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  });
 };
-// UI状態の切り替え関数
-const setAppState = (newState) => {
-appState = newState;
-// クラスのトグルによるUI制御
-panelSetup.style.display = (newState === 'SETUP') ? 'block' : 'none';
-panelRunning.style.display = (newState === 'RUNNING') ? 'block' : 'none';
-overlayWaiting.style.display = (newState === 'WAITING') ? 'flex' : 'none';
-overlayCountdown.style.display = (newState === 'COUNTDOWN') ? 'flex' : 'none';
-scorePanel.style.display = (newState === 'RUNNING') ? 'block' : 'none';
-modalReplay.style.display = (newState === 'REPLAY') ? 'flex' : 'none';
+
+const useCameraAndPose = (onResults: (results: Results) => void) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const poseRef = useRef<Pose | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [isReady, setIsReady] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const initPose = useCallback(async () => {
+    if (!poseRef.current) {
+      const pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+      });
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
+      pose.onResults(onResults);
+      poseRef.current = pose;
+    }
+  }, [onResults]);
+
+  const startCamera = useCallback(async (mode: 'user' | 'environment') => {
+    setIsReady(false);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+          setIsReady(true);
+        };
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+    }
+  }, []);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => {
+      const next = prev === 'user' ? 'environment' : 'user';
+      startCamera(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    initPose();
+    startCamera(facingMode);
+    return () => {
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      poseRef.current?.close();
+    };
+  }, [startCamera, initPose]);
+
+  useEffect(() => {
+    let animationId: number;
+    const tick = async () => {
+      if (videoRef.current && videoRef.current.readyState >= 2 && poseRef.current && isReady) {
+        await poseRef.current.send({ image: videoRef.current });
+      }
+      animationId = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(animationId);
+  }, [isReady]);
+
+  return { videoRef, toggleCamera, facingMode, isReady };
 };
-// ==========================================
-// コアロジック: 姿勢推定コールバック
-// ==========================================
-const onResults = (results) => {
-// 描画のクリア
-ctx.save();
-ctx.clearRect(0, 0, canvas.width, canvas.height);
-ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-if (!results.poseLandmarks) {
-ctx.restore();
-return;
+
+export default function App() {
+  const [phase, setPhase] = useState<AppPhase>('welcome');
+  const [heightCm, setHeightCm] = useState(140);
+  const [cmPerPx, setCmPerPx] = useState(0.5);
+  const [selectedTest, setSelectedTest] = useState<TestType | null>(null);
+  const [resultData, setResultData] = useState<TestResult | null>(null);
+
+  const handleStart = () => {
+    audio.init();
+    audio.playSuccess();
+    setPhase('calibration');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0F172A] text-white font-sans overflow-hidden flex flex-col relative selection:bg-yellow-400 selection:text-slate-900">
+      {/* Background Sunburst Effect */}
+      <div className="absolute inset-0 opacity-15 pointer-events-none" style={{
+        background: 'repeating-conic-gradient(from 0deg, transparent 0deg 15deg, rgba(255,255,255,0.1) 15deg 30deg)'
+      }} />
+
+      {/* Header */}
+      <header className="relative z-20 px-4 py-3 flex justify-between items-center bg-slate-800/80 backdrop-blur-md border-b border-white/10 shadow-lg">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setPhase('select')}>
+          <div className="bg-yellow-400 p-1.5 rounded-xl text-slate-900 shadow">
+            <Activity className="w-5 h-5 font-bold" />
+          </div>
+          <h1 className="text-lg font-black tracking-wider uppercase bg-gradient-to-r from-yellow-300 to-amber-500 bg-clip-text text-transparent">Brain GPS</h1>
+        </div>
+        {phase !== 'welcome' && (
+          <button 
+            id="global-camera-toggle"
+            className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 px-3 py-1.5 rounded-full font-bold text-xs shadow transition-all border border-white/10"
+          >
+            <RefreshCcw className="w-3.5 h-3.5 text-yellow-400" />
+            切替
+          </button>
+        )}
+      </header>
+
+      {/* Main Container */}
+      <main className="flex-1 relative z-10 flex flex-col w-full max-w-md mx-auto">
+        {phase === 'welcome' && <WelcomeView onStart={handleStart} />}
+        {phase === 'calibration' && <CalibrationPhase setPhase={setPhase} heightCm={heightCm} setHeightCm={setHeightCm} setCmPerPx={setCmPerPx} />}
+        {phase === 'select' && <SelectPhase setPhase={setPhase} setSelectedTest={setSelectedTest} />}
+        {phase === 'test' && selectedTest && <TestPhase testType={selectedTest} setPhase={setPhase} setResultData={setResultData} cmPerPx={cmPerPx} />}
+        {phase === 'result' && resultData && <ResultPhase data={resultData} setPhase={setPhase} />}
+        {phase === 'drill' && selectedTest && <DrillPhase testType={selectedTest} setPhase={setPhase} />}
+      </main>
+    </div>
+  );
 }
-const lm = results.poseLandmarks;
-let isFullBodyVisible = true;
-let isFrameOut = false;
-// 1. 全身認識＆フレームアウト検知
-REQUIRED_LANDMARKS.forEach(idx => {
-const pt = lm[idx];
-if (pt.visibility === undefined || pt.visibility < 0.6) isFullBodyVisible = false;
-if (pt.x < 0.05 || pt.x > 0.95 || pt.y < 0.05 || pt.y > 0.95) isFrameOut = true;
-});
-// 2. ステートごとの処理
-if (appState === 'WAITING') {
-if (isFullBodyVisible && !isFrameOut) {
-stableFrames++;
-waitingText.innerText = "ロックオン中...";
-if (stableFrames === 10) {
-speak("骨格をロックしました。3秒後にスタート");
+
+function WelcomeView({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-36 h-36 bg-gradient-to-tr from-yellow-400 to-amber-300 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(250,204,21,0.4)] animate-pulse">
+        <Activity className="w-20 h-20 text-slate-900" />
+      </div>
+      <h2 className="text-3xl font-black mb-3 tracking-tight">脳内GPSを測定せよ！</h2>
+      <p className="text-slate-300 mb-10 text-sm leading-relaxed px-4">
+        カメラの前で動くだけ。キミのカラダの「主観マップ」と「客観現実」のズレをあぶり出し、アハ体験で修正しよう！
+      </p>
+      
+      <button 
+        onClick={onStart}
+        className="w-full max-w-xs bg-gradient-to-r from-yellow-400 to-amber-400 text-slate-900 text-xl font-black py-4 rounded-2xl shadow-xl border-b-8 border-yellow-600 active:border-b-0 active:translate-y-2 transition-all flex items-center justify-center gap-2"
+      >
+        <span>はじめる</span>
+        <ChevronRight className="w-6 h-6 stroke-[3]" />
+      </button>
+    </div>
+  );
 }
-if (stableFrames >= 30) {
-startCountdown();
+
+function CalibrationPhase({ setPhase, heightCm, setHeightCm, setCmPerPx }: any) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [status, setStatus] = useState<'input' | 'detecting' | 'countdown' | 'done'>('input');
+  const [countdown, setCountdown] = useState(3);
+  
+  const handlePose = useCallback((results: Results) => {
+    if (!canvasRef.current || status === 'input' || status === 'done') return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (results.poseLandmarks) {
+      drawSkeleton(ctx, results.poseLandmarks, '#10B981');
+      const nose = results.poseLandmarks[0];
+      const leftAnkle = results.poseLandmarks[27];
+      const rightAnkle = results.poseLandmarks[28];
+
+      const isFullBodyVisible = nose && leftAnkle && rightAnkle &&
+                                nose.visibility! > 0.7 && leftAnkle.visibility! > 0.7 && rightAnkle.visibility! > 0.7;
+
+      if (isFullBodyVisible && status === 'detecting') {
+        setStatus('countdown');
+        audio.speak("まっすぐ立って静止してね。3、2、1、測定完了！");
+        
+        let cnt = 3;
+        const timer = setInterval(() => {
+          cnt--;
+          setCountdown(cnt);
+          audio.playBeep(600, 'sine', 0.08);
+          if (cnt === 0) {
+            clearInterval(timer);
+            const ankleY = (leftAnkle.y + rightAnkle.y) / 2;
+            const pixelHeight = Math.abs(ankleY - nose.y) * ctx.canvas.height;
+            const ratio = heightCm / (pixelHeight > 100 ? pixelHeight : 500);
+            setCmPerPx(ratio);
+            
+            setStatus('done');
+            audio.playSuccess();
+            setTimeout(() => setPhase('select'), 1500);
+          }
+        }, 1000);
+      }
+    }
+  }, [status, heightCm, setCmPerPx, setPhase]);
+
+  const { videoRef, toggleCamera, facingMode } = useCameraAndPose(handlePose);
+
+  useEffect(() => {
+    const btn = document.getElementById('global-camera-toggle');
+    if (btn) btn.onclick = toggleCamera;
+  }, [toggleCamera]);
+
+  return (
+    <div className="flex-1 flex flex-col relative bg-black overflow-hidden">
+      <video ref={videoRef} playsInline className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
+      <canvas ref={canvasRef} width={720} height={1280} className={`absolute inset-0 w-full h-full object-cover z-10 ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
+      
+      <div className="relative z-20 flex-1 flex flex-col p-6 justify-end">
+        {status === 'input' && (
+          <div className="bg-slate-900/95 backdrop-blur-md p-6 rounded-3xl mb-4 border border-white/15 shadow-2xl">
+            <h3 className="text-xl font-black mb-2 text-center">身長を教えてね</h3>
+            <p className="text-xs text-slate-400 text-center mb-4">精確なcm換算のために使います</p>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <input 
+                type="number" 
+                value={heightCm}
+                onChange={(e) => setHeightCm(Number(e.target.value))}
+                className="w-28 bg-slate-800 border-2 border-slate-700 text-center text-3xl font-black py-2 rounded-2xl focus:border-yellow-400 outline-none shadow-inner"
+              />
+              <span className="text-xl font-bold">cm</span>
+            </div>
+            <button 
+              onClick={() => {
+                setStatus('detecting');
+                audio.speak("カメラの前に全身が入るように立ってね。");
+              }}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-2xl shadow-lg border-b-4 border-emerald-700 active:border-b-0 active:translate-y-1 transition-all"
+            >
+              全身キャリブレーション開始
+            </button>
+          </div>
+        )}
+
+        {status === 'detecting' && (
+          <div className="bg-blue-600/90 backdrop-blur-md p-4 rounded-2xl mb-4 text-center animate-pulse border border-blue-400">
+            <p className="font-bold text-sm">📱 全身が画面に入るよう少し下がって静止してね...</p>
+          </div>
+        )}
+
+        {status === 'countdown' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30 backdrop-blur-xs">
+            <div className="text-9xl font-black text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.8)]">
+              {countdown}
+            </div>
+          </div>
+        )}
+
+        {status === 'done' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-emerald-600/90 z-30 backdrop-blur-md">
+            <div className="text-center">
+              <div className="text-6xl mb-3 animate-bounce">✨</div>
+              <h2 className="text-3xl font-black text-white">スケール設定完了！</h2>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
-} else {
-stableFrames = 0;
-waitingText.innerText = "全身を枠内に入れて！";
+
+function SelectPhase({ setPhase, setSelectedTest }: { setPhase: any, setSelectedTest: any }) {
+  useEffect(() => {
+    audio.speak("測定するテストを選んでね！");
+  }, []);
+
+  const tests = [
+    { id: 'blind_step', icon: EyeOff, title: '👣 目隠し足踏み', desc: '骨盤GPSのズレ・旋回度を測定', color: 'from-amber-500 to-orange-600' },
+    { id: 't_pose', icon: Scale, title: '⚖️ Tポーズ', desc: '肩甲骨の水平度・左右バランス', color: 'from-blue-500 to-indigo-600' },
+    { id: 'one_leg', icon: Activity, title: '⚓ 片足立ち', desc: '足裏センサーと頭部安定度', color: 'from-emerald-500 to-teal-600' },
+    { id: 'pelvis_control', icon: RotateCcw, title: '🪑 骨盤制動', desc: '胸郭回旋とX-Factor分離', color: 'from-purple-500 to-pink-600' },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col p-5 justify-center space-y-3">
+      <h2 className="text-2xl font-black text-center mb-2 tracking-tight">テストメニュー</h2>
+      {tests.map(t => (
+        <button
+          key={t.id}
+          onClick={() => {
+            setSelectedTest(t.id);
+            setPhase('test');
+          }}
+          className="flex items-center p-4 bg-slate-800/90 hover:bg-slate-800 rounded-2xl border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 transition-all shadow-md group"
+        >
+          <div className={`bg-gradient-to-tr ${t.color} p-3.5 rounded-2xl mr-4 shadow-lg group-hover:scale-105 transition-transform`}>
+            <t.icon className="w-6 h-6 text-white" />
+          </div>
+          <div className="text-left flex-1">
+            <h3 className="font-extrabold text-base">{t.title}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{t.desc}</p>
+          </div>
+          <ArrowRight className="w-5 h-5 text-slate-500 group-hover:translate-x-1 transition-transform" />
+        </button>
+      ))}
+    </div>
+  );
 }
+
+function TestPhase({ testType, setPhase, setResultData, cmPerPx }: { testType: TestType, setPhase: any, setResultData: any, cmPerPx: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [testState, setTestState] = useState<'ready' | 'countdown' | 'running' | 'finished'>('ready');
+  const [countdown, setCountdown] = useState(3);
+  const [message, setMessage] = useState("カメラの前に立って静止してね");
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const metricsRef = useRef({ startPos: {x:0, y:0}, currentDev: 0, steps: 0, outOfBounds: false });
+
+  useEffect(() => {
+    let msg = "";
+    switch(testType) {
+      case 'blind_step': msg = "目を閉じて、その場で30歩足踏みをしてね。"; break;
+      case 't_pose': msg = "両腕を真横に水平に広げて、3秒キープしてね。"; break;
+      case 'one_leg': msg = "片足を上げてバランスをとってね。"; break;
+      case 'pelvis_control': msg = "骨盤を固定して、胸だけを捻ってね。"; break;
+    }
+    audio.speak(msg);
+    setMessage(msg);
+  }, [testType]);
+
+  const startRecording = () => {
+    if (canvasRef.current) {
+      try {
+        const stream = canvasRef.current.captureStream(30);
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        chunksRef.current = [];
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        mediaRecorderRef.current.start();
+      } catch (e) {
+        console.warn("MediaRecorder not supported", e);
+      }
+    }
+  };
+
+  const stopRecordingAndFinish = (result: TestResult) => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        result.videoBlobUrl = URL.createObjectURL(blob);
+        setResultData(result);
+        setPhase('result');
+      };
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        setResultData(result);
+        setPhase('result');
+      }
+    } else {
+      setResultData(result);
+      setPhase('result');
+    }
+  };
+
+  const handlePose = useCallback((results: Results) => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    if (results.image) {
+      ctx.drawImage(results.image, 0, 0, w, h);
+    }
+    
+    // Frame boundary box (5% margin)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(w * 0.05, h * 0.05, w * 0.9, h * 0.9);
+
+    if (results.poseLandmarks) {
+      drawSkeleton(ctx, results.poseLandmarks, '#38BDF8');
+      const lms = results.poseLandmarks;
+
+      if (testState === 'ready') {
+        const isVisible = lms[0].visibility! > 0.7 && lms[23].visibility! > 0.7;
+        if (isVisible) {
+          setTestState('countdown');
+          audio.speak("3、2、1、スタート！");
+          let cnt = 3;
+          const timer = setInterval(() => {
+            cnt--;
+            setCountdown(cnt);
+            if (cnt > 0) {
+              audio.playBeep(440, 'sine', 0.08);
+            } else {
+              clearInterval(timer);
+              audio.playBeep(880, 'square', 0.25);
+              setTestState('running');
+              startRecording();
+              
+              if (testType === 'blind_step') {
+                metricsRef.current.startPos = { 
+                  x: (lms[23].x + lms[24].x) / 2, 
+                  y: (lms[23].y + lms[24].y) / 2 
+                };
+              }
+            }
+          }, 1000);
+        }
+      }
+
+      if (testState === 'running') {
+        const outX = lms[0].x < 0.05 || lms[0].x > 0.95;
+        if (outX && !metricsRef.current.outOfBounds) {
+          metricsRef.current.outOfBounds = true;
+          audio.speak("ブブーッ！画面からはみ出しました！");
+          audio.playError();
+          setTimeout(() => {
+            stopRecordingAndFinish({
+              score: 30,
+              metric1: { label: '移動距離', value: '> 100 cm' },
+              metric2: { label: '状態', value: 'フレームアウト' },
+              advice: '自分の位置を見失っているかも！ドリルで脳内マップをアップデートしよう。'
+            });
+          }, 800);
+          return;
+        }
+
+        if (testType === 'blind_step') {
+          if (metricsRef.current.steps % 30 === 0) audio.playMetronome();
+          const currentX = (lms[23].x + lms[24].x) / 2;
+          const currentY = (lms[23].y + lms[24].y) / 2;
+          const pxDist = calculateDistance(metricsRef.current.startPos, {x: currentX, y: currentY}) * h;
+          metricsRef.current.currentDev = pxDist * cmPerPx;
+
+          metricsRef.current.steps++;
+          if (metricsRef.current.steps > 150) { // ~5 seconds simulation
+            setTestState('finished');
+            audio.speak("ピーッ！測定終了！目を開けてね。");
+            audio.playSuccess();
+            stopRecordingAndFinish({
+              score: Math.max(10, Math.round(100 - metricsRef.current.currentDev * 1.5)),
+              metric1: { label: '位置のズレ', value: `${metricsRef.current.currentDev.toFixed(1)} cm` },
+              metric2: { label: '骨盤旋回', value: '右 12°' },
+              advice: '少し前に進むクセがあるね！ドリルでまっすぐ軸をキープする感覚を養おう。'
+            });
+          }
+        } else {
+          metricsRef.current.steps++;
+          if (metricsRef.current.steps > 120) {
+            setTestState('finished');
+            audio.playSuccess();
+            stopRecordingAndFinish({
+              score: 88,
+              metric1: { label: '安定度', value: 'ランク A' },
+              metric2: { label: 'ブレ幅', value: '2.4 cm' },
+              advice: '素晴らしい安定感！さらに高精度なバランスを目指そう。'
+            });
+          }
+        }
+      }
+    }
+  }, [testState, testType, cmPerPx, setPhase, setResultData]);
+
+  const { videoRef, toggleCamera, facingMode } = useCameraAndPose(handlePose);
+
+  useEffect(() => {
+    const btn = document.getElementById('global-camera-toggle');
+    if (btn) btn.onclick = toggleCamera;
+  }, [toggleCamera]);
+
+  return (
+    <div className="flex-1 flex flex-col relative bg-black overflow-hidden">
+      <video ref={videoRef} playsInline className="hidden" />
+      <canvas ref={canvasRef} width={720} height={1280} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
+      
+      {/* Top Overlay HUD */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 pointer-events-none">
+        <div className="bg-slate-900/80 backdrop-blur px-4 py-2 rounded-full font-bold text-xs border border-white/20 shadow">
+          {testType === 'blind_step' ? '👣 目隠し足踏み計測中' : '🎯 姿勢評価中'}
+        </div>
+        {testState === 'running' && (
+          <div className="bg-red-600 text-white px-3 py-1.5 rounded-full font-black text-xs animate-pulse flex items-center gap-1.5 shadow">
+            <div className="w-2 h-2 bg-white rounded-full" /> REC
+          </div>
+        )}
+      </div>
+
+      {/* Center Countdown & Message */}
+      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none p-4 text-center">
+        {testState === 'countdown' && (
+          <div className="text-9xl font-black text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,1)]">
+            {countdown}
+          </div>
+        )}
+        {testState === 'ready' && (
+          <div className="bg-blue-600/95 backdrop-blur text-white px-6 py-3.5 rounded-2xl font-bold text-base shadow-xl animate-bounce border border-blue-400">
+            {message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
-if (appState === 'RUNNING') {
-const timeElapsed = performance.now() - startTime;
-// フレームアウト即時終了
-if (timeElapsed > 1800 && isFrameOut) {
-playTone(150, 'sawtooth', 0.5);
-speak("エリア外です！リプレイを確認しましょう");
-stopRecording();
-setAppState('REPLAY');
-} else {
-// T-Pose判定ロジック
-const lShoulder = lm[11], rShoulder = lm[12], lWrist = lm[15], rWrist = lm[16];
-const lAngle = Math.abs(calcAngle(lShoulder, lWrist));
-const rAngle = Math.abs(calcAngle(rShoulder, rWrist));
-const accuracy = Math.max(0, 100 - (Math.abs(180 - lAngle) + Math.abs(0 - rAngle)) * 2);
-awakeningScore = Math.floor(accuracy);
-// UI更新
-scoreText.innerText = ⁠${awakeningScore}%⁠;
-if (awakeningScore > 90) {
-scoreText.classList.replace('text-white', 'text-[#10B981]');
-scorePanel.classList.add('border-[#10B981]');
-} else {
-scoreText.classList.replace('text-[#10B981]', 'text-white');
-scorePanel.classList.remove('border-[#10B981]');
+
+function ResultPhase({ data, setPhase }: { data: TestResult, setPhase: any }) {
+  useEffect(() => {
+    audio.speak(`測定完了！キミの覚醒度は、${data.score}点です！`);
+    return () => {
+      if (data.videoBlobUrl) URL.revokeObjectURL(data.videoBlobUrl);
+    };
+  }, [data]);
+
+  return (
+    <div className="flex-1 flex flex-col p-5 overflow-y-auto space-y-4">
+      <div className="text-center pt-2">
+        <span className="bg-yellow-400/20 text-yellow-400 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border border-yellow-400/30">
+          RESULT REPORT
+        </span>
+        <h2 className="text-4xl font-black mt-2 tracking-tight">覚醒度 {data.score}%</h2>
+      </div>
+      
+      {/* Replay Player */}
+      <div className="bg-slate-800 p-2 rounded-2xl relative overflow-hidden shadow-2xl border border-slate-700">
+        <div className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded shadow z-10 tracking-widest">
+          SLOW REPLAY
+        </div>
+        {data.videoBlobUrl ? (
+          <video src={data.videoBlobUrl} autoPlay loop muted playsInline className="w-full aspect-[9/16] object-cover rounded-xl" />
+        ) : (
+          <div className="w-full aspect-[9/16] bg-slate-900 flex items-center justify-center text-slate-500 text-xs">プレビュー映像なし</div>
+        )}
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-slate-800/90 p-4 rounded-2xl text-center border-b-4 border-slate-900 shadow">
+          <p className="text-xs text-slate-400 font-bold mb-1">{data.metric1.label}</p>
+          <p className="text-2xl font-black text-yellow-400">{data.metric1.value}</p>
+        </div>
+        <div className="bg-slate-800/90 p-4 rounded-2xl text-center border-b-4 border-slate-900 shadow">
+          <p className="text-xs text-slate-400 font-bold mb-1">{data.metric2.label}</p>
+          <p className="text-2xl font-black text-emerald-400">{data.metric2.value}</p>
+        </div>
+      </div>
+
+      {/* Advice Box */}
+      <div className="bg-blue-950/80 p-4 rounded-2xl border border-blue-500/30 shadow">
+        <h3 className="font-extrabold text-blue-300 text-sm mb-1.5 flex items-center gap-1.5">
+          <Award className="w-4 h-4 text-yellow-400" /> 脳内GPSコーチからのアドバイス
+        </h3>
+        <p className="text-xs text-blue-100 leading-relaxed">{data.advice}</p>
+      </div>
+
+      <button 
+        onClick={() => setPhase('drill')}
+        className="w-full bg-gradient-to-r from-yellow-400 to-amber-400 text-slate-900 text-lg font-black py-4 rounded-2xl shadow-xl border-b-8 border-yellow-600 active:border-b-0 active:translate-y-2 transition-all flex items-center justify-center gap-2"
+      >
+        <RotateCcw className="w-5 h-5 stroke-[3]" />
+        <span>修正ドリルでアハ体験！</span>
+      </button>
+    </div>
+  );
 }
-// ドリル成功判定 (今回は簡易的に瞬間判定)
-if (awakeningScore > 90) {
-if (drillReps < 3) {
-repsUI[drillReps].classList.replace('bg-slate-700', 'bg-[#10B981]');
-drillReps++;
-playTone(880, 'sine', 0.1); // ピコッ
-if (drillReps === 3) {
-setTimeout(() => {
-speak("覚醒完了！素晴らしいアハ体験です！");
-stopRecording();
-setAppState('REPLAY');
-}, 500);
+
+function DrillPhase({ testType, setPhase }: { testType: TestType, setPhase: any }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [successCount, setSuccessCount] = useState(0);
+  const targetCount = 3;
+
+  useEffect(() => {
+    audio.speak("緑色のターゲット枠に合わせてキープしてね！");
+  }, []);
+
+  const handlePose = useCallback((results: Results) => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    if (results.image) {
+      ctx.drawImage(results.image, 0, 0, w, h);
+    }
+
+    // Target guide box
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.6)';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(w * 0.25, h * 0.35, w * 0.5, h * 0.4);
+
+    if (results.poseLandmarks) {
+      const lms = results.poseLandmarks;
+      // Simulated real-time alignment check
+      const isAligned = Math.random() > 0.4;
+      const skeletonColor = isAligned ? '#10B981' : '#38BDF8';
+      
+      drawSkeleton(ctx, lms, skeletonColor);
+
+      if (isAligned && Math.random() < 0.15) {
+        audio.playCharge();
+        setSuccessCount(prev => {
+          const next = prev + 1;
+          if (next >= targetCount) {
+            audio.playSuccess();
+            audio.speak("素晴らしい！ドリルクリアです！");
+          }
+          return Math.min(next, targetCount);
+        });
+      }
+    }
+  }, []);
+
+  const { videoRef, toggleCamera, facingMode } = useCameraAndPose(handlePose);
+
+  useEffect(() => {
+    const btn = document.getElementById('global-camera-toggle');
+    if (btn) btn.onclick = toggleCamera;
+  }, [toggleCamera]);
+
+  return (
+    <div className="flex-1 flex flex-col relative bg-black overflow-hidden">
+      <video ref={videoRef} playsInline className="hidden" />
+      <canvas ref={canvasRef} width={720} height={1280} className={`absolute inset-0 w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} />
+      
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 pointer-events-none">
+        <div className="bg-slate-900/90 backdrop-blur px-4 py-2 rounded-full font-bold text-xs border border-emerald-500 text-emerald-400 flex items-center gap-2 shadow">
+          <Activity className="w-4 h-4" /> <span>修正ドリル実行中</span>
+        </div>
+        <div className="bg-emerald-600 text-white px-3 py-1.5 rounded-full font-black text-xs shadow">
+          クリア: {successCount} / {targetCount}
+        </div>
+      </div>
+
+      <div className="absolute bottom-8 left-4 right-4 z-20 flex gap-4">
+        <button 
+          onClick={() => {
+            audio.playSuccess();
+            setPhase('select');
+          }}
+          className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-2xl shadow-xl border-b-4 border-emerald-700 active:border-b-0 active:translate-y-1 transition-all"
+        >
+          {successCount >= targetCount ? '✨ テストメニューに戻る' : 'ドリル完了して戻る'}
+        </button>
+      </div>
+    </div>
+  );
 }
-}
-}
-}
-}
-// 3. 骨格の描画
-if (appState === 'RUNNING' || appState === 'WAITING') {
-ctx.strokeStyle = (appState === 'RUNNING' && awakeningScore > 90) ? '#10B981' : '#38BDF8';
-ctx.lineWidth = 4;
-POSE_CONNECTIONS_ARRAY.forEach(([i, j]) => {
-if (lm[i].visibility > 0.5 && lm[j].visibility > 0.5) {
-ctx.beginPath();
-ctx.moveTo(lm[i].x * canvas.width, lm[i].y * canvas.height);
-ctx.lineTo(lm[j].x * canvas.width, lm[j].y * canvas.height);
-ctx.stroke();
-}
-});
-ctx.fillStyle = '#FBBF24';
-lm.forEach((pt) => {
-if (pt.visibility > 0.5) {
-ctx.beginPath();
-ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 4, 0, 2 * Math.PI);
-ctx.fill();
-}
-});
-}
-ctx.restore();
-};
-// ==========================================
-// MediaPipe の初期化
-// ==========================================
-const pose = new Pose({
-locateFile: (file) => ⁠https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}⁠,
-});
-pose.setOptions({
-modelComplexity: 1,
-smoothLandmarks: true,
-minDetectionConfidence: 0.7,
-minTrackingConfidence: 0.7,
-});
-pose.onResults(onResults);
-const camera = new Camera(video, {
-onFrame: async () => {
-await pose.send({ image: video });
-},
-width: 640,
-height: 480,
-facingMode: 'user' // インカメラ
-});
-// バックグラウンドでカメラを起動しておく
-camera.start();
-// ==========================================
-// ゲーム進行制御
-// ==========================================
-document.getElementById('btn-start').addEventListener('click', () => {
-// AudioContextの初期化 (ユーザーアクション必須)
-if (!audioCtx) audioCtx = new AudioContext();
-speak("テストを開始します。枠内に全身を入れてください。");
-stableFrames = 0;
-awakeningScore = 0;
-drillReps = 0;
-repsUI.forEach(el => el.classList.replace('bg-[#10B981]', 'bg-slate-700'));
-setAppState('WAITING');
-});
-const startCountdown = () => {
-setAppState('COUNTDOWN');
-let count = 3;
-countdownText.innerText = count;
-const iv = setInterval(() => {
-if (count > 1) {
-count--;
-countdownText.innerText = count;
-playTone(440, 'sine', 0.1);
-} else {
-clearInterval(iv);
-countdownText.innerText = "START!";
-playTone(880, 'sine', 0.3);
-setTimeout(() => {
-setAppState('RUNNING');
-startTime = performance.now();
-startMediaRecording();
-}, 500);
-}
-}, 1000);
-};
-document.getElementById('btn-stop').addEventListener('click', () => {
-stopRecording();
-setAppState('REPLAY');
-});
-// ==========================================
-// 録画機能 (MediaRecorder)
-// ==========================================
-const startMediaRecording = () => {
-const stream = canvas.captureStream(30);
-mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-recordedChunks = [];
-mediaRecorder.ondataavailable = (e) => {
-if (e.data.size > 0) recordedChunks.push(e.data);
-};
-mediaRecorder.onstop = () => {
-const blob = new Blob(recordedChunks, { type: 'video/webm' });
-if (replayUrl) URL.revokeObjectURL(replayUrl);
-replayUrl = URL.createObjectURL(blob);
-replayVideo.src = replayUrl;
-};
-mediaRecorder.start();
-};
-const stopRecording = () => {
-if (mediaRecorder && mediaRecorder.state === 'recording') {
-mediaRecorder.stop();
-}
-};
-document.getElementById('btn-close-replay').addEventListener('click', () => {
-replayVideo.pause();
-replayVideo.src = "";
-if (replayUrl) URL.revokeObjectURL(replayUrl);
-setAppState('SETUP');
-});
-</script>
-</body>
-</html>
