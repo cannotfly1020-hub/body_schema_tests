@@ -941,12 +941,27 @@
       const L_WRIST = l[15], R_WRIST = l[16];
       const L_HIP = l[23], R_HIP = l[24];
       const L_ANKLE = l[27], R_ANKLE = l[28];
+      const L_KNEE = l[25], R_KNEE = l[26];
+      const L_HEEL = l[29], R_HEEL = l[30];
 
-      // 全身視野判定
-      const hasFullBody = Boolean(
-        NOSE && (L_ANKLE || R_ANKLE || L_HIP || R_HIP) &&
-        NOSE.visibility > 0.4
+      // 全身視野判定（頭・肩・腰・膝・足首/踵がすべて画面内に確実に収まっているかを厳格に確認）
+      const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.02 && NOSE.y < 0.48);
+      const hasTorso = Boolean(
+        L_SHOULDER && R_SHOULDER && L_HIP && R_HIP &&
+        (L_HIP.visibility || 0) > 0.35 && (R_HIP.visibility || 0) > 0.35
       );
+      const hasKnees = Boolean(
+        (L_KNEE && (L_KNEE.visibility || 0) > 0.35) ||
+        (R_KNEE && (R_KNEE.visibility || 0) > 0.35)
+      );
+      const hasFeet = Boolean(
+        ((L_ANKLE && (L_ANKLE.visibility || 0) > 0.35 && L_ANKLE.y > 0.52 && L_ANKLE.y < 0.98) ||
+         (L_HEEL && (L_HEEL.visibility || 0) > 0.35 && L_HEEL.y > 0.52 && L_HEEL.y < 0.98)) &&
+        ((R_ANKLE && (R_ANKLE.visibility || 0) > 0.35 && R_ANKLE.y > 0.52 && R_ANKLE.y < 0.98) ||
+         (R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y > 0.52 && R_HEEL.y < 0.98))
+      );
+
+      const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasFeet);
 
       // はみ出し判定用マージン
       const EDGE_MIN = 0.04;
