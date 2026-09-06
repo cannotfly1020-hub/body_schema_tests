@@ -342,15 +342,19 @@ gap: 4px;
 <body>
 <div class="brawl-bg-pattern"></div>
 <div class="sunburst"></div>
+<!-- 単体完結型ヘッダー -->
 <header class="w-full max-w-md flex flex-col gap-1 flex-shrink-0 z-10 mb-1" id="app-header">
 <div class="flex items-center justify-between">
-<a href="./index.html" class="btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-sky-400 text-xs font-black no-underline">
-🏠 ロビー
-</a>
-<h1 class="text-xs font-black text-purple-300 flex items-center gap-1" id="header-title">
-🧠 身体図式・脳内GPSドック 📡
+<div class="flex items-center gap-1.5">
+<span class="text-base">🧠</span>
+<h1 class="text-xs font-black text-purple-300 tracking-wide" id="header-title">
+身体図式・脳内GPSハックドック
 </h1>
+</div>
 <div class="flex items-center gap-1">
+<button id="btn-open-logs-modal" class="btn-3d px-2 py-1 rounded-full bg-slate-900 border border-purple-500/70 text-purple-300 text-[10px] font-black">
+📊 記録カルテ
+</button>
 <button id="btn-open-calib-modal" class="btn-3d px-2 py-1 rounded-full bg-slate-900 border border-amber-500/70 text-amber-300 text-[10px] font-black">
 📏 <span id="header-height-badge">140cm</span>
 </button>
@@ -406,15 +410,6 @@ gap: 4px;
 <canvas id="output-canvas"></canvas>
 <!-- セーフ境界枠（テスト時のみ） -->
 <div class="safe-boundary-box" id="safe-boundary"></div>
-<!-- キャリブレーションガイド線（未完了時・調整時オーバーレイ） -->
-<div id="calib-guide-overlay" class="absolute inset-0 pointer-events-none hidden flex-col justify-between p-4 z-20">
-<div class="w-full border-t-2 border-dashed border-amber-400/80 text-right pr-2">
-<span class="text-[9px] font-black text-amber-300 bg-slate-950/80 px-1 rounded">👑 あたまの頂点</span>
-</div>
-<div class="w-full border-b-2 border-dashed border-sky-400/80 text-right pr-2">
-<span class="text-[9px] font-black text-sky-300 bg-slate-950/80 px-1 rounded">👟 かかと・じめん</span>
-</div>
-</div>
 <!-- リアルタイム・センサーバッジ -->
 <div class="absolute top-2 left-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-purple-400 text-xs font-black text-purple-300 flex items-center gap-1.5 z-20" id="test-badge-left">
 <span id="metric-main-label">ズレ移動:</span>
@@ -501,7 +496,7 @@ gap: 4px;
 <span class="text-2xl">📏</span>
 <div>
 <h3 class="font-black text-amber-400 text-xs">直立スキャン＆身長キャリブレーション</h3>
-<span class="text-[9px] text-slate-400">本物のミリ単位・1度単位の精度へ同期</span>
+<span class="text-[9px] text-slate-400">1cm単位・1度単位のリアル精度へ同期</span>
 </div>
 </div>
 <button onclick="closeModal('calibration-modal')" class="text-slate-400 hover:text-white font-black text-base">✕</button>
@@ -589,11 +584,37 @@ gap: 4px;
 </div>
 </div>
 <div class="flex gap-1.5 pt-1 flex-shrink-0">
-<button onclick="saveAndSyncToHome()" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
-💾 ホームに保存
+<button onclick="saveRecordToLocalHistory()" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
+💾 記録を保存
 </button>
 <button onclick="enterDrillMode()" class="flex-1 btn-3d py-2 btn-emerald text-xs font-black rounded-xl shadow">
 🎮 大画面ドリルへ
+</button>
+</div>
+</div>
+</div>
+<!-- 📊 測定記録カルテモーダル（単体完結ログ） -->
+<div id="logs-modal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'logs-modal')">
+<div class="brawl-panel p-3.5 max-w-sm w-full bg-slate-900 border-purple-500 space-y-2.5 max-h-[85dvh] flex flex-col">
+<div class="flex items-center justify-between border-b border-slate-700 pb-1.5 flex-shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="text-2xl">📊</span>
+<div>
+<h3 class="font-black text-purple-300 text-xs">脳内GPS 測定履歴カルテ</h3>
+<span class="text-[9px] text-slate-400">端末内に保存された日々の成長記録</span>
+</div>
+</div>
+<button onclick="closeModal('logs-modal')" class="text-slate-400 hover:text-white font-black text-base">✕</button>
+</div>
+<div class="overflow-y-auto space-y-2 flex-1 pr-1 text-xs" id="logs-list-container">
+<!-- JS動的レンダリング -->
+</div>
+<div class="flex gap-1.5 pt-1 flex-shrink-0">
+<button onclick="clearLocalLogs()" class="btn-3d py-1.5 px-3 bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold rounded-lg">
+🗑️ 履歴クリア
+</button>
+<button onclick="closeModal('logs-modal')" class="flex-1 btn-3d py-1.5 bg-slate-800 text-white text-xs font-black rounded-lg">
+閉じる
 </button>
 </div>
 </div>
@@ -604,6 +625,8 @@ gap: 4px;
 // 1. システム状態管理 & Web Audio API
 // ==========================================
 let currentAppMode = 'TEST_IDLE'; // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
+const STORAGE_KEY_LOGS = 'body_schema_test_logs_v1';
+const STORAGE_KEY_PROFILE = 'baseball_user_profile';
 let audioCtx = null;
 function getAudioContext() {
 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -678,7 +701,7 @@ pxPerCm: 2.0
 };
 function loadUserHeightProfile() {
 try {
-const p = JSON.parse(localStorage.getItem('baseball_user_profile') || '{}');
+const p = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
 if (p.height && Number.isFinite(p.height)) {
 userHeightCm = parseFloat(p.height);
 }
@@ -686,7 +709,6 @@ userHeightCm = parseFloat(p.height);
 document.getElementById('calib-height-input').value = userHeightCm;
 document.getElementById('header-height-badge').textContent = ⁠${userHeightCm}cm⁠;
 }
-// 最新フレームのランドマークを保持
 let latestLandmarks = null;
 function executeCalibrationScan() {
 if (!latestLandmarks) {
@@ -707,13 +729,17 @@ return;
 const inputVal = parseFloat(document.getElementById('calib-height-input').value);
 if (Number.isFinite(inputVal) && inputVal >= 80 && inputVal <= 220) {
 userHeightCm = inputVal;
+try {
+const prof = JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{}');
+prof.height = userHeightCm;
+localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+} catch (e) {}
 }
-// 身長ピクセル：頭頂（鼻の上マージン加算）〜 かかと最大Y
 const topHeadY = Math.max(0.01, NOSE.y - (Math.abs(L_SHOULDER.y - NOSE.y) * 0.95)) * h;
 const bottomHeelY = Math.max(L_HEEL.y, R_HEEL.y) * h;
 const measuredHeightPx = Math.abs(bottomHeelY - topHeadY);
 if (measuredHeightPx < 100) {
-showToast("⚠️ カメラに近すぎるか、小さすぎます。2m離れてください。");
+showToast("⚠️ カメラに近すぎるか小さすぎます。2m離れてください。");
 return;
 }
 const shoulderWidthPx = Math.hypot((L_SHOULDER.x - R_SHOULDER.x) * w, (L_SHOULDER.y - R_SHOULDER.y) * h);
@@ -832,7 +858,6 @@ const REQUIRED_STABLE_FRAMES = 12;
 let autoStartTriggered = false;
 let baselineData = null;
 let testRunningElapsedTime = 0;
-// 片足立ちの足接地検知用
 let balanceFootBaseline = null;
 let isFootTouchGroundDetected = false;
 let currentMetrics = {
@@ -1008,8 +1033,13 @@ document.getElementById('btn-open-calib-modal').addEventListener('click', () => 
 playSound(600, 0.08);
 openModal('calibration-modal');
 });
+document.getElementById('btn-open-logs-modal').addEventListener('click', () => {
+playSound(600, 0.08);
+renderLocalLogsList();
+openModal('logs-modal');
+});
 // ==========================================
-// 6. 高精度・厳密バイオメカニクス判定（完全再計算）
+// 6. 高精度・厳密バイオメカニクス判定
 // ==========================================
 function onPoseResults(results) {
 ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -1026,7 +1056,6 @@ const l = results.poseLandmarks;
 latestLandmarks = l;
 const w = canvasEl.width;
 const h = canvasEl.height;
-// ドリルモード中は専用ロジックへ
 if (currentAppMode === 'DRILL_ACTIVE') {
 processSkeletonGameInDrill(l, w, h);
 return;
@@ -1038,7 +1067,6 @@ const L_HIP = l[23], R_HIP = l[24];
 const L_KNEE = l[25], R_KNEE = l[26];
 const L_ANKLE = l[27], R_ANKLE = l[28];
 const L_HEEL = l[29], R_HEEL = l[30];
-// 厳格な全身視野判定（頭・体幹・両膝・両足首/かかとが全て画面内に存在）
 const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.01 && NOSE.y < 0.55);
 const hasTorso = Boolean(
 L_SHOULDER && R_SHOULDER && L_HIP && R_HIP &&
@@ -1058,7 +1086,6 @@ const hasRightFoot = Boolean(
 (R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y <= 0.98)
 );
 const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasLeftFoot && hasRightFoot);
-// キャリブレーションモーダル内ステータス更新
 const calibBadge = document.getElementById('calib-detected-badge');
 const calibText = document.getElementById('calib-status-text');
 if (calibBadge && calibText) {
@@ -1072,7 +1099,6 @@ calibBadge.className = "px-1.5 py-0.5 rounded bg-rose-900 text-rose-300";
 calibText.textContent = "頭から足首・かかとまで全身を映してください";
 }
 }
-// 未キャリブレーション時の安全なフォールバック
 if (!baselineCalibration.isCalibrated && hasFullBody) {
 const measuredHeightPx = Math.abs(Math.max(L_HEEL ? L_HEEL.y : 0.85, R_HEEL ? R_HEEL.y : 0.85) - NOSE.y) * h;
 baselineCalibration.heightCm = userHeightCm;
@@ -1082,7 +1108,6 @@ baselineCalibration.initialHipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_H
 baselineCalibration.initialHipCenter = { x: (L_HIP.x + R_HIP.x) / 2 * w, y: (L_HIP.y + R_HIP.y) / 2 * h };
 baselineCalibration.pxPerCm = measuredHeightPx / userHeightCm;
 }
-// はみ出し判定用マージン
 const EDGE_MIN = 0.04;
 const EDGE_MAX_X = 0.96;
 const EDGE_MAX_Y = 0.96;
@@ -1093,7 +1118,6 @@ const isTouchingEdge = Boolean(
 (L_ANKLE && L_ANKLE.y > EDGE_MAX_Y) ||
 (R_ANKLE && R_ANKLE.y > EDGE_MAX_Y)
 );
-// ① 待機中：全身検知で自動スタートトリガー
 if (currentAppMode === 'TEST_IDLE' && !isCountingDown) {
 if (hasFullBody) {
 fullBodyDetectedFrames++;
@@ -1110,19 +1134,15 @@ updateDetectBadge(false);
 safeBoundaryEl.className = "safe-boundary-box";
 }
 }
-// ② 測定中：境界接触または消失で即終了
 if (currentAppMode === 'TEST_RUNNING') {
 if (testRunningElapsedTime > 1.8 && (isTouchingEdge || !hasFullBody)) {
 handleFrameOutBreakthrough();
 return;
 }
 }
-// 骨格描画
 drawSkeleton(ctx, l, w, h, "rgba(192, 132, 252, 0.85)");
 const activePxPerCm = baselineCalibration.pxPerCm || 2.0;
-// -------------------------------------------------------------
-// 👣 ① 足踏みテスト：【突進Z軸三角測量】＆【腰幅コサイン水平回転】
-// -------------------------------------------------------------
+// ① 足踏みテスト
 if (currentTestMode === 'STEPPING' && L_HIP && R_HIP && NOSE) {
 const curHipCenterX = (L_HIP.x + R_HIP.x) / 2 * w;
 const curHipCenterY = (L_HIP.y + R_HIP.y) / 2 * h;
@@ -1138,66 +1158,46 @@ hipWidth: curHipWidthPx || baselineCalibration.initialHipWidthPx,
 heightPx: curHeightPx || baselineCalibration.initialHeightPx
 };
 }
-// 1. 左右・上下のX/Y移動（cm）
 const lateralDxCm = (curHipCenterX - baselineData.x) / activePxPerCm;
-const verticalDyCm = (curHipCenterY - baselineData.y) / activePxPerCm;
-// 2. 前後突進（Z軸cm）：全身高または肩幅のピクセル拡大率から三角測量
 const scaleFactor = curHeightPx / Math.max(50, baselineData.heightPx);
-// 2m立ち位置（200cm）基準での前方接近距離: ΔZ = 200 * (1 - 1/scale)
 let forwardZCm = 0;
 if (scaleFactor > 1.0) {
 forwardZCm = Math.round(200 * (1.0 - (1.0 / scaleFactor)));
 } else {
 forwardZCm = Math.round((curHeightPx - baselineData.heightPx) / activePxPerCm * 1.5);
 }
-forwardZCm = Math.max(-20, forwardZCm); // 後退も微小許容
-// 総移動ズレ（cm）
+forwardZCm = Math.max(-20, forwardZCm);
 const totalDriftCm = Math.round(Math.hypot(lateralDxCm, forwardZCm));
-// 3. 水平回転（ヨー角 °）：見かけの腰幅の縮み比率からアークコサイン逆算
 const baseWidth = Math.max(20, baselineData.hipWidth);
 const ratio = Math.min(1.0, Math.max(0.0, curHipWidthPx / baseWidth));
 let pureYawAngle = Math.round(Math.acos(ratio) * (180 / Math.PI));
-// 向き判定（左右腰の深度差 Z）
-const hipZDiff = ((L_HIP.z || 0) - (R_HIP.z || 0));
-if (Math.abs(hipZDiff) > 0.05) {
-pureYawAngle = Math.min(90, pureYawAngle);
-}
 currentMetrics.driftCm = totalDriftCm;
 currentMetrics.rotDeg = pureYawAngle;
 document.getElementById('metric-main-val').textContent = ⁠${totalDriftCm} cm⁠;
 document.getElementById('metric-sub-val').textContent = ⁠${pureYawAngle} °⁠;
 }
 }
-// -------------------------------------------------------------
-// ⚖️ ② Tポーズテスト：【両腕の独立水平角判定】（ハの字誤認を完全排除）
-// -------------------------------------------------------------
+// ② Tポーズテスト
 else if (currentTestMode === 'TPOSE' && L_WRIST && R_WRIST && L_SHOULDER && R_SHOULDER) {
-// 左腕の水平角（真横180°からの垂れ下がり・上がり角度）
 const lArmDx = (L_WRIST.x - L_SHOULDER.x) * w;
 const lArmDy = (L_WRIST.y - L_SHOULDER.y) * h;
 const lArmTilt = Math.abs(Math.round(Math.atan2(lArmDy, Math.abs(lArmDx)) * (180 / Math.PI)));
-// 右腕の水平角
 const rArmDx = (R_WRIST.x - R_SHOULDER.x) * w;
 const rArmDy = (R_WRIST.y - R_SHOULDER.y) * h;
 const rArmTilt = Math.abs(Math.round(Math.atan2(rArmDy, Math.abs(rArmDx)) * (180 / Math.PI)));
-// 左右の手首の高さ差（cm）
 const wristDiffCm = Math.round(Math.abs(L_WRIST.y - R_WRIST.y) * h / activePxPerCm);
-// 腕の水平からの最大垂れ下がり・傾斜角度（ハの字なら両腕とも傾き大として検知）
 const maxArmSagAngle = Math.max(lArmTilt, rArmTilt);
 currentMetrics.tposeDiffCm = wristDiffCm;
 currentMetrics.tposeTiltDeg = maxArmSagAngle;
 document.getElementById('metric-main-val').textContent = ⁠${wristDiffCm} cm⁠;
 document.getElementById('metric-sub-val').textContent = ⁠${maxArmSagAngle} °⁠;
 }
-// -------------------------------------------------------------
-// ⚓ ③ 片足立ちテスト：【浮かせ足の着地リアルタイム検知＆即座停止】
-// -------------------------------------------------------------
+// ③ 片足立ちテスト
 else if (currentTestMode === 'BALANCE' && NOSE && L_HEEL && R_HEEL && L_ANKLE && R_ANKLE) {
 if (currentAppMode === 'TEST_RUNNING') {
 const lFootY = Math.max(L_HEEL.y, L_ANKLE.y) * h;
 const rFootY = Math.max(R_HEEL.y, R_ANKLE.y) * h;
 if (!balanceFootBaseline) {
-// 初期化：上がっている方の足（対地高度が高い＝画面Yが小さい方）を検知
 const isLeftFootRaised = lFootY < (rFootY - 20);
 const isRightFootRaised = rFootY < (lFootY - 20);
 balanceFootBaseline = {
@@ -1208,16 +1208,13 @@ noseX: NOSE.x * w,
 noseY: NOSE.y * h
 };
 }
-// 頭部ブレ幅
 const wobblePx = Math.hypot(NOSE.x * w - balanceFootBaseline.noseX, NOSE.y * h - balanceFootBaseline.noseY);
 const wobbleCm = Math.round(wobblePx / activePxPerCm);
 currentMetrics.headWobbleCm = Math.max(currentMetrics.headWobbleCm, wobbleCm);
 document.getElementById('metric-sub-val').textContent = ⁠${currentMetrics.headWobbleCm} cm⁠;
-// ★着地検知：上がっていた足が地面レベル（軸足踵の高さ付近）に落ちて接地したか
 if (balanceFootBaseline.standFoot !== 'UNKNOWN' && !isFootTouchGroundDetected && testRunningElapsedTime > 1.2) {
 const raisedCurY = (balanceFootBaseline.standFoot === 'RIGHT') ? lFootY : rFootY;
 const dropDiffPx = Math.abs(raisedCurY - balanceFootBaseline.groundLevelY);
-// 地面との差が小さくなった（足をついた）判定
 if (dropDiffPx < 18 || (raisedCurY - balanceFootBaseline.raisedFootInitialY) > 40) {
 isFootTouchGroundDetected = true;
 handleBalanceFootTouchDown();
@@ -1226,9 +1223,7 @@ return;
 }
 }
 }
-// -------------------------------------------------------------
-// 🪑 ④ 骨盤制動テスト（X-Factor）：【アークコサイン純粋セパレーション】
-// -------------------------------------------------------------
+// ④ 骨盤制動テスト（X-Factor）
 else if (currentTestMode === 'XFACTOR' && L_SHOULDER && R_SHOULDER && L_HIP && R_HIP) {
 const curShoulderWidthPx = Math.hypot((L_SHOULDER.x - R_SHOULDER.x) * w, (L_SHOULDER.y - R_SHOULDER.y) * h);
 const curHipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_HIP.y - R_HIP.y) * h);
@@ -1239,15 +1234,12 @@ shoulderWidth: curShoulderWidthPx || baselineCalibration.initialShoulderWidthPx,
 hipWidth: curHipWidthPx || baselineCalibration.initialHipWidthPx
 };
 }
-// 胸の回旋角度（肩幅の縮み比率）
 const baseS = Math.max(30, baselineData.shoulderWidth);
 const sRatio = Math.min(1.0, Math.max(0.0, curShoulderWidthPx / baseS));
 const pureChestRot = Math.round(Math.acos(sRatio) * (180 / Math.PI));
-// 骨盤の逃げ角（腰幅の縮み比率）
 const baseH = Math.max(20, baselineData.hipWidth);
 const hRatio = Math.min(1.0, Math.max(0.0, curHipWidthPx / baseH));
 const purePelvisRot = Math.round(Math.acos(hRatio) * (180 / Math.PI));
-// 骨盤を止めて胸だけ回した純粋セパレーション角
 const pureSeparation = Math.max(0, pureChestRot - purePelvisRot);
 currentMetrics.xfactorChestDeg = Math.max(currentMetrics.xfactorChestDeg, pureSeparation);
 currentMetrics.xfactorPelvisDeg = Math.max(currentMetrics.xfactorPelvisDeg, purePelvisRot);
@@ -1274,7 +1266,6 @@ badge.className = "px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 tex
 text.textContent = "枠内に全身を入れてね";
 }
 }
-// 片足立ちで足がついた瞬間の強制停止
 function handleBalanceFootTouchDown() {
 if (currentAppMode !== 'TEST_RUNNING') return;
 currentAppMode = 'TEST_IDLE';
@@ -1534,40 +1525,65 @@ subDisp = ⁠骨盤の静止はできていますが、胸の純回旋が【 ${p
 document.getElementById('res-score-disp').textContent = scoreDisp;
 document.getElementById('res-score-sub').textContent = subDisp;
 }
-function saveAndSyncToHome() {
+// ==========================================
+// 8. 単体完結用ローカル履歴保存 ＆ カルテ機能
+// ==========================================
+function saveRecordToLocalHistory() {
 playSound(520, 0.12);
-try {
-let engine = JSON.parse(localStorage.getItem('baseball_body_engine_v1') || '{}');
+const now = new Date();
+const dateStr = ⁠${now.getMonth() + 1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}⁠;
+let summaryText = "";
 if (currentTestMode === 'STEPPING') {
-engine.schema = {
-val: currentMetrics.driftCm || 4,
-unit: "cm",
-status: ⁠【★ 覚醒度 ${Math.max(20, 100 - (currentMetrics.driftCm * 2))}%】⁠,
-alert: currentMetrics.driftCm > 15
-};
+summaryText = ⁠移動ズレ: ${currentMetrics.driftCm}cm / 回転: ${currentMetrics.rotDeg}°⁠;
+} else if (currentTestMode === 'TPOSE') {
+summaryText = ⁠左右差: ${currentMetrics.tposeDiffCm}cm / 傾斜: ${currentMetrics.tposeTiltDeg}°⁠;
 } else if (currentTestMode === 'BALANCE') {
-engine.balance = {
-val: currentMetrics.balanceSeconds || 15,
-unit: "秒",
-status: currentMetrics.balanceSeconds >= 12 ? "【🌟 MASTER達成！】" : "【⚡ LEVEL 2】",
-alert: currentMetrics.balanceSeconds < 8
-};
+summaryText = ⁠キープ: ${currentMetrics.balanceSeconds}秒 / 頭部揺らぎ: ${currentMetrics.headWobbleCm}cm⁠;
 } else if (currentTestMode === 'XFACTOR') {
-const sep = currentMetrics.xfactorChestDeg;
-engine.flex = {
-val: sep || 38,
-unit: "°",
-status: sep >= 50 ? "【🌟 MASTER達成！】" : "【🔒 あと12°で覚醒！】",
-alert: sep < 45 || currentMetrics.xfactorPelvisDeg > 18
-};
+summaryText = ⁠胸純回旋: ${currentMetrics.xfactorChestDeg}° / 骨盤ブレ: ${currentMetrics.xfactorPelvisDeg}°⁠;
 }
-localStorage.setItem('baseball_body_engine_v1', JSON.stringify(engine));
-showToast("✅ ホーム画面の身体エンジンに同期しました！");
-} catch(e) {}
+const newLog = {
+id: Date.now(),
+date: dateStr,
+mode: currentTestMode,
+title: TEST_CONFIGS[currentTestMode].title.split('（')[0],
+icon: TEST_CONFIGS[currentTestMode].icon,
+score: document.getElementById('res-score-disp').textContent,
+summary: summaryText
+};
+try {
+const logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+logs.unshift(newLog);
+if (logs.length > 50) logs.pop();
+localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+showToast("💾 測定結果をカルテに記録しました！");
+} catch (e) {}
 closeModal('result-modal');
 }
+function renderLocalLogsList() {
+const container = document.getElementById('logs-list-container');
+container.innerHTML = '';
+let logs = [];
+try {
+logs = JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+} catch (e) {}
+if (logs.length === 0) {
+container.innerHTML = ⁠<div class="text-center py-6 text-slate-500"> <span class="text-3xl block mb-1">📊</span> まだ測定記録がありません。<br> 4つのテストに挑戦して記録を蓄積しよう！ </div>⁠;
+return;
+}
+logs.forEach(log => {
+container.innerHTML += ⁠<div class="bg-slate-950 p-2.5 rounded-xl border border-purple-500/30 space-y-1"> <div class="flex items-center justify-between"> <span class="font-black text-purple-300 flex items-center gap-1 text-[11px]"> <span>${log.icon}</span> ${log.title} </span> <span class="text-[9px] text-slate-400">${log.date}</span> </div> <div class="text-[11px] font-bold text-amber-300">${log.score}</div> <div class="text-[10px] text-slate-300 bg-slate-900 px-2 py-1 rounded font-mono">${log.summary}</div> </div>⁠;
+});
+}
+function clearLocalLogs() {
+if (confirm("これまでの測定履歴をすべて消去しますか？")) {
+localStorage.removeItem(STORAGE_KEY_LOGS);
+renderLocalLogsList();
+showToast("🗑️ 測定履歴をクリアしました");
+}
+}
 // ==========================================
-// 8. 大画面AI骨格ドリル（ヒンジ＆X-Factorイス座り回旋）
+// 9. 大画面AI骨格ドリル
 // ==========================================
 let drillSuccessCount = 0;
 let drillHoldTimer = null;
@@ -1852,7 +1868,7 @@ targetCtx.fillText("✨ 理想の型（ここを目指そう！）", idealHipX -
 targetCtx.restore();
 }
 // ==========================================
-// 9. モーダル制御＆起動イベント
+// 10. モーダル制御＆起動イベント
 // ==========================================
 function openModal(id) {
 playSound(600, 0.08);
