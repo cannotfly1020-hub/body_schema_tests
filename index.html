@@ -1,368 +1,367 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Pose, Results, POSE_CONNECTIONS } from '@mediapipe/pose';
-import { Camera } from '@mediapipe/camera_utils';
-
-// ==========================================
-// Utils: バイオメカニクス演算 & 音声合成
-// ==========================================
-const calcAngle = (p1: any, p2: any) => {
-  return Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
-};
-
-const speak = (text: string) => {
-  const ut = new SpeechSynthesisUtterance(text);
-  ut.lang = 'ja-JP';
-  ut.rate = 1.2;
-  window.speechSynthesis.speak(ut);
-};
-
-const playTone = (ctx: AudioContext, freq: number, type: OscillatorType = 'sine', duration = 0.2) => {
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
-  gain.gain.setValueAtTime(0.5, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + duration);
-};
-
-// ==========================================
-// Types & Constants
-// ==========================================
-type AppState = 'SETUP' | 'WAITING_FOR_BODY' | 'COUNTDOWN' | 'RUNNING' | 'DRILL_SUCCESS' | 'REPLAY';
-type TestType = 'BLINDFOLD_STEP' | 'T_POSE' | 'SINGLE_LEG' | 'X_FACTOR';
-
-const REQUIRED_LANDMARKS = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30]; // 鼻, 肩, 腰, 膝, 足首/踵
-
-// ==========================================
-// Main Component
-// ==========================================
-export default function App() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [appState, setAppState] = useState<AppState>('SETUP');
-  const [testType, setTestType] = useState<TestType>('T_POSE');
-  
-  // 状態管理
-  const [awakeningScore, setAwakeningScore] = useState(0);
-  const [stableFrames, setStableFrames] = useState(0);
-  const [drillReps, setDrillReps] = useState(0);
-  
-  // Audio Context (ユーザーインタラクション後に初期化)
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  
-  // Recorder
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const [replayUrl, setReplayUrl] = useState<string | null>(null);
-  const startTimeRef = useRef<number>(0);
-
-  // ------------------------------------------
-  // Core: 姿勢推定コールバック
-  // ------------------------------------------
-  const onResults = useCallback((results: Results) => {
-    if (!canvasRef.current || !results.poseLandmarks) return;
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-
-    ctx.save();
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    // カメラ映像の描画
-    ctx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-
-    const lm = results.poseLandmarks;
-    
-    // 1. 全身認識＆フレームアウト検知ロジック
-    let isFullBodyVisible = true;
-    let isFrameOut = false;
-
-    REQUIRED_LANDMARKS.forEach(idx => {
-      const pt = lm[idx];
-      if (pt.visibility === undefined || pt.visibility < 0.6) isFullBodyVisible = false;
-      // マージン5%でのフレームアウト判定
-      if (pt.x < 0.05 || pt.x > 0.95 || pt.y < 0.05 || pt.y > 0.95) isFrameOut = true;
-    });
-
-    // 2. 状態遷移ロジック
-    setAppState((current) => {
-      if (current === 'WAITING_FOR_BODY') {
-        if (isFullBodyVisible && !isFrameOut) {
-          setStableFrames(prev => {
-            const next = prev + 1;
-            if (next === 10) {
-              speak("骨格をロックしました。3秒後にスタート");
-              return next;
-            }
-            if (next > 30) return 30; // カウントダウントリガー後
-            return next;
-          });
-          if (stableFrames === 29) return 'COUNTDOWN'; // 簡易的に次フレームで遷移
-        } else {
-          setStableFrames(0);
-        }
-      }
-
-      if (current === 'RUNNING') {
-        const timeElapsed = performance.now() - startTimeRef.current;
-        
-        // 1.8秒以降のフレームアウトで即時終了 (ブザー)
-        if (timeElapsed > 1800 && isFrameOut) {
-          if (audioCtxRef.current) playTone(audioCtxRef.current, 150, 'sawtooth', 0.5);
-          speak("エリア外です！リプレイを確認しましょう");
-          stopRecording();
-          return 'REPLAY';
-        }
-
-        // T-Pose (肩甲骨水平ドリル) のリアルタイム判定例
-        if (testType === 'T_POSE') {
-          const lShoulder = lm[11], rShoulder = lm[12], lWrist = lm[15], rWrist = lm[16];
-          const lAngle = Math.abs(calcAngle(lShoulder, lWrist)); // 理想は 180 or 0
-          const rAngle = Math.abs(calcAngle(rShoulder, rWrist));
-          
-          // 左右差と水平度（覚醒度）の算出
-          const accuracy = Math.max(0, 100 - (Math.abs(180 - lAngle) + Math.abs(0 - rAngle)) * 2);
-          setAwakeningScore(Math.floor(accuracy));
-
-          // 覚醒度90%以上でエメラルドグリーンに
-          ctx.strokeStyle = accuracy > 90 ? '#10B981' : '#38BDF8';
-          ctx.lineWidth = 6;
-          
-          if (accuracy > 90) {
-            // ここで3秒キープのロジックを入れる（今回は即時カウント）
-            setDrillReps(r => {
-              if (r === 2) {
-                speak("覚醒完了！素晴らしいアハ体験です！");
-                stopRecording();
-                return 3;
-              }
-              return r + 1;
-            });
-          }
-        }
-      }
-      return current;
-    });
-
-    // 骨格の描画 (MediaPipeユーティリティを使わず手動描画でパフォーマンス・デザイン調整)
-    if (appState === 'RUNNING' || appState === 'WAITING_FOR_BODY') {
-      ctx.strokeStyle = (appState === 'RUNNING' && awakeningScore > 90) ? '#10B981' : '#60A5FA';
-      ctx.lineWidth = 4;
-      POSE_CONNECTIONS.forEach(([i, j]) => {
-        if (lm[i].visibility! > 0.5 && lm[j].visibility! > 0.5) {
-          ctx.beginPath();
-          ctx.moveTo(lm[i].x * canvasRef.current!.width, lm[i].y * canvasRef.current!.height);
-          ctx.lineTo(lm[j].x * canvasRef.current!.width, lm[j].y * canvasRef.current!.height);
-          ctx.stroke();
-        }
-      });
-      // ランドマークの描画
-      ctx.fillStyle = '#FBBF24'; // Brawl Stars Amber
-      lm.forEach((pt) => {
-        if (pt.visibility! > 0.5) {
-          ctx.beginPath();
-          ctx.arc(pt.x * canvasRef.current!.width, pt.y * canvasRef.current!.height, 4, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      });
-    }
-    
-    ctx.restore();
-  }, [appState, stableFrames, testType, awakeningScore]);
-
-  // ------------------------------------------
-  // Camera & MediaPipe Init
-  // ------------------------------------------
-  useEffect(() => {
-    const pose = new Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-    });
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.7,
-    });
-    pose.onResults(onResults);
-
-    if (videoRef.current) {
-      const camera = new Camera(videoRef.current, {
-        onFrame: async () => {
-          await pose.send({ image: videoRef.current! });
-        },
-        width: 640,
-        height: 480,
-        facingMode: 'user'
-      });
-      camera.start();
-    }
-  }, [onResults]);
-
-  // ------------------------------------------
-  // Game Sequence Control
-  // ------------------------------------------
-  const startGame = () => {
-    audioCtxRef.current = new AudioContext(); // ユーザー操作でAudio解放
-    speak("テストを開始します。枠内に全身を入れてください。");
-    setAppState('WAITING_FOR_BODY');
-    setStableFrames(0);
-    setAwakeningScore(0);
-    setDrillReps(0);
-  };
-
-  useEffect(() => {
-    if (appState === 'COUNTDOWN') {
-      let count = 3;
-      const iv = setInterval(() => {
-        if (count > 0) {
-          if (audioCtxRef.current) playTone(audioCtxRef.current, 440, 'sine', 0.1);
-          count--;
-        } else {
-          clearInterval(iv);
-          if (audioCtxRef.current) playTone(audioCtxRef.current, 880, 'sine', 0.3);
-          setAppState('RUNNING');
-          startRecording();
-          startTimeRef.current = performance.now();
-        }
-      }, 1000);
-      return () => clearInterval(iv);
-    }
-  }, [appState]);
-
-  // ------------------------------------------
-  // Recording (MediaRecorder)
-  // ------------------------------------------
-  const startRecording = () => {
-    if (!canvasRef.current) return;
-    const stream = canvasRef.current.captureStream(30); // 30 FPS
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    
-    mediaRecorderRef.current.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-    };
-    mediaRecorderRef.current.onstop = () => {
-      const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-      setReplayUrl(URL.createObjectURL(blob));
-      recordedChunksRef.current = []; // リセット
-      setAppState('REPLAY');
-    };
-    mediaRecorderRef.current.start();
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-  };
-
-  const closeReplay = () => {
-    if (replayUrl) URL.revokeObjectURL(replayUrl);
-    setReplayUrl(null);
-    setAppState('SETUP');
-  };
-
-  // ------------------------------------------
-  // UI Render (Brawl Stars Style)
-  // ------------------------------------------
-  return (
-    <div className="bg-[#0F172A] w-screen h-screen overflow-hidden flex flex-col font-sans text-white relative">
-      {/* 隠しVideo要素 */}
-      <video ref={videoRef} className="hidden" playsInline />
-
-      {/* トップHUD */}
-      <div className="absolute top-0 left-0 w-full p-4 z-10 flex justify-between items-center pointer-events-none">
-        <div className="bg-slate-800/80 rounded-xl px-4 py-2 border-2 border-slate-600 shadow-lg">
-          <p className="text-sm text-slate-300 font-bold">BODY SCHEMA</p>
-          <h1 className="text-xl font-black text-[#F59E0B]">T-POSE MASTER</h1>
-        </div>
-        {appState === 'RUNNING' && (
-          <div className="bg-slate-800/80 rounded-xl px-4 py-2 border-2 border-slate-600 text-right">
-            <p className="text-sm text-slate-300 font-bold">覚醒度</p>
-            <p className={`text-2xl font-black ${awakeningScore > 90 ? 'text-[#10B981]' : 'text-white'}`}>
-              {awakeningScore}%
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* メインCanvas領域 */}
-      <div className="flex-1 relative flex items-center justify-center">
-        {/* サンバースト風エフェクト（簡略化） */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/30 via-[#0F172A] to-[#0F172A] pointer-events-none"></div>
-        
-        <canvas 
-          ref={canvasRef} 
-          width={640} 
-          height={480}
-          className="w-full max-w-md h-auto object-contain rounded-2xl border-4 border-slate-700 shadow-[0_0_20px_rgba(0,0,0,0.5)] bg-black"
-        />
-
-        {/* 状態別オーバーレイUI */}
-        {appState === 'WAITING_FOR_BODY' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20">
-            <h2 className="text-3xl font-black text-white animate-pulse">
-              {stableFrames > 0 ? "ロックオン中..." : "全身を枠内に入れて！"}
-            </h2>
-          </div>
-        )}
-
-        {appState === 'COUNTDOWN' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
-            <h2 className="text-8xl font-black text-[#F59E0B] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">READY</h2>
-          </div>
-        )}
-      </div>
-
-      {/* ボトムコントロールパネル */}
-      <div className="p-6 bg-slate-900 border-t-4 border-slate-700 z-10">
-        {appState === 'SETUP' && (
-          <button 
-            onClick={startGame}
-            className="w-full bg-[#10B981] hover:bg-emerald-400 text-white font-black text-2xl py-4 rounded-xl border-b-4 border-emerald-700 active:border-b-0 active:translate-y-1 transition-all shadow-[0_4px_0_rgb(0,0,0,0.3)] uppercase tracking-wider"
-          >
-            PLAY START
-          </button>
-        )}
-        
-        {appState === 'RUNNING' && (
-          <div className="text-center">
-            <p className="text-slate-300 font-bold mb-2">目隠しをして腕を水平に！</p>
-            <div className="flex justify-center gap-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className={`w-12 h-4 rounded-full ${i < drillReps ? 'bg-[#10B981]' : 'bg-slate-700'}`}></div>
-              ))}
-            </div>
-            <button 
-              onClick={stopRecording}
-              className="mt-4 px-6 py-2 bg-slate-600 rounded-lg font-bold shadow-md active:translate-y-1"
-            >
-              強制終了
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* インスタントリプレイ・モーダル */}
-      {appState === 'REPLAY' && replayUrl && (
-        <div className="absolute inset-0 bg-[#0F172A] z-50 flex flex-col p-6 animate-in slide-in-from-bottom-4">
-          <h2 className="text-3xl font-black text-white text-center mb-6">アハ体験リプレイ 🎬</h2>
-          <video 
-            src={replayUrl} 
-            controls 
-            autoPlay 
-            loop 
-            className="w-full rounded-xl border-4 border-[#38BDF8] shadow-lg mb-8"
-          />
-          <button 
-            onClick={closeReplay}
-            className="mt-auto w-full bg-[#F59E0B] text-white font-black text-xl py-4 rounded-xl border-b-4 border-amber-700 active:border-b-0 active:translate-y-1 transition-all shadow-[0_4px_0_rgb(0,0,0,0.3)]"
-          >
-            もう一度挑戦する！
-          </button>
-        </div>
-      )}
-    </div>
-  );
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>身体図式・脳内GPS評価アプリ</title>
+<!-- Tailwind CSS (CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- MediaPipe Pose (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<!-- MediaPipe Camera Utils (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<style>
+/* ブロスタ風の背景アニメーションや追加スタイル /
+body {
+background-color: #0F172A;
+overflow: hidden;
+touch-action: none; / スマホでの意図しないスクロール防止 */
 }
+.sunburst-bg {
+background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.4) 0%, #0F172A 70%);
+}
+.btn-3d {
+box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+transition: all 0.1s;
+}
+.btn-3d:active {
+transform: translateY(4px);
+box-shadow: 0 0px 0 rgba(0,0,0,0.3);
+border-bottom-width: 0px !important;
+margin-bottom: 4px;
+}
+</style>
+</head>
+<body class="text-white font-sans h-screen w-screen flex flex-col relative">
+<!-- 隠しVideo要素（カメラ入力用） -->
+<video id="videoElement" class="hidden" playsinline></video>
+<!-- トップHUD -->
+<div id="hud-top" class="absolute top-0 left-0 w-full p-4 z-10 flex justify-between items-center pointer-events-none">
+<div class="bg-slate-800/90 rounded-xl px-4 py-2 border-2 border-slate-600 shadow-lg">
+<p class="text-sm text-slate-300 font-bold">BODY SCHEMA</p>
+<h1 class="text-xl font-black text-[#F59E0B]">T-POSE MASTER</h1>
+</div>
+<!-- 覚醒度ゲージ (プレイ中のみ表示) -->
+<div id="score-panel" class="hidden bg-slate-800/90 rounded-xl px-4 py-2 border-2 border-slate-600 text-right transition-colors duration-300">
+<p class="text-sm text-slate-300 font-bold">覚醒度</p>
+<p id="score-text" class="text-2xl font-black text-white">0%</p>
+</div>
+</div>
+<!-- メインCanvas領域 -->
+<div class="flex-1 relative flex items-center justify-center sunburst-bg">
+<canvas id="canvasElement" width="640" height="480" 
+class="w-full max-w-md h-auto object-contain rounded-2xl border-4 border-slate-700 shadow-[0_0_20px_rgba(0,0,0,0.8)] bg-black">
+</canvas>
+<!-- 状態別オーバーレイ: 枠内待機 -->
+<div id="overlay-waiting" class="hidden absolute inset-0 flex items-center justify-center bg-black/50 z-20 rounded-2xl max-w-md mx-auto">
+<h2 id="waiting-text" class="text-3xl font-black text-white animate-pulse drop-shadow-md text-center px-4">
+全身を枠内に入れて！
+</h2>
+</div>
+<!-- 状態別オーバーレイ: カウントダウン -->
+<div id="overlay-countdown" class="hidden absolute inset-0 flex items-center justify-center bg-black/60 z-20 rounded-2xl max-w-md mx-auto">
+<h2 id="countdown-text" class="text-9xl font-black text-[#F59E0B] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
+3
+</h2>
+</div>
+</div>
+<!-- ボトムコントロールパネル -->
+<div class="p-6 bg-slate-900 border-t-4 border-slate-700 z-10">
+<!-- セットアップ画面 -->
+<div id="panel-setup" class="block">
+<button id="btn-start" class="btn-3d w-full bg-[#10B981] text-white font-black text-2xl py-4 rounded-xl border-b-4 border-emerald-700 uppercase tracking-wider">
+PLAY START
+</button>
+</div>
+<!-- プレイ中画面 -->
+<div id="panel-running" class="hidden text-center">
+<p class="text-slate-300 font-bold mb-3">目隠しをして腕を水平に！</p>
+<!-- 成功ゲージ -->
+<div class="flex justify-center gap-3 mb-4">
+<div id="rep-1" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
+<div id="rep-2" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
+<div id="rep-3" class="w-12 h-4 rounded-full bg-slate-700 transition-colors"></div>
+</div>
+<button id="btn-stop" class="px-6 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg font-bold shadow-md btn-3d border-b-4 border-rose-800">
+強制終了
+</button>
+</div>
+</div>
+<!-- インスタントリプレイ・モーダル -->
+<div id="modal-replay" class="hidden absolute inset-0 bg-[#0F172A] z-50 flex-col p-6 transition-all duration-300">
+<h2 class="text-3xl font-black text-white text-center mb-6 mt-4">アハ体験リプレイ 🎬</h2>
+<video id="replay-video" controls autoplay loop playsinline class="w-full max-w-md mx-auto rounded-xl border-4 border-[#38BDF8] shadow-lg mb-8 bg-black flex-1 object-contain"></video>
+<button id="btn-close-replay" class="btn-3d w-full max-w-md mx-auto bg-[#F59E0B] text-white font-black text-xl py-4 rounded-xl border-b-4 border-amber-700 mt-auto mb-4">
+もう一度挑戦する！
+</button>
+</div>
+<!-- アプリケーションロジック -->
+<script>
+// ==========================================
+// 変数定義・DOMエレメント取得
+// ==========================================
+const video = document.getElementById('videoElement');
+const canvas = document.getElementById('canvasElement');
+const ctx = canvas.getContext('2d');
+// UI Elements
+const panelSetup = document.getElementById('panel-setup');
+const panelRunning = document.getElementById('panel-running');
+const overlayWaiting = document.getElementById('overlay-waiting');
+const overlayCountdown = document.getElementById('overlay-countdown');
+const waitingText = document.getElementById('waiting-text');
+const countdownText = document.getElementById('countdown-text');
+const scorePanel = document.getElementById('score-panel');
+const scoreText = document.getElementById('score-text');
+const modalReplay = document.getElementById('modal-replay');
+const replayVideo = document.getElementById('replay-video');
+// Rep Indicators
+const repsUI = [
+document.getElementById('rep-1'),
+document.getElementById('rep-2'),
+document.getElementById('rep-3')
+];
+// State Variables
+let appState = 'SETUP'; // SETUP, WAITING, COUNTDOWN, RUNNING, REPLAY
+let stableFrames = 0;
+let awakeningScore = 0;
+let drillReps = 0;
+let startTime = 0;
+// MediaRecorder
+let mediaRecorder = null;
+let recordedChunks = [];
+let replayUrl = null;
+// Audio Context (Startボタン押下時に初期化)
+let audioCtx = null;
+const REQUIRED_LANDMARKS = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30]; // 鼻, 肩, 腰, 膝, 足首/踵
+const POSE_CONNECTIONS_ARRAY = [
+[11,12], [11,13], [13,15], [12,14], [14,16], [11,23], [12,24],
+[23,24], [23,25], [24,26], [25,27], [26,28], [27,29], [28,30], [29,31], [30,32]
+]; // 簡易的な骨格連結定義
+// ==========================================
+// ユーティリティ関数
+// ==========================================
+const calcAngle = (p1, p2) => Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+const speak = (text) => {
+const ut = new SpeechSynthesisUtterance(text);
+ut.lang = 'ja-JP';
+ut.rate = 1.2;
+window.speechSynthesis.speak(ut);
+};
+const playTone = (freq, type = 'sine', duration = 0.2) => {
+if (!audioCtx) return;
+const osc = audioCtx.createOscillator();
+const gain = audioCtx.createGain();
+osc.type = type;
+osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+osc.connect(gain);
+gain.connect(audioCtx.destination);
+osc.start();
+osc.stop(audioCtx.currentTime + duration);
+};
+// UI状態の切り替え関数
+const setAppState = (newState) => {
+appState = newState;
+// クラスのトグルによるUI制御
+panelSetup.style.display = (newState === 'SETUP') ? 'block' : 'none';
+panelRunning.style.display = (newState === 'RUNNING') ? 'block' : 'none';
+overlayWaiting.style.display = (newState === 'WAITING') ? 'flex' : 'none';
+overlayCountdown.style.display = (newState === 'COUNTDOWN') ? 'flex' : 'none';
+scorePanel.style.display = (newState === 'RUNNING') ? 'block' : 'none';
+modalReplay.style.display = (newState === 'REPLAY') ? 'flex' : 'none';
+};
+// ==========================================
+// コアロジック: 姿勢推定コールバック
+// ==========================================
+const onResults = (results) => {
+// 描画のクリア
+ctx.save();
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+if (!results.poseLandmarks) {
+ctx.restore();
+return;
+}
+const lm = results.poseLandmarks;
+let isFullBodyVisible = true;
+let isFrameOut = false;
+// 1. 全身認識＆フレームアウト検知
+REQUIRED_LANDMARKS.forEach(idx => {
+const pt = lm[idx];
+if (pt.visibility === undefined || pt.visibility < 0.6) isFullBodyVisible = false;
+if (pt.x < 0.05 || pt.x > 0.95 || pt.y < 0.05 || pt.y > 0.95) isFrameOut = true;
+});
+// 2. ステートごとの処理
+if (appState === 'WAITING') {
+if (isFullBodyVisible && !isFrameOut) {
+stableFrames++;
+waitingText.innerText = "ロックオン中...";
+if (stableFrames === 10) {
+speak("骨格をロックしました。3秒後にスタート");
+}
+if (stableFrames >= 30) {
+startCountdown();
+}
+} else {
+stableFrames = 0;
+waitingText.innerText = "全身を枠内に入れて！";
+}
+}
+if (appState === 'RUNNING') {
+const timeElapsed = performance.now() - startTime;
+// フレームアウト即時終了
+if (timeElapsed > 1800 && isFrameOut) {
+playTone(150, 'sawtooth', 0.5);
+speak("エリア外です！リプレイを確認しましょう");
+stopRecording();
+setAppState('REPLAY');
+} else {
+// T-Pose判定ロジック
+const lShoulder = lm[11], rShoulder = lm[12], lWrist = lm[15], rWrist = lm[16];
+const lAngle = Math.abs(calcAngle(lShoulder, lWrist));
+const rAngle = Math.abs(calcAngle(rShoulder, rWrist));
+const accuracy = Math.max(0, 100 - (Math.abs(180 - lAngle) + Math.abs(0 - rAngle)) * 2);
+awakeningScore = Math.floor(accuracy);
+// UI更新
+scoreText.innerText = ⁠${awakeningScore}%⁠;
+if (awakeningScore > 90) {
+scoreText.classList.replace('text-white', 'text-[#10B981]');
+scorePanel.classList.add('border-[#10B981]');
+} else {
+scoreText.classList.replace('text-[#10B981]', 'text-white');
+scorePanel.classList.remove('border-[#10B981]');
+}
+// ドリル成功判定 (今回は簡易的に瞬間判定)
+if (awakeningScore > 90) {
+if (drillReps < 3) {
+repsUI[drillReps].classList.replace('bg-slate-700', 'bg-[#10B981]');
+drillReps++;
+playTone(880, 'sine', 0.1); // ピコッ
+if (drillReps === 3) {
+setTimeout(() => {
+speak("覚醒完了！素晴らしいアハ体験です！");
+stopRecording();
+setAppState('REPLAY');
+}, 500);
+}
+}
+}
+}
+}
+// 3. 骨格の描画
+if (appState === 'RUNNING' || appState === 'WAITING') {
+ctx.strokeStyle = (appState === 'RUNNING' && awakeningScore > 90) ? '#10B981' : '#38BDF8';
+ctx.lineWidth = 4;
+POSE_CONNECTIONS_ARRAY.forEach(([i, j]) => {
+if (lm[i].visibility > 0.5 && lm[j].visibility > 0.5) {
+ctx.beginPath();
+ctx.moveTo(lm[i].x * canvas.width, lm[i].y * canvas.height);
+ctx.lineTo(lm[j].x * canvas.width, lm[j].y * canvas.height);
+ctx.stroke();
+}
+});
+ctx.fillStyle = '#FBBF24';
+lm.forEach((pt) => {
+if (pt.visibility > 0.5) {
+ctx.beginPath();
+ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 4, 0, 2 * Math.PI);
+ctx.fill();
+}
+});
+}
+ctx.restore();
+};
+// ==========================================
+// MediaPipe の初期化
+// ==========================================
+const pose = new Pose({
+locateFile: (file) => ⁠https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}⁠,
+});
+pose.setOptions({
+modelComplexity: 1,
+smoothLandmarks: true,
+minDetectionConfidence: 0.7,
+minTrackingConfidence: 0.7,
+});
+pose.onResults(onResults);
+const camera = new Camera(video, {
+onFrame: async () => {
+await pose.send({ image: video });
+},
+width: 640,
+height: 480,
+facingMode: 'user' // インカメラ
+});
+// バックグラウンドでカメラを起動しておく
+camera.start();
+// ==========================================
+// ゲーム進行制御
+// ==========================================
+document.getElementById('btn-start').addEventListener('click', () => {
+// AudioContextの初期化 (ユーザーアクション必須)
+if (!audioCtx) audioCtx = new AudioContext();
+speak("テストを開始します。枠内に全身を入れてください。");
+stableFrames = 0;
+awakeningScore = 0;
+drillReps = 0;
+repsUI.forEach(el => el.classList.replace('bg-[#10B981]', 'bg-slate-700'));
+setAppState('WAITING');
+});
+const startCountdown = () => {
+setAppState('COUNTDOWN');
+let count = 3;
+countdownText.innerText = count;
+const iv = setInterval(() => {
+if (count > 1) {
+count--;
+countdownText.innerText = count;
+playTone(440, 'sine', 0.1);
+} else {
+clearInterval(iv);
+countdownText.innerText = "START!";
+playTone(880, 'sine', 0.3);
+setTimeout(() => {
+setAppState('RUNNING');
+startTime = performance.now();
+startMediaRecording();
+}, 500);
+}
+}, 1000);
+};
+document.getElementById('btn-stop').addEventListener('click', () => {
+stopRecording();
+setAppState('REPLAY');
+});
+// ==========================================
+// 録画機能 (MediaRecorder)
+// ==========================================
+const startMediaRecording = () => {
+const stream = canvas.captureStream(30);
+mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+recordedChunks = [];
+mediaRecorder.ondataavailable = (e) => {
+if (e.data.size > 0) recordedChunks.push(e.data);
+};
+mediaRecorder.onstop = () => {
+const blob = new Blob(recordedChunks, { type: 'video/webm' });
+if (replayUrl) URL.revokeObjectURL(replayUrl);
+replayUrl = URL.createObjectURL(blob);
+replayVideo.src = replayUrl;
+};
+mediaRecorder.start();
+};
+const stopRecording = () => {
+if (mediaRecorder && mediaRecorder.state === 'recording') {
+mediaRecorder.stop();
+}
+};
+document.getElementById('btn-close-replay').addEventListener('click', () => {
+replayVideo.pause();
+replayVideo.src = "";
+if (replayUrl) URL.revokeObjectURL(replayUrl);
+setAppState('SETUP');
+});
+</script>
+</body>
+</html>
