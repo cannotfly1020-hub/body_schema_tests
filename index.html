@@ -325,22 +325,6 @@ height: 100%;
 object-fit: cover;
 transform: scaleX(-1);
 }
-.camera-prompt-overlay {
-position: absolute;
-inset: 0;
-background: rgba(6, 9, 19, 0.92);
-z-index: 40;
-display: none;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-gap: 12px;
-padding: 16px;
-text-align: center;
-}
-.camera-prompt-overlay.active {
-display: flex;
-}
 </style>
 </head>
 <body>
@@ -359,7 +343,7 @@ display: flex;
 🔄 カメラ
 </button>
 </div>
-<!-- 4大テスト選択タブ -->
+<!-- 4大テスト選択タブ（第4テスト：骨盤制動X-Factor） -->
 <div class="grid grid-cols-4 gap-1 mt-0.5" id="test-tabs-container">
 <button class="test-tab active" id="tab-step" onclick="selectTestMode('STEPPING')">
 👣 ① 足踏み
@@ -391,25 +375,16 @@ display: flex;
 カメラから約2m離れて枠内に全身を映そう！自動検知でスタート！
 </span>
 </div>
-<!-- 全身認識ステータスバッジ（クリックでカメラ再接続可能） -->
-<div id="body-detect-badge" onclick="startDirectCamera()" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 transition-transform">
+<!-- 全身認識ステータスバッジ -->
+<div id="body-detect-badge" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0">
 <span class="w-2 h-2 rounded-full bg-slate-500" id="detect-dot"></span>
 <span id="detect-text">カメラ接続中...</span>
 </div>
 </div>
 <!-- カメラ＆骨格キャンバス画面 -->
 <div class="screen-wrapper" id="camera-screen-wrapper">
-<video id="webcam-video" playsinline webkit-playsinline muted autoplay></video>
+<video id="webcam-video" playsinline muted autoplay></video>
 <canvas id="output-canvas"></canvas>
-<!-- カメラ許可プロンプト（万が一の自動起動ブロック時にタップで手動起動） -->
-<div class="camera-prompt-overlay" id="camera-prompt">
-<span class="text-3xl">📷</span>
-<span class="text-xs font-black text-purple-200">カメラへのアクセスが必要です</span>
-<button onclick="startDirectCamera()" class="btn-3d btn-purple px-4 py-2 rounded-xl text-xs font-black shadow-lg">
-📷 タップしてカメラを起動
-</button>
-<span class="text-[9px] text-slate-400">※ ブラウザの許可ダイアログが出たら「許可」を押してください</span>
-</div>
 <!-- セーフ境界枠（テスト時のみ） -->
 <div class="safe-boundary-box" id="safe-boundary"></div>
 <!-- リアルタイム・センサーバッジ -->
@@ -515,7 +490,7 @@ display: flex;
 </span>
 </div>
 <div class="replay-video-box">
-<video id="replay-video" class="replay-video-element" playsinline webkit-playsinline loop muted autoplay></video>
+<video id="replay-video" class="replay-video-element" playsinline loop muted autoplay></video>
 <div id="replay-placeholder" class="text-[10px] text-slate-500 font-bold p-2 text-center">
 動画を準備中...
 </div>
@@ -621,7 +596,7 @@ t.classList.add('show');
 setTimeout(() => t.classList.remove('show'), duration);
 }
 // ==========================================
-// 2. 4大テスト設定定義（X-Factor対応）
+// 2. 4大テスト設定定義（X-Factor追加）
 // ==========================================
 const TEST_CONFIGS = {
 STEPPING: {
@@ -679,14 +654,12 @@ let cameraFacing = 'user';
 let pose = null;
 let isPoseReady = false;
 let isProcessingFrame = false;
-let isRenderLoopActive = false;
 let currentStream = null;
 const videoEl = document.getElementById('webcam-video');
 const canvasEl = document.getElementById('output-canvas');
 const ctx = canvasEl.getContext('2d');
 const screenWrapperEl = document.getElementById('camera-screen-wrapper');
 const safeBoundaryEl = document.getElementById('safe-boundary');
-const cameraPromptEl = document.getElementById('camera-prompt');
 let fullBodyDetectedFrames = 0;
 const REQUIRED_STABLE_FRAMES = 10;
 let autoStartTriggered = false;
@@ -761,65 +734,37 @@ mediaRecorder.stop();
 }
 }
 // ==========================================
-// 4. 直結カメラ起動（getUserMedia）＆ MediaPipe初期化
+// 4. 直結カメラ起動（元の堅牢な方式を100%維持）
 // ==========================================
 async function startDirectCamera() {
 try {
-if (cameraPromptEl) cameraPromptEl.classList.remove('active');
-updateDetectBadge(false, 0, "カメラ起動中...");
 if (currentStream) {
 currentStream.getTracks().forEach(track => track.stop());
-currentStream = null;
 }
-if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-throw new Error("お使いの環境はカメラアクセス非対応または非セキュア接続です");
-}
-// 第1候補: 理想の制約
-let stream = null;
-try {
-const preferredConstraints = {
+const constraints = {
 video: {
-facingMode: cameraFacing ? { ideal: cameraFacing } : 'user',
+facingMode: cameraFacing,
 width: { ideal: 640 },
 height: { ideal: 480 }
 },
 audio: false
 };
-stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
-} catch (subErr) {
-console.warn("推奨制約でのカメラ取得失敗、汎用制約で再試行:", subErr);
-// 第2候補: 汎用制約（過剰制約エラーOverconstrainedError回避）
-stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-}
+const stream = await navigator.mediaDevices.getUserMedia(constraints);
 currentStream = stream;
 videoEl.srcObject = stream;
-videoEl.muted = true;
-videoEl.playsInline = true;
-// videoの再生を確実に開始
-try {
-await videoEl.play();
-} catch (playErr) {
-console.log("Play interrupted or pending interaction:", playErr);
-}
-updateDetectBadge(false, 0, "AI骨格準備中...");
-if (!isRenderLoopActive) {
-isRenderLoopActive = true;
+videoEl.onloadedmetadata = () => {
+videoEl.play().catch(() => {});
+updateDetectBadge(false, 0, "AIモデル準備中...");
+};
 requestAnimationFrame(renderLoop);
-}
 } catch (err) {
 console.error("Camera access failed:", err);
-updateDetectBadge(false, 0, "カメラ再接続");
-if (cameraPromptEl) cameraPromptEl.classList.add('active');
-showToast("⚠️ カメラを起動できませんでした。タップして許可してください。");
+showToast("⚠️ カメラを起動できませんでした。カメラのアクセス許可を確認してください。");
+document.getElementById('detect-text').textContent = "カメラエラー";
 }
 }
 async function initPoseEngine() {
 try {
-if (typeof Pose === 'undefined') {
-console.warn("MediaPipe Pose script not loaded yet, retrying...");
-setTimeout(initPoseEngine, 600);
-return;
-}
 pose = new Pose({
 locateFile: (file) => ⁠https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}⁠
 });
@@ -836,11 +781,11 @@ isPoseReady = true;
 updateDetectBadge(false, 0, "枠内に全身を入れてね");
 } catch (err) {
 console.warn("MediaPipe Pose load failed:", err);
-updateDetectBadge(false, 0, "骨格AI待機中");
+updateDetectBadge(false, 0, "骨格AI読込中...");
 }
 }
 async function renderLoop() {
-if (videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
+if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
 if (canvasEl.width !== videoEl.videoWidth || canvasEl.height !== videoEl.videoHeight) {
 canvasEl.width = videoEl.videoWidth;
 canvasEl.height = videoEl.videoHeight;
@@ -867,7 +812,7 @@ startDirectCamera();
 showToast(⁠📷 ${cameraFacing === 'user' ? 'インカメラ（自撮り）' : '外カメラ'}に切り替えました⁠);
 });
 // ==========================================
-// 5. 骨格解析＆身体図式判定（厳格な全身検知）
+// 5. 骨格解析＆身体図式判定（厳格な全身チェック）
 // ==========================================
 function onPoseResults(results) {
 ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -894,23 +839,26 @@ const L_HIP = l[23], R_HIP = l[24];
 const L_KNEE = l[25], R_KNEE = l[26];
 const L_ANKLE = l[27], R_ANKLE = l[28];
 const L_HEEL = l[29], R_HEEL = l[30];
-// 厳格な全身視野判定（頭・体幹・膝・足首または踵がしっかり画面内に収まっていることを保証）
-const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.02 && NOSE.y < 0.48);
+// ★ 厳格な全身視野判定（頭・体幹・膝・両足首/踵がすべて確実に画面内に存在することを保証）
+const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.01 && NOSE.y < 0.5);
 const hasTorso = Boolean(
 L_SHOULDER && R_SHOULDER && L_HIP && R_HIP &&
+(L_SHOULDER.visibility || 0) > 0.35 && (R_SHOULDER.visibility || 0) > 0.35 &&
 (L_HIP.visibility || 0) > 0.35 && (R_HIP.visibility || 0) > 0.35
 );
 const hasKnees = Boolean(
-(L_KNEE && (L_KNEE.visibility || 0) > 0.35) ||
-(R_KNEE && (R_KNEE.visibility || 0) > 0.35)
+L_KNEE && R_KNEE &&
+(L_KNEE.visibility || 0) > 0.35 && (R_KNEE.visibility || 0) > 0.35
 );
-const hasFeet = Boolean(
-((L_ANKLE && (L_ANKLE.visibility || 0) > 0.35 && L_ANKLE.y > 0.52 && L_ANKLE.y < 0.98) ||
-(L_HEEL && (L_HEEL.visibility || 0) > 0.35 && L_HEEL.y > 0.52 && L_HEEL.y < 0.98)) &&
-((R_ANKLE && (R_ANKLE.visibility || 0) > 0.35 && R_ANKLE.y > 0.52 && R_ANKLE.y < 0.98) ||
-(R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y > 0.52 && R_HEEL.y < 0.98))
+const hasLeftFoot = Boolean(
+(L_ANKLE && (L_ANKLE.visibility || 0) > 0.35 && L_ANKLE.y <= 0.98) ||
+(L_HEEL && (L_HEEL.visibility || 0) > 0.35 && L_HEEL.y <= 0.98)
 );
-const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasFeet);
+const hasRightFoot = Boolean(
+(R_ANKLE && (R_ANKLE.visibility || 0) > 0.35 && R_ANKLE.y <= 0.98) ||
+(R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y <= 0.98)
+);
+const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasLeftFoot && hasRightFoot);
 // はみ出し判定用マージン
 const EDGE_MIN = 0.04;
 const EDGE_MAX_X = 0.96;
@@ -929,7 +877,7 @@ if (measuredHeightPx > 80) {
 calculatedPxPerCm = measuredHeightPx / 130;
 }
 }
-// ① 待機中：全身検知で自動スタートトリガー
+// ① 待機中：全身検知で自動スタートトリガー（全身が揃っているときのみ加算）
 if (currentAppMode === 'TEST_IDLE' && !isCountingDown) {
 if (hasFullBody) {
 fullBodyDetectedFrames++;
@@ -1038,11 +986,11 @@ return;
 }
 if (isDetected) {
 dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
-badge.className = "px-2 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500 text-[10px] font-black text-emerald-300 flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 transition-transform";
+badge.className = "px-2 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500 text-[10px] font-black text-emerald-300 flex items-center gap-1 flex-shrink-0";
 text.textContent = count >= REQUIRED_STABLE_FRAMES ? "全身OK！スタンバイ" : "全身検知中...";
 } else {
 dot.className = "w-2 h-2 rounded-full bg-slate-500";
-badge.className = "px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 transition-transform";
+badge.className = "px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0";
 text.textContent = "枠内に全身を入れてね";
 }
 }
@@ -1603,7 +1551,7 @@ enterDrillMode();
 });
 document.addEventListener('DOMContentLoaded', async () => {
 selectTestMode('STEPPING');
-// カメラを最優先で即座に起動
+// 元の堅牢な直接カメラ起動
 await startDirectCamera();
 // 骨格AIエンジンを初期化
 initPoseEngine();
