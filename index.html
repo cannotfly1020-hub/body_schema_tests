@@ -1,1904 +1,1892 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSハックドック</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- MediaPipe Pose (Core only) -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
-
-    :root {
-      --font-game: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif;
-      --bg-dark: #070c18;
-      --card-dark: #111a2f;
-      --card-border: #22355b;
-      --purple-primary: #a855f7;
-      --cyan-primary: #06b6d4;
-      --gold-primary: #f59e0b;
-      --emerald-primary: #10b981;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    body {
-      font-family: var(--font-game);
-      background-color: var(--bg-dark);
-      color: #ffffff;
-      height: 100dvh;
-      max-height: 100dvh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: env(safe-area-inset-top, 6px) 8px calc(env(safe-area-inset-bottom, 6px) + 4px) 8px;
-      position: relative;
-    }
-
-    .brawl-bg-pattern {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #0c1222 70%, #050811 100%);
-      z-index: -2;
-    }
-
-    .sunburst {
-      position: absolute;
-      top: 30%;
-      left: 50%;
-      width: 540px;
-      height: 540px;
-      transform: translate(-50%, -50%);
-      background: repeating-conic-gradient(
-        rgba(168, 85, 247, 0.06) 0deg 15deg,
-        transparent 15deg 30deg
-      );
-      border-radius: 50%;
-      pointer-events: none;
-      animation: spinRays 40s linear infinite;
-      z-index: -1;
-    }
-
-    @keyframes spinRays {
-      from { transform: translate(-50%, -50%) rotate(0deg); }
-      to { transform: translate(-50%, -50%) rotate(360deg); }
-    }
-
-    .brawl-panel {
-      background: rgba(17, 26, 47, 0.94);
-      border: 2px solid var(--card-border);
-      box-shadow: 0 4px 0 #070c18, inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      border-radius: 14px;
-    }
-
-    .btn-3d {
-      position: relative;
-      transition: transform 0.08s ease, filter 0.08s ease;
-      font-family: var(--font-game);
-      font-weight: 900;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .btn-3d:active {
-      transform: translateY(2px) scale(0.98);
-    }
-
-    .btn-purple {
-      background: linear-gradient(180deg, #c084fc 0%, #a855f7 50%, #7e22ce 100%);
-      border: 2px solid #f3e8ff;
-      box-shadow: 0 4px 0 #581c87, 0 6px 12px rgba(168, 85, 247, 0.35);
-      color: #ffffff;
-    }
-
-    .btn-emerald {
-      background: linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%);
-      border: 2px solid #ecfdf5;
-      box-shadow: 0 4px 0 #064e3b, 0 6px 12px rgba(16, 185, 129, 0.35);
-      color: #ffffff;
-    }
-
-    .btn-gold {
-      background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
-      border: 2px solid #fef08a;
-      box-shadow: 0 4px 0 #92400e, 0 6px 12px rgba(245, 158, 11, 0.35);
-      color: #0f172a;
-    }
-
-    .test-tab {
-      flex: 1;
-      padding: 5px 2px;
-      font-size: 0.62rem;
-      font-weight: 900;
-      border-radius: 9px;
-      background: #0f172a;
-      color: #94a3b8;
-      border: 1.5px solid #1e293b;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      line-height: 1.15;
-    }
-
-    .test-tab.active {
-      background: linear-gradient(135deg, #a855f7, #7e22ce);
-      color: #ffffff;
-      border-color: #f3e8ff;
-      box-shadow: 0 2px 0 #581c87;
-      transform: translateY(-1px);
-    }
-
-    .screen-wrapper {
-      position: relative;
-      width: 100%;
-      background: #060913;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      min-height: 180px;
-      border: 2px solid #a855f7;
-      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
-      transition: border-color 0.25s ease;
-    }
-
-    .screen-wrapper.drill-active {
-      border-color: #10b981 !important;
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.3), inset 0 2px 10px rgba(0, 0, 0, 0.7);
-    }
-
-    .safe-boundary-box {
-      position: absolute;
-      inset: 4%;
-      border: 2px dashed rgba(168, 85, 247, 0.4);
-      border-radius: 12px;
-      pointer-events: none;
-      z-index: 15;
-      transition: all 0.2s ease;
-    }
-
-    .safe-boundary-box.ready {
-      border-color: #10b981;
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.35), inset 0 0 14px rgba(16, 185, 129, 0.18);
-    }
-
-    .safe-boundary-box.warning {
-      border-color: #f43f5e;
-      box-shadow: 0 0 24px rgba(244, 63, 94, 0.85), inset 0 0 24px rgba(244, 63, 94, 0.5);
-      animation: alertFlash 0.25s infinite alternate;
-    }
-
-    @keyframes alertFlash {
-      from { opacity: 0.5; }
-      to { opacity: 1; }
-    }
-
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-      z-index: 1;
-    }
-
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      transform: scaleX(-1);
-      touch-action: none;
-      z-index: 2;
-    }
-
-    .countdown-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(4, 7, 18, 0.75);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 50;
-      backdrop-filter: blur(4px);
-    }
-
-    .countdown-number {
-      font-size: 5.5rem;
-      font-weight: 900;
-      color: #facc15;
-      text-shadow: 0 4px 16px rgba(250, 204, 21, 0.7);
-      animation: pulseBig 0.9s ease-in-out infinite;
-    }
-
-    @keyframes pulseBig {
-      0% { transform: scale(0.7); opacity: 0.5; }
-      50% { transform: scale(1.15); opacity: 1; }
-      100% { transform: scale(1.0); opacity: 0.9; }
-    }
-
-    .drill-hud-overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 30;
-      display: none;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 10px;
-      transition: all 0.2s ease;
-    }
-
-    .drill-hud-overlay.active {
-      display: flex;
-    }
-
-    .drill-hud-overlay.matched {
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, transparent 70%);
-      box-shadow: inset 0 0 28px rgba(16, 185, 129, 0.75);
-    }
-
-    .drill-gauge-container {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 32px;
-      height: 160px;
-      background: rgba(15, 23, 42, 0.88);
-      border: 2px solid #334155;
-      border-radius: 9999px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 4px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-      pointer-events: none;
-      z-index: 35;
-    }
-
-    .gauge-track {
-      position: relative;
-      width: 10px;
-      height: 100%;
-      border-radius: 9999px;
-      background: linear-gradient(180deg, #38bdf8 0%, #10b981 45%, #10b981 55%, #f43f5e 100%);
-      overflow: hidden;
-    }
-
-    .gauge-indicator {
-      position: absolute;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 18px;
-      height: 8px;
-      background: #ffffff;
-      border: 2px solid #0f172a;
-      border-radius: 4px;
-      box-shadow: 0 0 8px #ffffff;
-      transition: top 0.08s linear;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(4, 7, 18, 0.9);
-      backdrop-filter: blur(6px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      padding: 8px;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .toast-msg {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: rgba(15, 23, 42, 0.96);
-      color: #ffffff;
-      padding: 8px 16px;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 800;
-      border: 1.5px solid #a855f7;
-      box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transition: all 0.25s ease;
-      white-space: pre-wrap;
-      text-align: center;
-      max-width: 90vw;
-    }
-
-    .toast-msg.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    .replay-video-box {
-      position: relative;
-      width: 100%;
-      height: 155px;
-      background: #060913;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .replay-video-element {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transform: scaleX(-1);
-    }
-
-    /* 音声案内スピーカーバッジ */
-    .voice-guide-badge {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1.5px solid #38bdf8;
-      color: #38bdf8;
-      font-size: 0.65rem;
-      font-weight: 900;
-      padding: 2px 7px;
-      border-radius: 9999px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>身体図式・脳内GPSハックドック</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- MediaPipe Pose (Core only) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
+:root {
+--font-game: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif;
+--bg-dark: #070c18;
+--card-dark: #111a2f;
+--card-border: #22355b;
+--purple-primary: #a855f7;
+--cyan-primary: #06b6d4;
+--gold-primary: #f59e0b;
+--emerald-primary: #10b981;
+}
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+user-select: none;
+-webkit-user-select: none;
+-webkit-tap-highlight-color: transparent;
+}
+body {
+font-family: var(--font-game);
+background-color: var(--bg-dark);
+color: #ffffff;
+height: 100dvh;
+max-height: 100dvh;
+overflow: hidden;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: env(safe-area-inset-top, 6px) 8px calc(env(safe-area-inset-bottom, 6px) + 4px) 8px;
+position: relative;
+}
+.brawl-bg-pattern {
+position: absolute;
+inset: 0;
+background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #0c1222 70%, #050811 100%);
+z-index: -2;
+}
+.sunburst {
+position: absolute;
+top: 30%;
+left: 50%;
+width: 540px;
+height: 540px;
+transform: translate(-50%, -50%);
+background: repeating-conic-gradient(
+rgba(168, 85, 247, 0.06) 0deg 15deg,
+transparent 15deg 30deg
+);
+border-radius: 50%;
+pointer-events: none;
+animation: spinRays 40s linear infinite;
+z-index: -1;
+}
+@keyframes spinRays {
+from { transform: translate(-50%, -50%) rotate(0deg); }
+to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.brawl-panel {
+background: rgba(17, 26, 47, 0.94);
+border: 2px solid var(--card-border);
+box-shadow: 0 4px 0 #070c18, inset 0 1px 0 rgba(255, 255, 255, 0.12);
+border-radius: 14px;
+}
+.btn-3d {
+position: relative;
+transition: transform 0.08s ease, filter 0.08s ease;
+font-family: var(--font-game);
+font-weight: 900;
+text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+display: inline-flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+}
+.btn-3d:active {
+transform: translateY(2px) scale(0.98);
+}
+.btn-purple {
+background: linear-gradient(180deg, #c084fc 0%, #a855f7 50%, #7e22ce 100%);
+border: 2px solid #f3e8ff;
+box-shadow: 0 4px 0 #581c87, 0 6px 12px rgba(168, 85, 247, 0.35);
+color: #ffffff;
+}
+.btn-emerald {
+background: linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%);
+border: 2px solid #ecfdf5;
+box-shadow: 0 4px 0 #064e3b, 0 6px 12px rgba(16, 185, 129, 0.35);
+color: #ffffff;
+}
+.btn-gold {
+background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+border: 2px solid #fef08a;
+box-shadow: 0 4px 0 #92400e, 0 6px 12px rgba(245, 158, 11, 0.35);
+color: #0f172a;
+}
+.test-tab {
+flex: 1;
+padding: 5px 2px;
+font-size: 0.62rem;
+font-weight: 900;
+border-radius: 9px;
+background: #0f172a;
+color: #94a3b8;
+border: 1.5px solid #1e293b;
+text-align: center;
+cursor: pointer;
+transition: all 0.15s ease;
+line-height: 1.15;
+}
+.test-tab.active {
+background: linear-gradient(135deg, #a855f7, #7e22ce);
+color: #ffffff;
+border-color: #f3e8ff;
+box-shadow: 0 2px 0 #581c87;
+transform: translateY(-1px);
+}
+.screen-wrapper {
+position: relative;
+width: 100%;
+background: #060913;
+border-radius: 12px;
+overflow: hidden;
+display: flex;
+align-items: center;
+justify-content: center;
+flex: 1;
+min-height: 180px;
+border: 2px solid #a855f7;
+box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+transition: border-color 0.25s ease;
+}
+.screen-wrapper.drill-active {
+border-color: #10b981 !important;
+box-shadow: 0 0 16px rgba(16, 185, 129, 0.3), inset 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.safe-boundary-box {
+position: absolute;
+inset: 4%;
+border: 2px dashed rgba(168, 85, 247, 0.4);
+border-radius: 12px;
+pointer-events: none;
+z-index: 15;
+transition: all 0.2s ease;
+}
+.safe-boundary-box.ready {
+border-color: #10b981;
+box-shadow: 0 0 16px rgba(16, 185, 129, 0.35), inset 0 0 14px rgba(16, 185, 129, 0.18);
+}
+.safe-boundary-box.warning {
+border-color: #f43f5e;
+box-shadow: 0 0 24px rgba(244, 63, 94, 0.85), inset 0 0 24px rgba(244, 63, 94, 0.5);
+animation: alertFlash 0.25s infinite alternate;
+}
+@keyframes alertFlash {
+from { opacity: 0.5; }
+to { opacity: 1; }
+}
+video {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+object-fit: cover;
+transform: scaleX(-1);
+z-index: 1;
+}
+canvas {
+position: absolute;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+transform: scaleX(-1);
+touch-action: none;
+z-index: 2;
+}
+.countdown-overlay {
+position: absolute;
+inset: 0;
+background: rgba(4, 7, 18, 0.75);
+display: none;
+align-items: center;
+justify-content: center;
+flex-direction: column;
+gap: 8px;
+z-index: 50;
+backdrop-filter: blur(4px);
+}
+.countdown-number {
+font-size: 5.5rem;
+font-weight: 900;
+color: #facc15;
+text-shadow: 0 4px 16px rgba(250, 204, 21, 0.7);
+animation: pulseBig 0.9s ease-in-out infinite;
+}
+@keyframes pulseBig {
+0% { transform: scale(0.7); opacity: 0.5; }
+50% { transform: scale(1.15); opacity: 1; }
+100% { transform: scale(1.0); opacity: 0.9; }
+}
+.drill-hud-overlay {
+position: absolute;
+inset: 0;
+pointer-events: none;
+z-index: 30;
+display: none;
+flex-direction: column;
+justify-content: space-between;
+padding: 10px;
+transition: all 0.2s ease;
+}
+.drill-hud-overlay.active {
+display: flex;
+}
+.drill-hud-overlay.matched {
+background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, transparent 70%);
+box-shadow: inset 0 0 28px rgba(16, 185, 129, 0.75);
+}
+.drill-gauge-container {
+position: absolute;
+right: 10px;
+top: 50%;
+transform: translateY(-50%);
+width: 32px;
+height: 160px;
+background: rgba(15, 23, 42, 0.88);
+border: 2px solid #334155;
+border-radius: 9999px;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: space-between;
+padding: 4px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+pointer-events: none;
+z-index: 35;
+}
+.gauge-track {
+position: relative;
+width: 10px;
+height: 100%;
+border-radius: 9999px;
+background: linear-gradient(180deg, #38bdf8 0%, #10b981 45%, #10b981 55%, #f43f5e 100%);
+overflow: hidden;
+}
+.gauge-indicator {
+position: absolute;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 18px;
+height: 8px;
+background: #ffffff;
+border: 2px solid #0f172a;
+border-radius: 4px;
+box-shadow: 0 0 8px #ffffff;
+transition: top 0.08s linear;
+}
+.modal-overlay {
+position: fixed;
+inset: 0;
+background: rgba(4, 7, 18, 0.9);
+backdrop-filter: blur(6px);
+display: none;
+align-items: center;
+justify-content: center;
+z-index: 100;
+padding: 8px;
+}
+.modal-overlay.active {
+display: flex;
+}
+.toast-msg {
+position: fixed;
+bottom: 20px;
+left: 50%;
+transform: translateX(-50%) translateY(20px);
+background: rgba(15, 23, 42, 0.96);
+color: #ffffff;
+padding: 8px 16px;
+border-radius: 9999px;
+font-size: 0.75rem;
+font-weight: 800;
+border: 1.5px solid #a855f7;
+box-shadow: 0 4px 16px rgba(168, 85, 247, 0.4);
+z-index: 9999;
+pointer-events: none;
+opacity: 0;
+transition: all 0.25s ease;
+white-space: pre-wrap;
+text-align: center;
+max-width: 90vw;
+}
+.toast-msg.show {
+opacity: 1;
+transform: translateX(-50%) translateY(0);
+}
+.replay-video-box {
+position: relative;
+width: 100%;
+height: 155px;
+background: #060913;
+border-radius: 10px;
+overflow: hidden;
+border: 2px solid #38bdf8;
+box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+display: flex;
+align-items: center;
+justify-content: center;
+}
+.replay-video-element {
+width: 100%;
+height: 100%;
+object-fit: cover;
+transform: scaleX(-1);
+}
+.voice-guide-badge {
+background: rgba(15, 23, 42, 0.85);
+border: 1.5px solid #38bdf8;
+color: #38bdf8;
+font-size: 0.65rem;
+font-weight: 900;
+padding: 2px 7px;
+border-radius: 9999px;
+display: inline-flex;
+align-items: center;
+gap: 4px;
+}
+</style>
 </head>
 <body>
-
-  <div class="brawl-bg-pattern"></div>
-  <div class="sunburst"></div>
-
-  <header class="w-full max-w-md flex flex-col gap-1 flex-shrink-0 z-10 mb-1" id="app-header">
-    <div class="flex items-center justify-between">
-      <a href="./index.html" class="btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-sky-400 text-xs font-black no-underline">
-        🏠 ロビー
-      </a>
-      <h1 class="text-xs font-black text-purple-300 flex items-center gap-1" id="header-title">
-        🧠 身体図式・脳内GPSドック 📡
-      </h1>
-      <button id="btn-switch-camera" class="btn-3d px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
-        🔄 カメラ
-      </button>
-    </div>
-
-    <!-- 4大テスト選択タブ（第4テスト：骨盤制動X-Factor） -->
-    <div class="grid grid-cols-4 gap-1 mt-0.5" id="test-tabs-container">
-      <button class="test-tab active" id="tab-step" onclick="selectTestMode('STEPPING')">
-        👣 ① 足踏み<br><span class="text-[8px] text-purple-300">骨盤GPS</span>
-      </button>
-      <button class="test-tab" id="tab-tpose" onclick="selectTestMode('TPOSE')">
-        ⚖️ ② Tポーズ<br><span class="text-[8px] text-slate-400">肩甲骨水平</span>
-      </button>
-      <button class="test-tab" id="tab-balance" onclick="selectTestMode('BALANCE')">
-        ⚓ ③ 片足立ち<br><span class="text-[8px] text-slate-400">足裏センサー</span>
-      </button>
-      <button class="test-tab" id="tab-xfactor" onclick="selectTestMode('XFACTOR')">
-        🪑 ④ 骨盤制動<br><span class="text-[8px] text-amber-300">X-Factor</span>
-      </button>
-    </div>
-  </header>
-
-  <main class="w-full max-w-md flex-1 brawl-panel p-2 flex flex-col gap-1.5 min-h-0 relative z-10 overflow-hidden">
-    
-    <!-- ガイダンスバナー（音声案内アイコン付き） -->
-    <div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2" id="guidance-banner">
-      <span class="text-xl flex-shrink-0" id="guide-icon">👣</span>
-      <div class="flex flex-col flex-1 min-w-0">
-        <div class="flex items-center gap-1.5">
-          <span class="text-[11px] font-black text-purple-200 truncate" id="guide-title">
-            目隠し足踏みテスト（骨盤・股関節の回旋マップ）
-          </span>
-          <span class="voice-guide-badge flex-shrink-0">🔊 音声ナビON</span>
-        </div>
-        <span class="text-[9px] text-slate-300 leading-tight" id="guide-desc">
-          カメラから約2m離れて枠内に全身を映そう！自動検知でスタート！
-        </span>
-      </div>
-      <!-- 全身認識ステータスバッジ（タップでカメラ再起動可能） -->
-      <div id="body-detect-badge" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer">
-        <span class="w-2 h-2 rounded-full bg-slate-500" id="detect-dot"></span>
-        <span id="detect-text">カメラ接続中...</span>
-      </div>
-    </div>
-
-    <!-- カメラ＆骨格キャンバス画面 -->
-    <div class="screen-wrapper" id="camera-screen-wrapper">
-      <video id="webcam-video" playsinline webkit-playsinline muted autoplay></video>
-      <canvas id="output-canvas"></canvas>
-
-      <!-- セーフ境界枠（テスト時のみ） -->
-      <div class="safe-boundary-box" id="safe-boundary"></div>
-
-      <!-- リアルタイム・センサーバッジ -->
-      <div class="absolute top-2 left-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-purple-400 text-xs font-black text-purple-300 flex items-center gap-1.5 z-20" id="test-badge-left">
-        <span id="metric-main-label">ズレ移動:</span>
-        <span class="text-amber-400 font-mono text-sm" id="metric-main-val">0 cm</span>
-      </div>
-
-      <div class="absolute top-2 right-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-black text-slate-300 flex items-center gap-1.5 z-20" id="test-badge-right">
-        <span id="metric-sub-label">回転ズレ:</span>
-        <span class="text-cyan-400 font-mono text-sm" id="metric-sub-val">0 °</span>
-      </div>
-
-      <!-- カウントダウン演出レイヤー -->
-      <div class="countdown-overlay" id="countdown-box">
-        <span class="text-xs font-black text-purple-300 uppercase tracking-widest">TEST STARTING...</span>
-        <div class="countdown-number" id="countdown-num">3</div>
-        <span class="text-sm font-black text-white" id="countdown-sub">目を閉じてスタンバイ！</span>
-      </div>
-
-      <!-- 測定中インジケーター -->
-      <div class="absolute bottom-2 left-2 bg-purple-950/90 border border-purple-500 px-3 py-1 rounded-full text-[10px] font-black text-purple-200 hidden items-center gap-2 z-20" id="measuring-badge">
-        <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-        <span id="measuring-text">🧠 脳内GPSを記録中... (残り 15 秒)</span>
-      </div>
-
-      <!-- ローカル自動録画中バッジ -->
-      <div class="absolute bottom-2 right-2 bg-rose-950/80 border border-rose-500/60 px-2 py-0.5 rounded text-[9px] font-black text-rose-300 hidden items-center gap-1 z-20" id="recording-badge">
-        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-        <span>REC (端末内のみ)</span>
-      </div>
-
-      <!-- 大画面AI骨格誘導ゲーム HUDオーバーレイ -->
-      <div class="drill-hud-overlay" id="drill-hud">
-        <div class="flex items-center justify-between w-full">
-          <div class="bg-slate-950/95 px-3 py-1.5 rounded-xl border border-emerald-500 text-xs font-black flex items-center gap-2 shadow-lg" id="drill-angle-badge">
-            <span id="drill-status-icon">🟡</span>
-            <span id="drill-status-text">スマホの真横を向いて立とう！</span>
-          </div>
-          <button onclick="exitDrillMode()" class="pointer-events-auto btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
-            ✕ テストへ戻る
-          </button>
-        </div>
-
-        <div class="drill-gauge-container" id="drill-gauge">
-          <span class="text-[8px] font-black text-sky-300" id="gauge-label-top">浅い</span>
-          <div class="gauge-track">
-            <div class="gauge-indicator" id="gauge-pin" style="top: 10%;"></div>
-          </div>
-          <span class="text-[8px] font-black text-rose-400" id="gauge-label-bottom">深すぎ</span>
-        </div>
-
-        <div id="drill-hold-box" class="hidden flex-col items-center justify-center my-auto">
-          <span class="text-sm font-black text-emerald-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">✨ ピッタリ一致！キープ！</span>
-          <span class="text-7xl font-black text-emerald-400 font-mono drop-shadow-[0_0_24px_rgba(16,185,129,0.9)]" id="drill-hold-counter">3</span>
-        </div>
-
-        <div class="flex flex-col gap-1 w-full">
-          <div class="w-full bg-slate-950/90 px-3 py-1.5 rounded-lg border border-slate-800 text-center" id="drill-hint-box">
-            <span class="text-[11px] font-black text-amber-300" id="drill-hint-text">
-              💡 腰（骨盤）を動かさずピタッと止めたまま、お辞儀するように股関節を折りたたもう！
-            </span>
-          </div>
-          <div class="flex items-center justify-between w-full bg-slate-950/85 px-3 py-1.5 rounded-xl border border-slate-800">
-            <span class="text-[10px] text-slate-300 font-bold" id="drill-sub-hint">緑に光らせて3秒キープ！</span>
-            <div class="flex items-center gap-1.5 text-xs font-black">
-              <span class="text-slate-400 text-[11px]">成功:</span>
-              <span class="text-amber-400 font-mono text-sm" id="drill-success-count">0 / 3 回</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 下部操作ボタン -->
-    <div class="w-full flex flex-col gap-1.5 flex-shrink-0" id="test-controls-container">
-      <button id="btn-start-test" class="btn-3d btn-purple w-full py-2.5 rounded-xl text-sm font-black shadow-md">
-        🚀 全身を映すと自動スタート！ (タップでもOK)
-      </button>
-      <div class="grid grid-cols-2 gap-1.5">
-        <button id="btn-open-result-preview" class="btn-3d py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-black text-slate-300">
-          📋 診断レポートを見る
-        </button>
-        <button id="btn-open-reset-drill" class="btn-3d py-1.5 rounded-lg btn-emerald text-xs font-black shadow">
-          🎮 大画面AI骨格ドリルへ
-        </button>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- 診断結果＆完全ローカルリプレイ動画モーダル -->
-  <div id="result-modal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'result-modal')">
-    <div class="brawl-panel p-3.5 max-w-sm w-full bg-slate-900 border-purple-500 space-y-2.5 max-h-[90dvh] flex flex-col">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-1.5 flex-shrink-0">
-        <div class="flex items-center gap-1.5">
-          <span class="text-2xl" id="res-icon">👣</span>
-          <div>
-            <h3 class="font-black text-purple-300 text-xs" id="res-title">脳内GPS 診断レポート</h3>
-            <span class="text-[9px] text-slate-400">主観（感覚）と客観（現実）のギャップ</span>
-          </div>
-        </div>
-        <button onclick="closeModal('result-modal')" class="text-slate-400 hover:text-white font-black text-base">✕</button>
-      </div>
-
-      <div class="overflow-y-auto space-y-2 flex-1 pr-1 text-xs">
-        
-        <!-- 完全ローカルリプレイ動画 -->
-        <div class="bg-slate-950 p-2 rounded-xl border border-sky-500/40 space-y-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-black text-sky-300 flex items-center gap-1">
-              🎬 いまの動きをリプレイ！（端末内のみ・ネット送信ゼロ）
-            </span>
-            <span class="text-[8px] bg-sky-950 text-sky-200 border border-sky-600/50 px-1.5 py-0.5 rounded font-black">
-              🔒 安全
-            </span>
-          </div>
-          <div class="replay-video-box">
-            <video id="replay-video" class="replay-video-element" playsinline webkit-playsinline loop muted autoplay></video>
-            <div id="replay-placeholder" class="text-[10px] text-slate-500 font-bold p-2 text-center">
-              動画を準備中...
-            </div>
-          </div>
-          <p class="text-[9px] text-slate-400 leading-tight text-center">
-            ※ サーバー送信なし。この画面を閉じると端末メモリから自動消去されます。
-          </p>
-        </div>
-
-        <!-- 総合ズレ度バッジ -->
-        <div class="bg-purple-950/50 p-2.5 rounded-xl border border-purple-500/50 text-center">
-          <span class="text-[10px] text-purple-300 font-bold block">🧠 あなたの身体図式（脳内GPS）のズレ度</span>
-          <span class="text-xl font-black text-amber-400 my-0.5 block" id="res-score-disp">ズレ度: 18 %（良好！）</span>
-          <span class="text-[9px] text-slate-300 font-bold leading-tight block" id="res-score-sub">
-            本人の感覚と実際の体の位置に差があります。
-          </span>
-        </div>
-
-        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-0.5">
-          <span class="text-[9px] font-black text-emerald-400 block">🔍 狂っている身体のセンサー：</span>
-          <p class="text-[11px] text-slate-200 font-bold leading-relaxed" id="res-sensor-reason">
-            --
-          </p>
-        </div>
-
-        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-0.5">
-          <span class="text-[9px] font-black text-amber-400 block">⚾ これが野球で引き起こすエラー：</span>
-          <p class="text-[11px] text-slate-200 font-bold leading-relaxed" id="res-baseball-impact">
-            --
-          </p>
-        </div>
-      </div>
-
-      <div class="flex gap-1.5 pt-1 flex-shrink-0">
-        <button onclick="saveAndSyncToHome()" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
-          💾 ホームに保存
-        </button>
-        <button onclick="enterDrillMode()" class="flex-1 btn-3d py-2 btn-emerald text-xs font-black rounded-xl shadow">
-          🎮 大画面ドリルへ
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast-box" class="toast-msg"></div>
-
-  <script>
-    // ==========================================
-    // 1. システム状態管理 & Web Audio API
-    // ==========================================
-    let currentAppMode = 'TEST_IDLE'; // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
-
-    let audioCtx = null;
-    function getAudioContext() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      return audioCtx;
-    }
-
-    function playSound(freq, duration = 0.08, type = 'sine', volume = 0.22) {
-      try {
-        const ctx = getAudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(volume, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-      } catch(e) {}
-    }
-
-    function playMetronomeTick() {
-      playSound(800, 0.04, 'square', 0.15);
-    }
-
-    function playWhistle() {
-      playSound(2800, 0.22, 'triangle', 0.35);
-      setTimeout(() => playSound(2800, 0.45, 'triangle', 0.35), 240);
-    }
-
-    function playBuzzer() {
-      playSound(180, 0.35, 'sawtooth', 0.4);
-      setTimeout(() => playSound(130, 0.45, 'sawtooth', 0.4), 300);
-    }
-
-    function playFanfare() {
-      [523, 659, 783, 1046].forEach((f, i) => {
-        setTimeout(() => playSound(f, 0.18, 'triangle'), i * 110);
-      });
-    }
-
-    function playMatchPing() {
-      playSound(880, 0.12, 'triangle', 0.3);
-      setTimeout(() => playSound(1320, 0.2, 'triangle', 0.35), 100);
-    }
-
-    // 音声案内（音声合成）
-    function speakVoice(text, cancelCurrent = true) {
-      try {
-        if ('speechSynthesis' in window) {
-          if (cancelCurrent) window.speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(text);
-          u.lang = 'ja-JP';
-          u.rate = 1.15; // 明瞭でテンポの良い指導レート
-          u.pitch = 1.1;
-          window.speechSynthesis.speak(u);
-        }
-      } catch (e) {}
-    }
-
-    function showToast(text, duration = 2600) {
-      const t = document.getElementById('toast-box');
-      t.textContent = text;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), duration);
-    }
-
-    // ==========================================
-    // 2. 4大テスト設定定義 ＆ フルボイス動作指示台本
-    // ==========================================
-    const TEST_CONFIGS = {
-      STEPPING: {
-        icon: "👣",
-        title: "目隠し足踏みテスト（骨盤・股関節の回旋マップ）",
-        desc: "カメラから約2m離れて枠内に全身を映そう！自動検知でスタート！",
-        duration: 15,
-        mainLabel: "移動ズレ:",
-        mainUnit: "cm",
-        subLabel: "回転ズレ:",
-        subUnit: "°",
-        sensorReason: "【骨盤・股関節の回旋マップ＆脳内垂直軸】が狂っています。本人はまっすぐ歩いているつもりですが、骨盤の張り（筋緊張）に左右差があるため、体が勝手に旋回してしまいます。",
-        baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。",
-        // ★ テスト専用ボイスガイド台本
-        voiceScript: {
-          countdown: "準備完了！目を閉じてスタンバイ！3",
-          start: "スタート！目を閉じたまま、その場でしっかり腿を上げて足踏み！",
-          midpoint: "その調子！頭の中で同じ場所を踏み続けよう！前に進まないぞ！",
-          ending: "ラスト3秒！リズミカルに踏み続けろ！",
-          finish: "ストップ！終了！目を開けて結果を見よう！"
-        }
-      },
-      TPOSE: {
-        icon: "⚖️",
-        title: "目隠し腕の水平Tポーズ（肩甲骨・腕の高さ認知）",
-        desc: "枠内に全身を映して目を閉じ、両腕を真横（180度）に開いてキープ！",
-        duration: 6,
-        mainLabel: "左右高低差:",
-        mainUnit: "cm",
-        subLabel: "傾斜角:",
-        subUnit: "°",
-        sensorReason: "【肩甲帯（肩甲骨）の空間位置覚】がズレています。投球側またはバット側の肩甲骨が下に落ちているのに、脳が『水平に上がっている』と錯覚しています。",
-        baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。",
-        voiceScript: {
-          countdown: "目を閉じてスタンバイ！3",
-          start: "スタート！目を閉じたまま、両腕を真横にピーンと広げて水平キープ！",
-          midpoint: "地面と平行をイメージ！肩甲骨を真っ直ぐ保とう！",
-          ending: "そのままピタッとキープ！",
-          finish: "終了！目を開けて左右の高さを確認しよう！"
-        }
-      },
-      BALANCE: {
-        icon: "⚓",
-        title: "目隠し片足立ちテスト（足裏センサー＆中殿筋支持力）",
-        desc: "枠内に全身を映して目を閉じ、軸足1本で何秒ピタッと止まれるか！？",
-        duration: 15,
-        mainLabel: "キープ時間:",
-        mainUnit: "秒",
-        subLabel: "頭部ブレ幅:",
-        subUnit: "cm",
-        sensorReason: "【足裏のメカノレセプター（圧力センサー）とお尻（中殿筋）】の通信が遅れています。視覚のカンニングが消えた瞬間、足裏のどこに重心があるか見失っています。",
-        baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。",
-        voiceScript: {
-          countdown: "軸足で立って目を閉じて！3",
-          start: "スタート！目を閉じて片足立ち！足の裏で地面をしっかり掴んで！",
-          midpoint: "ナイスバランス！お尻の外側に力を入れてグラつきを耐えろ！",
-          ending: "あと3秒！ピタッと止まり続けろ！",
-          finish: "終了！ナイスキープ！目を開けてね！"
-        }
-      },
-      XFACTOR: {
-        icon: "🪑",
-        title: "骨盤制動・体幹90度回旋テスト（X-Factor分離能力）",
-        desc: "正面を向いて両手を胸の前でクロス！腰（骨盤）を正面に止めたまま胸だけ真横へ回そう！",
-        duration: 10,
-        mainLabel: "胸郭回旋角:",
-        mainUnit: "°",
-        subLabel: "骨盤逃げ角:",
-        subUnit: "°",
-        sensorReason: "【胸郭（胸椎）と骨盤の分離運動マップ】が未発達です。本人は腰を止めているつもりでも、腰椎・骨盤が一緒に回る『ドラム缶回り（同時収縮）』を起こしています。",
-        baseballImpact: "投球での【手投げ・早い開き】、打撃での【ドアスイング・タメの消失】の真犯人です。腰を止めて胸を回せないため、下半身先行のエネルギー連鎖が完全に遮断されます。",
-        voiceScript: {
-          countdown: "両手を胸の前でクロス！目を閉じて3",
-          start: "スタート！腰をピタッと正面に止めたまま、胸だけ真横へ回そう！",
-          midpoint: "お尻を動かさない！胸のマークを横の壁に向けるイメージ！",
-          ending: "腰を固定したまま、胸を大きく回し切れ！",
-          finish: "終了！目を開けて分離角度を見よう！"
-        }
-      }
-    };
-
-    let currentTestMode = 'STEPPING';
-    let isCountingDown = false;
-    let cameraFacing = 'user';
-
-    let pose = null;
-    let isPoseReady = false;
-    let isProcessingFrame = false;
-    let currentStream = null;
-
-    const videoEl = document.getElementById('webcam-video');
-    const canvasEl = document.getElementById('output-canvas');
-    const ctx = canvasEl.getContext('2d');
-    const screenWrapperEl = document.getElementById('camera-screen-wrapper');
-    const safeBoundaryEl = document.getElementById('safe-boundary');
-
-    let fullBodyDetectedFrames = 0;
-    const REQUIRED_STABLE_FRAMES = 10;
-    let autoStartTriggered = false;
-
-    let baselineData = null;
-    let calculatedPxPerCm = 2.0;
-    let previousValidAngle = 0;
-    let testRunningElapsedTime = 0;
-
-    let currentMetrics = {
-      driftCm: 0,
-      rotDeg: 0,
-      tposeDiffCm: 0,
-      tposeTiltDeg: 0,
-      balanceSeconds: 0,
-      headWobbleCm: 0,
-      xfactorChestDeg: 0,
-      xfactorPelvisDeg: 0,
-      isWarpOut: false
-    };
-
-    let testTimerInterval = null;
-    let testRemainingSeconds = 0;
-    let metronomeInterval = null;
-
-    // ==========================================
-    // 3. 完全ローカル自動録画（MediaRecorder）
-    // ==========================================
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let localReplayBlobUrl = null;
-
-    function startLocalRecording() {
-      if (localReplayBlobUrl) {
-        URL.revokeObjectURL(localReplayBlobUrl);
-        localReplayBlobUrl = null;
-      }
-      recordedChunks = [];
-
-      try {
-        if (!canvasEl.captureStream) return;
-        const stream = canvasEl.captureStream(24);
-        const options = { mimeType: 'video/webm;codecs=vp8' };
-        
-        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-          mediaRecorder = new MediaRecorder(stream, options);
-        } else {
-          mediaRecorder = new MediaRecorder(stream);
-        }
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            recordedChunks.push(e.data);
-          }
-        };
-
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
-          localReplayBlobUrl = URL.createObjectURL(blob);
-          const replayVideo = document.getElementById('replay-video');
-          const placeholder = document.getElementById('replay-placeholder');
-          
-          if (replayVideo) {
-            replayVideo.src = localReplayBlobUrl;
-            replayVideo.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
-            replayVideo.play().catch(() => {});
-          }
-        };
-
-        mediaRecorder.start();
-        document.getElementById('recording-badge').classList.replace('hidden', 'flex');
-      } catch (err) {
-        console.warn("ローカル録画非対応環境です:", err);
-      }
-    }
-
-    function stopLocalRecording() {
-      document.getElementById('recording-badge').classList.replace('flex', 'hidden');
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        try {
-          mediaRecorder.stop();
-        } catch (e) {}
-      }
-    }
-
-    // ==========================================
-    // 4. 直結カメラ起動（iOS Safari最適化）
-    // ==========================================
-    let isCameraStarting = false;
-
-    async function startDirectCamera() {
-      if (isCameraStarting) return;
-      isCameraStarting = true;
-
-      const detectTextEl = document.getElementById('detect-text');
-      const detectDotEl = document.getElementById('detect-dot');
-      
-      try {
-        if (currentStream) {
-          currentStream.getTracks().forEach(track => track.stop());
-          currentStream = null;
-        }
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error("SECURE_CONTEXT_REQUIRED");
-        }
-
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const constraints = isIOS ? {
-          video: { facingMode: cameraFacing },
-          audio: false
-        } : {
-          video: {
-            facingMode: cameraFacing,
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        currentStream = stream;
-        
-        videoEl.setAttribute('playsinline', '');
-        videoEl.setAttribute('webkit-playsinline', '');
-        videoEl.muted = true;
-        videoEl.srcObject = stream;
-        
-        const onStreamReady = async () => {
-          try {
-            await videoEl.play();
-          } catch (e) {}
-          updateDetectBadge(false, 0, "枠内に全身を入れてね");
-          requestAnimationFrame(renderLoop);
-        };
-
-        videoEl.onloadedmetadata = onStreamReady;
-        setTimeout(onStreamReady, 350);
-
-      } catch (err) {
-        console.error("Camera access failed:", err);
-        detectDotEl.className = "w-2 h-2 rounded-full bg-rose-500";
-        
-        let reason = "タップしてカメラ起動";
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          reason = "タップしてカメラを許可";
-          showToast("🚨 カメラのアクセスが求められています。\n画面をタップするか「🚀」ボタンを押して許可してください。");
-        } else if (err.message === "SECURE_CONTEXT_REQUIRED" || location.protocol === 'file:') {
-          reason = "file://禁止 (Live Serverで起動)";
-          showToast("⚠️ file://環境ではカメラが動かない仕様です。\nVSCodeの『Live Server』で開いてください。");
-        } else {
-          reason = "タップしてカメラ起動";
-        }
-        detectTextEl.textContent = reason;
-      } finally {
-        isCameraStarting = false;
-      }
-    }
-
-    async function initPoseEngine() {
-      try {
-        pose = new Pose({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-        });
-
-        pose.setOptions({
-          modelComplexity: 1,
-          smoothLandmarks: true,
-          enableSegmentation: false,
-          minDetectionConfidence: 0.3,
-          minTrackingConfidence: 0.3
-        });
-
-        pose.onResults(onPoseResults);
-        await pose.initialize();
-        isPoseReady = true;
-      } catch (err) {
-        console.warn("MediaPipe Pose load failed:", err);
-      }
-    }
-
-    async function renderLoop() {
-      if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
-        if (canvasEl.width !== videoEl.videoWidth || canvasEl.height !== videoEl.videoHeight) {
-          canvasEl.width = videoEl.videoWidth;
-          canvasEl.height = videoEl.videoHeight;
-        }
-
-        if (pose && isPoseReady && !isProcessingFrame) {
-          isProcessingFrame = true;
-          try {
-            await pose.send({ image: videoEl });
-          } catch (e) {
-            // Skip frame
-          } finally {
-            isProcessingFrame = false;
-          }
-        }
-      }
-      requestAnimationFrame(renderLoop);
-    }
-
-    document.getElementById('btn-switch-camera').addEventListener('click', () => {
-      playSound(700, 0.08);
-      cameraFacing = (cameraFacing === 'user') ? 'environment' : 'user';
-      videoEl.style.transform = (cameraFacing === 'user') ? 'scaleX(-1)' : 'none';
-      canvasEl.style.transform = (cameraFacing === 'user') ? 'scaleX(-1)' : 'none';
-      startDirectCamera();
-      showToast(`📷 ${cameraFacing === 'user' ? 'インカメラ（自撮り）' : '外カメラ'}に切り替えました`);
-    });
-
-    document.getElementById('body-detect-badge').addEventListener('click', () => {
-      playSound(600, 0.08);
-      startDirectCamera();
-    });
-
-    // ==========================================
-    // 5. 骨格解析＆身体図式判定（厳格な全身検知）
-    // ==========================================
-    function onPoseResults(results) {
-      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-
-      if (!results.poseLandmarks) {
-        if (currentAppMode === 'TEST_RUNNING' && testRunningElapsedTime > 2.0) {
-          handleFrameOutBreakthrough();
-          return;
-        }
-        if (currentAppMode === 'TEST_IDLE') updateDetectBadge(false);
-        return;
-      }
-
-      const l = results.poseLandmarks;
-      const w = canvasEl.width;
-      const h = canvasEl.height;
-
-      // ドリルモード中は専用ロジックへ
-      if (currentAppMode === 'DRILL_ACTIVE') {
-        processSkeletonGameInDrill(l, w, h);
-        return;
-      }
-
-      const NOSE = l[0];
-      const L_SHOULDER = l[11], R_SHOULDER = l[12];
-      const L_WRIST = l[15], R_WRIST = l[16];
-      const L_HIP = l[23], R_HIP = l[24];
-      const L_KNEE = l[25], R_KNEE = l[26];
-      const L_ANKLE = l[27], R_ANKLE = l[28];
-      const L_HEEL = l[29], R_HEEL = l[30];
-
-      // ★ 厳格な全身視野判定（頭・体幹・両膝・両足首/かかとが全て画面内に確実に存在すること）
-      const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.01 && NOSE.y < 0.55);
-      const hasTorso = Boolean(
-        L_SHOULDER && R_SHOULDER && L_HIP && R_HIP &&
-        (L_SHOULDER.visibility || 0) > 0.35 && (R_SHOULDER.visibility || 0) > 0.35 &&
-        (L_HIP.visibility || 0) > 0.35 && (R_HIP.visibility || 0) > 0.35
-      );
-      const hasKnees = Boolean(
-        L_KNEE && R_KNEE &&
-        (L_KNEE.visibility || 0) > 0.35 && (R_KNEE.visibility || 0) > 0.35
-      );
-      const hasLeftFoot = Boolean(
-        (L_ANKLE && (L_ANKLE.visibility || 0) > 0.35 && L_ANKLE.y <= 0.98) ||
-        (L_HEEL && (L_HEEL.visibility || 0) > 0.35 && L_HEEL.y <= 0.98)
-      );
-      const hasRightFoot = Boolean(
-        (R_ANKLE && (R_ANKLE.visibility || 0) > 0.35 && R_ANKLE.y <= 0.98) ||
-        (R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y <= 0.98)
-      );
-
-      const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasLeftFoot && hasRightFoot);
-
-      // はみ出し判定用マージン
-      const EDGE_MIN = 0.04;
-      const EDGE_MAX_X = 0.96;
-      const EDGE_MAX_Y = 0.96;
-
-      const isTouchingEdge = Boolean(
-        (NOSE && (NOSE.y < EDGE_MIN || NOSE.x < EDGE_MIN || NOSE.x > EDGE_MAX_X)) ||
-        (L_HIP && (L_HIP.x < EDGE_MIN || L_HIP.x > EDGE_MAX_X || L_HIP.y > EDGE_MAX_Y)) ||
-        (R_HIP && (R_HIP.x < EDGE_MIN || R_HIP.x > EDGE_MAX_X || R_HIP.y > EDGE_MAX_Y)) ||
-        (L_ANKLE && L_ANKLE.y > EDGE_MAX_Y) ||
-        (R_ANKLE && R_ANKLE.y > EDGE_MAX_Y)
-      );
-
-      if (hasFullBody && NOSE && (L_ANKLE || R_ANKLE)) {
-        const ankleY = Math.max(L_ANKLE ? L_ANKLE.y : 0.8, R_ANKLE ? R_ANKLE.y : 0.8);
-        const measuredHeightPx = Math.abs(ankleY - NOSE.y) * h;
-        if (measuredHeightPx > 80) {
-          calculatedPxPerCm = measuredHeightPx / 130;
-        }
-      }
-
-      // ① 待機中：全身検知で自動スタートトリガー（足先まで揃っているときのみ加算）
-      if (currentAppMode === 'TEST_IDLE' && !isCountingDown) {
-        if (hasFullBody) {
-          fullBodyDetectedFrames++;
-          updateDetectBadge(true, fullBodyDetectedFrames);
-          safeBoundaryEl.className = "safe-boundary-box ready";
-
-          if (fullBodyDetectedFrames >= REQUIRED_STABLE_FRAMES && !autoStartTriggered) {
-            autoStartTriggered = true;
-            triggerCountdownAndStart();
-          }
-        } else {
-          fullBodyDetectedFrames = 0;
-          autoStartTriggered = false;
-          updateDetectBadge(false);
-          safeBoundaryEl.className = "safe-boundary-box";
-        }
-      }
-
-      // ② 測定中：境界接触または消失で即終了
-      if (currentAppMode === 'TEST_RUNNING') {
-        if (testRunningElapsedTime > 1.8 && (isTouchingEdge || !hasFullBody)) {
-          handleFrameOutBreakthrough();
-          return;
-        }
-      }
-
-      // 骨格描画
-      drawSkeleton(ctx, l, w, h, "rgba(192, 132, 252, 0.85)");
-
-      // 測定ロジック（テスト別）
-      if (currentTestMode === 'STEPPING') {
-        if (L_HIP && R_HIP) {
-          const midHipX = (L_HIP.x + R_HIP.x) / 2 * w;
-          const midHipY = (L_HIP.y + R_HIP.y) / 2 * h;
-          let hipAngle = Math.atan2((R_HIP.y - L_HIP.y) * h, (R_HIP.x - L_HIP.x) * w) * (180 / Math.PI);
-
-          if (currentAppMode === 'TEST_RUNNING') {
-            if (!baselineData) {
-              baselineData = { x: midHipX, y: midHipY, angle: hipAngle };
-              previousValidAngle = hipAngle;
-            }
-
-            if (Math.abs(hipAngle - previousValidAngle) > 50 && Math.abs(hipAngle - previousValidAngle) < 310) {
-              hipAngle = previousValidAngle;
-            } else {
-              previousValidAngle = hipAngle;
-            }
-
-            const driftPx = Math.hypot(midHipX - baselineData.x, midHipY - baselineData.y);
-            const driftCm = Math.round(driftPx / Math.max(0.5, calculatedPxPerCm));
-            let rotDiff = Math.abs(Math.round(hipAngle - baselineData.angle));
-            if (rotDiff > 180) rotDiff = 360 - rotDiff;
-
-            currentMetrics.driftCm = driftCm;
-            currentMetrics.rotDeg = rotDiff;
-
-            document.getElementById('metric-main-val').textContent = `${driftCm} cm`;
-            document.getElementById('metric-sub-val').textContent = `${rotDiff} °`;
-          }
-        }
-      } else if (currentTestMode === 'TPOSE') {
-        if (L_WRIST && R_WRIST && L_SHOULDER && R_SHOULDER) {
-          const wristDiffPx = Math.abs(L_WRIST.y - R_WRIST.y) * h;
-          const wristDiffCm = Math.round(wristDiffPx / Math.max(0.5, calculatedPxPerCm));
-          const armAngle = Math.round(Math.abs(Math.atan2((R_WRIST.y - L_WRIST.y) * h, (R_WRIST.x - L_WRIST.x) * w) * (180 / Math.PI)));
-
-          currentMetrics.tposeDiffCm = wristDiffCm;
-          currentMetrics.tposeTiltDeg = armAngle;
-
-          document.getElementById('metric-main-val').textContent = `${wristDiffCm} cm`;
-          document.getElementById('metric-sub-val').textContent = `${armAngle} °`;
-        }
-      } else if (currentTestMode === 'BALANCE') {
-        if (NOSE) {
-          if (currentAppMode === 'TEST_RUNNING') {
-            if (!baselineData) {
-              baselineData = { noseX: NOSE.x * w, noseY: NOSE.y * h };
-            }
-            const wobblePx = Math.hypot(NOSE.x * w - baselineData.noseX, NOSE.y * h - baselineData.noseY);
-            const wobbleCm = Math.round(wobblePx / Math.max(0.5, calculatedPxPerCm));
-            currentMetrics.headWobbleCm = Math.max(currentMetrics.headWobbleCm, wobbleCm);
-
-            document.getElementById('metric-sub-val').textContent = `${currentMetrics.headWobbleCm} cm`;
-          }
-        }
-      } else if (currentTestMode === 'XFACTOR') {
-        // 🪑 ④ 骨盤制動・体幹90度回旋テスト（X-Factor）判定
-        if (L_SHOULDER && R_SHOULDER && L_HIP && R_HIP) {
-          const sDx = (L_SHOULDER.x - R_SHOULDER.x) * w;
-          const sDz = ((L_SHOULDER.z || 0) - (R_SHOULDER.z || 0)) * w;
-          const hDx = (L_HIP.x - R_HIP.x) * w;
-          const hDz = ((L_HIP.z || 0) - (R_HIP.z || 0)) * w;
-
-          const sRot = Math.atan2(sDz, sDx) * (180 / Math.PI);
-          const hRot = Math.atan2(hDz, hDx) * (180 / Math.PI);
-
-          if (currentAppMode === 'TEST_RUNNING') {
-            if (!baselineData) {
-              baselineData = { sRot: sRot, hRot: hRot };
-            }
-
-            let chestRotDiff = Math.abs(Math.round(sRot - baselineData.sRot));
-            if (chestRotDiff > 180) chestRotDiff = 360 - chestRotDiff;
-
-            let pelvisRotDiff = Math.abs(Math.round(hRot - baselineData.hRot));
-            if (pelvisRotDiff > 180) pelvisRotDiff = 360 - pelvisRotDiff;
-
-            currentMetrics.xfactorChestDeg = Math.max(currentMetrics.xfactorChestDeg, chestRotDiff);
-            currentMetrics.xfactorPelvisDeg = Math.max(currentMetrics.xfactorPelvisDeg, pelvisRotDiff);
-
-            document.getElementById('metric-main-val').textContent = `${currentMetrics.xfactorChestDeg} °`;
-            document.getElementById('metric-sub-val').textContent = `${currentMetrics.xfactorPelvisDeg} °`;
-          }
-        }
-      }
-    }
-
-    function updateDetectBadge(isDetected, count = 0, overrideText = null) {
-      const badge = document.getElementById('body-detect-badge');
-      const dot = document.getElementById('detect-dot');
-      const text = document.getElementById('detect-text');
-
-      if (overrideText) {
-        text.textContent = overrideText;
-        return;
-      }
-
-      if (isDetected) {
-        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
-        badge.className = "px-2 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500 text-[10px] font-black text-emerald-300 flex items-center gap-1 flex-shrink-0 cursor-pointer";
-        text.textContent = count >= REQUIRED_STABLE_FRAMES ? "全身OK！スタンバイ" : "全身検知中...";
-      } else {
-        dot.className = "w-2 h-2 rounded-full bg-slate-500";
-        badge.className = "px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer";
-        text.textContent = "枠内に全身を入れてね";
-      }
-    }
-
-    function handleFrameOutBreakthrough() {
-      if (currentAppMode !== 'TEST_RUNNING') return;
-      
-      currentAppMode = 'TEST_IDLE';
-      clearInterval(testTimerInterval);
-      clearInterval(metronomeInterval);
-      testTimerInterval = null;
-      metronomeInterval = null;
-      stopLocalRecording();
-
-      safeBoundaryEl.className = "safe-boundary-box warning";
-      document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
-
-      playBuzzer();
-      speakVoice("ストップ！画面からはみ出たので測定終了！目を開けてね！");
-
-      currentMetrics.isWarpOut = true;
-      currentMetrics.driftCm = Math.max(currentMetrics.driftCm, 85);
-
-      renderDiagnosisResult();
-      openModal('result-modal');
-      showToast("🚨 画面からはみ出たため測定を終了しました！\n（前方への強い突進を記録しました）", 3500);
-    }
-
-    function drawSkeleton(targetCtx, landmarks, w, h, strokeColor, isDashed = false) {
-      const connections = [
-        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-        [11, 23], [12, 24], [23, 24],
-        [23, 25], [25, 27], [24, 26], [26, 28]
-      ];
-
-      targetCtx.save();
-      targetCtx.strokeStyle = strokeColor;
-      targetCtx.lineWidth = isDashed ? 3 : 4;
-      if (isDashed) targetCtx.setLineDash([6, 6]);
-
-      connections.forEach(([i, j]) => {
-        if (landmarks[i] && landmarks[j]) {
-          targetCtx.beginPath();
-          targetCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
-          targetCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
-          targetCtx.stroke();
-        }
-      });
-
-      [11, 12, 15, 16, 23, 24, 27, 28].forEach(idx => {
-        if (landmarks[idx]) {
-          targetCtx.beginPath();
-          targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, isDashed ? 4.5 : 6.5, 0, Math.PI * 2);
-          targetCtx.fillStyle = strokeColor;
-          targetCtx.fill();
-          targetCtx.strokeStyle = "#ffffff";
-          targetCtx.lineWidth = 1.5;
-          targetCtx.stroke();
-        }
-      });
-      targetCtx.restore();
-    }
-
-    // ==========================================
-    // 6. テスト実行＆カウントダウン制御（音声ナビゲーション完全対応）
-    // ==========================================
-    function selectTestMode(mode) {
-      playSound(600, 0.08);
-      currentTestMode = mode;
-      currentAppMode = 'TEST_IDLE';
-      isCountingDown = false;
-      autoStartTriggered = false;
-      fullBodyDetectedFrames = 0;
-      baselineData = null;
-      testRunningElapsedTime = 0;
-      currentMetrics.isWarpOut = false;
-      currentMetrics.xfactorChestDeg = 0;
-      currentMetrics.xfactorPelvisDeg = 0;
-      clearInterval(testTimerInterval);
-      clearInterval(metronomeInterval);
-      testTimerInterval = null;
-      metronomeInterval = null;
-      stopLocalRecording();
-
-      safeBoundaryEl.className = "safe-boundary-box";
-
-      ['tab-step', 'tab-tpose', 'tab-balance', 'tab-xfactor'].forEach(id => {
-        document.getElementById(id)?.classList.remove('active');
-      });
-
-      const config = TEST_CONFIGS[mode];
-      document.getElementById('guide-icon').textContent = config.icon;
-      document.getElementById('guide-title').textContent = config.title;
-      document.getElementById('guide-desc').textContent = config.desc;
-
-      document.getElementById('metric-main-label').textContent = config.mainLabel;
-      document.getElementById('metric-sub-label').textContent = config.subLabel;
-      document.getElementById('metric-main-val').textContent = `0 ${config.mainUnit}`;
-      document.getElementById('metric-sub-val').textContent = `0 ${config.subUnit}`;
-
-      if (mode === 'STEPPING') document.getElementById('tab-step')?.classList.add('active');
-      if (mode === 'TPOSE') document.getElementById('tab-tpose')?.classList.add('active');
-      if (mode === 'BALANCE') document.getElementById('tab-balance')?.classList.add('active');
-      if (mode === 'XFACTOR') document.getElementById('tab-xfactor')?.classList.add('active');
-
-      document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
-      document.getElementById('btn-start-test').textContent = `🚀 全身を映すと自動スタート！ (タップでもOK)`;
-
-      // モード切り替え時の音声プレビュー
-      if (mode === 'STEPPING') speakVoice("足踏みテスト！枠内に立って全身を映そう！");
-      else if (mode === 'TPOSE') speakVoice("Tポーズテスト！腕を広げて水平をキープしよう！");
-      else if (mode === 'BALANCE') speakVoice("片足立ちテスト！軸足でしっかり止まろう！");
-      else if (mode === 'XFACTOR') speakVoice("骨盤制動テスト！腰を止めて胸だけ回そう！");
-    }
-
-    document.getElementById('btn-start-test').addEventListener('click', () => {
-      if (!currentStream) {
-        startDirectCamera();
-      }
-      if (currentAppMode !== 'TEST_IDLE' || isCountingDown) return;
-      triggerCountdownAndStart();
-    });
-
-    function triggerCountdownAndStart() {
-      if (isCountingDown) return;
-      isCountingDown = true;
-
-      const overlay = document.getElementById('countdown-box');
-      const numEl = document.getElementById('countdown-num');
-      overlay.style.display = 'flex';
-      let count = 3;
-      numEl.textContent = count;
-
-      playSound(520, 0.12, 'sine');
-      const script = TEST_CONFIGS[currentTestMode].voiceScript;
-      speakVoice(script.countdown);
-
-      const cdInterval = setInterval(() => {
-        count--;
-        if (count > 0) {
-          numEl.textContent = count;
-          playSound(520, 0.12, 'sine');
-          speakVoice(String(count));
-        } else if (count === 0) {
-          numEl.textContent = "GO!";
-          playSound(880, 0.35, 'triangle');
-          speakVoice(script.start);
-        } else {
-          clearInterval(cdInterval);
-          overlay.style.display = 'none';
-          isCountingDown = false;
-          runActiveTest();
-        }
-      }, 1000);
-    }
-
-    function runActiveTest() {
-      currentAppMode = 'TEST_RUNNING';
-      baselineData = null;
-      testRunningElapsedTime = 0;
-      currentMetrics.isWarpOut = false;
-      const config = TEST_CONFIGS[currentTestMode];
-      testRemainingSeconds = config.duration;
-      const totalDuration = config.duration;
-      const script = config.voiceScript;
-
-      const badge = document.getElementById('measuring-badge');
-      badge.classList.replace('hidden', 'flex');
-      document.getElementById('measuring-text').textContent = `🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)`;
-
-      startLocalRecording();
-
-      // リズム用メトロノーム（足踏み時はとくに効果的）
-      metronomeInterval = setInterval(() => {
-        if (currentAppMode === 'TEST_RUNNING') playMetronomeTick();
-      }, 550);
-
-      // 中間・残り3秒などの音声フラグ
-      let playedMidVoice = false;
-      let playedEndVoice = false;
-
-      testTimerInterval = setInterval(() => {
-        testRemainingSeconds--;
-        testRunningElapsedTime += 1.0;
-
-        if (testRemainingSeconds > 0) {
-          document.getElementById('measuring-text').textContent = `🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)`;
-          
-          // 中間地点での動作誘導ボイス
-          if (!playedMidVoice && testRunningElapsedTime >= Math.floor(totalDuration / 2)) {
-            playedMidVoice = true;
-            speakVoice(script.midpoint, false);
-          }
-
-          // ラストスパート（残り3秒）での音声励まし
-          if (!playedEndVoice && testRemainingSeconds === 3) {
-            playedEndVoice = true;
-            playSound(1200, 0.08, 'sine');
-            speakVoice(script.ending, false);
-          }
-
-          if (currentTestMode === 'BALANCE') {
-            currentMetrics.balanceSeconds = config.duration - testRemainingSeconds;
-            document.getElementById('metric-main-val').textContent = `${currentMetrics.balanceSeconds} 秒`;
-          }
-        } else {
-          clearInterval(testTimerInterval);
-          clearInterval(metronomeInterval);
-          testTimerInterval = null;
-          metronomeInterval = null;
-          finishTestNormally();
-        }
-      }, 1000);
-    }
-
-    function finishTestNormally() {
-      currentAppMode = 'TEST_IDLE';
-      document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
-      stopLocalRecording();
-
-      playWhistle();
-      const script = TEST_CONFIGS[currentTestMode].voiceScript;
-      speakVoice(script.finish);
-
-      setTimeout(() => {
-        playFanfare();
-        showToast("🎉 測定完了！目を開けて結果を見よう！");
-        renderDiagnosisResult();
-        openModal('result-modal');
-      }, 400);
-    }
-
-    function renderDiagnosisResult() {
-      const config = TEST_CONFIGS[currentTestMode];
-      document.getElementById('res-icon').textContent = config.icon;
-      document.getElementById('res-title').textContent = `${config.title.split('（')[0]} 診断結果`;
-      document.getElementById('res-sensor-reason').textContent = config.sensorReason;
-      document.getElementById('res-baseball-impact').textContent = config.baseballImpact;
-
-      let scoreDisp = "";
-      let subDisp = "";
-
-      if (currentMetrics.isWarpOut) {
-        scoreDisp = `🚨 画面はみ出し終了！【ズレ度: MAX 95%】`;
-        subDisp = `本人はその場にいたつもりですが、画面からはみ出るほど【 85cm以上 前方へ突進 】していました！骨盤が前に倒れ、重心が突っ走っています！`;
-        document.getElementById('res-sensor-reason').textContent = "【前傾重心＆骨盤の倒れ込み】が起きています。足踏みしているうちに無意識に足が前へ前へと接地し、空間内の定位置を完全に見失っていました。";
-        document.getElementById('res-baseball-impact').textContent = "打撃で【頭がピッチャー側に突っ込んで変化球に泳がされる】、投球で【体が突っ込んで高めに抜ける】最大の原因です！";
-      } else if (currentTestMode === 'STEPPING') {
-        const d = currentMetrics.driftCm;
-        const r = currentMetrics.rotDeg;
-        const errScore = Math.min(100, Math.round((d * 1.5) + (r * 1.8)));
-        const accuracy = Math.max(10, 100 - errScore);
-        scoreDisp = `脳内GPS精度: ${accuracy} % 【ズレ度: ${errScore}%】`;
-        subDisp = `スタート位置から【 前後に${d}cm 】移動し、骨盤が【 ${r}度 】ねじれていました！`;
-      } else if (currentTestMode === 'TPOSE') {
-        const diff = currentMetrics.tposeDiffCm;
-        const tilt = currentMetrics.tposeTiltDeg;
-        scoreDisp = `肩甲骨アライメント覚醒度: ${Math.max(10, 100 - diff * 8)} %`;
-        subDisp = `本人は水平のつもりでしたが、左右の手に【 ${diff}cm 】の高低差（傾き ${tilt}°）がありました！`;
-      } else if (currentTestMode === 'BALANCE') {
-        const sec = currentMetrics.balanceSeconds || 15;
-        const wob = currentMetrics.headWobbleCm;
-        scoreDisp = `足裏支持力レベル: ${sec >= 12 ? 'MASTER ★★★' : 'LEVEL 2'}`;
-        subDisp = `目隠しで【 ${sec}秒間 】キープ！頭部の揺らぎは最大【 ${wob}cm 】でした！`;
-      } else if (currentTestMode === 'XFACTOR') {
-        const cRot = currentMetrics.xfactorChestDeg;
-        const pRot = currentMetrics.xfactorPelvisDeg;
-        if (pRot <= 12 && cRot >= 65) {
-          scoreDisp = `🌟 分離マスター達成！【X-Factor覚醒度: 95%】`;
-          subDisp = `骨盤のブレはわずか【 ${pRot}° 】！胸だけを【 ${cRot}° 】大きく回旋できています！完璧なタメを作れる身体です！`;
-        } else if (pRot > 20) {
-          scoreDisp = `⚠️ 要解除！【ドラム缶同調エラー】`;
-          subDisp = `胸と一緒に骨盤が【 ${pRot}° 】も回ってしまいました！脳内で上半身と下半身が一体化して手投げ・早い開きの原因になっています！`;
-        } else {
-          scoreDisp = `⚡ LEVEL 2【胸郭可動域ロック中】`;
-          subDisp = `骨盤の静止はできていますが、胸の回旋が【 ${cRot}° 】と硬くなっています！背中のロックを解除しよう！`;
-        }
-      }
-
-      document.getElementById('res-score-disp').textContent = scoreDisp;
-      document.getElementById('res-score-sub').textContent = subDisp;
-    }
-
-    function saveAndSyncToHome() {
-      playSound(520, 0.12);
-      try {
-        let engine = JSON.parse(localStorage.getItem('baseball_body_engine_v1') || '{}');
-        if (currentTestMode === 'STEPPING') {
-          engine.schema = {
-            val: currentMetrics.driftCm || 4,
-            unit: "cm",
-            status: `【★ 覚醒度 ${Math.max(20, 100 - (currentMetrics.driftCm * 2))}%】`,
-            alert: currentMetrics.driftCm > 15
-          };
-        } else if (currentTestMode === 'BALANCE') {
-          engine.balance = {
-            val: currentMetrics.balanceSeconds || 15,
-            unit: "秒",
-            status: currentMetrics.balanceSeconds >= 12 ? "【🌟 MASTER達成！】" : "【⚡ LEVEL 2】",
-            alert: currentMetrics.balanceSeconds < 8
-          };
-        } else if (currentTestMode === 'XFACTOR') {
-          const sep = Math.max(0, currentMetrics.xfactorChestDeg - currentMetrics.xfactorPelvisDeg);
-          engine.flex = {
-            val: sep || 38,
-            unit: "°",
-            status: sep >= 55 ? "【🌟 MASTER達成！】" : "【🔒 あと12°で覚醒！】",
-            alert: sep < 45 || currentMetrics.xfactorPelvisDeg > 18
-          };
-        }
-        localStorage.setItem('baseball_body_engine_v1', JSON.stringify(engine));
-        showToast("✅ ホーム画面の身体エンジンに同期しました！");
-      } catch(e) {}
-      closeModal('result-modal');
-    }
-
-    // ==========================================
-    // 7. 大画面AI骨格ドリル（ヒンジ＆X-Factorイス座り回旋）
-    // ==========================================
-    let drillSuccessCount = 0;
-    let drillHoldTimer = null;
-    let drillHoldSeconds = 3;
-    let isHoldingPose = false;
-
-    const drillHud = document.getElementById('drill-hud');
-    const drillHoldBox = document.getElementById('drill-hold-box');
-    const drillHoldCounter = document.getElementById('drill-hold-counter');
-    const drillSuccessCountEl = document.getElementById('drill-success-count');
-    const drillStatusText = document.getElementById('drill-status-text');
-    const drillStatusIcon = document.getElementById('drill-status-icon');
-    const drillHintText = document.getElementById('drill-hint-text');
-    const gaugePin = document.getElementById('gauge-pin');
-
-    function calcAngle(p1, p2, p3) {
-      if (!p1 || !p2 || !p3) return 0;
-      const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
-      const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
-      const mag1 = Math.hypot(v1.x, v1.y);
-      const mag2 = Math.hypot(v2.x, v2.y);
-      if (mag1 < 1e-6 || mag2 < 1e-6) return 0;
-      const dot = v1.x * v2.x + v1.y * v2.y;
-      return Math.round((Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2)))) * 180) / Math.PI);
-    }
-
-    function enterDrillMode() {
-      closeModal('result-modal');
-      playSound(660, 0.1);
-
-      currentAppMode = 'DRILL_ACTIVE';
-      clearInterval(testTimerInterval);
-      clearInterval(metronomeInterval);
-      testTimerInterval = null;
-      metronomeInterval = null;
-      stopLocalRecording();
-      isCountingDown = false;
-      autoStartTriggered = false;
-
-      document.getElementById('test-tabs-container').classList.add('hidden');
-      document.getElementById('test-controls-container').classList.add('hidden');
-      document.getElementById('test-badge-left').classList.add('hidden');
-      document.getElementById('test-badge-right').classList.add('hidden');
-      safeBoundaryEl.classList.add('hidden');
-
-      screenWrapperEl.classList.add('drill-active');
-      drillHud.classList.add('active');
-
-      drillSuccessCount = 0;
-      drillSuccessCountEl.textContent = `0 / 3 回`;
-      drillHoldSeconds = 3;
-      isHoldingPose = false;
-      drillHoldBox.classList.add('hidden');
-
-      if (currentTestMode === 'XFACTOR') {
-        document.getElementById('guide-icon').textContent = "🪑";
-        document.getElementById('guide-title').textContent = "🪑 物理ロック！イス座り胸回し体操";
-        document.getElementById('guide-desc').textContent = "イスに座ってお尻を固定！そのまま胸だけ左右に回して緑に光らせろ！";
-        document.getElementById('gauge-label-top').textContent = "正面";
-        document.getElementById('gauge-label-bottom').textContent = "真横";
-        document.getElementById('drill-status-text').textContent = "イスに深く座って正面を向こう！";
-        document.getElementById('drill-hint-text').innerHTML = "💡 <b>物理ロック：</b>イスに座ると骨盤は絶対に回らない！そのまま胸のマークを真横の壁に向けよう！";
-        document.getElementById('drill-sub-hint').textContent = "骨盤を止め胸を回して3秒キープ！";
-        speakVoice("大画面ドリルスタート！イスに座ってお尻を固定！胸のマークを真横に向けよう！");
-      } else {
-        document.getElementById('guide-icon').textContent = "🎮";
-        document.getElementById('guide-title').textContent = "AI骨格を【緑色】に光らせろ！";
-        document.getElementById('guide-desc').textContent = "右のメーターを見ながら、腰（骨盤）を動かさずにお辞儀しよう！";
-        document.getElementById('gauge-label-top').textContent = "浅い";
-        document.getElementById('gauge-label-bottom').textContent = "深すぎ";
-        document.getElementById('drill-status-text').textContent = "スマホの真横を向いて立とう！";
-        document.getElementById('drill-hint-text').innerHTML = "💡 腰（骨盤）を動かさずピタッと止めたまま、お辞儀するように股関節を折りたたもう！";
-        document.getElementById('drill-sub-hint').textContent = "緑に光らせて3秒キープ！";
-        speakVoice("大画面ドリルスタート！スマホの横を向いて立とう！腰を止めたまま体幹を折りたたんでね！");
-      }
-
-      document.getElementById('detect-text').textContent = "ドリル実行中";
-    }
-
-    function exitDrillMode() {
-      playSound(600, 0.08);
-      clearInterval(drillHoldTimer);
-      drillHoldTimer = null;
-      isHoldingPose = false;
-
-      drillHud.classList.remove('active');
-      drillHud.classList.remove('matched');
-      screenWrapperEl.classList.remove('drill-active');
-
-      document.getElementById('test-tabs-container').classList.remove('hidden');
-      document.getElementById('test-controls-container').classList.remove('hidden');
-      document.getElementById('test-badge-left').classList.remove('hidden');
-      document.getElementById('test-badge-right').classList.remove('hidden');
-      safeBoundaryEl.classList.remove('hidden');
-
-      currentAppMode = 'TEST_IDLE';
-      selectTestMode(currentTestMode);
-
-      showToast("🔄 テスト待機画面に戻りました！");
-    }
-
-    function processSkeletonGameInDrill(landmarks, w, h) {
-      if (currentTestMode === 'XFACTOR') {
-        processXFactorDrillGame(landmarks, w, h);
-        return;
-      }
-
-      const L_HIP = landmarks[23], R_HIP = landmarks[24];
-      const L_SHOULDER = landmarks[11], R_SHOULDER = landmarks[12];
-      const L_KNEE = landmarks[25], R_KNEE = landmarks[26];
-      const L_ANKLE = landmarks[27], R_ANKLE = landmarks[28];
-
-      const isFacingRight = (landmarks[0] && L_HIP && landmarks[0].x > L_HIP.x);
-      const SHOULDER = isFacingRight ? (R_SHOULDER || L_SHOULDER) : (L_SHOULDER || R_SHOULDER);
-      const HIP = isFacingRight ? (R_HIP || L_HIP) : (L_HIP || R_HIP);
-      const KNEE = isFacingRight ? (R_KNEE || L_KNEE) : (L_KNEE || R_KNEE);
-      const ANKLE = isFacingRight ? (R_ANKLE || L_ANKLE) : (L_ANKLE || R_ANKLE);
-
-      if (!SHOULDER || !HIP || !KNEE || !ANKLE) return;
-
-      const hipAngle = calcAngle(SHOULDER, HIP, KNEE);
-      const kneeAngle = calcAngle(HIP, KNEE, ANKLE);
-
-      drawGhostSkeleton(ctx, HIP, ANKLE, w, h, isFacingRight);
-
-      let statusType = "TOO_SHALLOW";
-      if (hipAngle > 142) {
-        statusType = "TOO_SHALLOW";
-      } else if (hipAngle < 100 || kneeAngle < 115) {
-        statusType = "TOO_DEEP";
-      } else if (hipAngle >= 105 && hipAngle <= 142 && kneeAngle >= 118 && kneeAngle <= 165) {
-        statusType = "MATCHED";
-      } else {
-        statusType = "TOO_SHALLOW";
-      }
-
-      const clampedAngle = Math.max(70, Math.min(180, hipAngle));
-      const gaugePercent = Math.round(((180 - clampedAngle) / 110) * 100);
-      gaugePin.style.top = `${Math.max(5, Math.min(95, gaugePercent))}%`;
-
-      let skeletonColor = "rgba(56, 189, 248, 0.9)";
-      if (statusType === "MATCHED") {
-        skeletonColor = "#10b981";
-      } else if (statusType === "TOO_DEEP") {
-        skeletonColor = "#f43f5e";
-      }
-      drawSkeleton(ctx, landmarks, w, h, skeletonColor);
-
-      handleMatchState(statusType, hipAngle);
-    }
-
-    function processXFactorDrillGame(landmarks, w, h) {
-      const L_SHOULDER = landmarks[11], R_SHOULDER = landmarks[12];
-      const L_HIP = landmarks[23], R_HIP = landmarks[24];
-
-      if (!L_SHOULDER || !R_SHOULDER || !L_HIP || !R_HIP) return;
-
-      const sDx = Math.abs(L_SHOULDER.x - R_SHOULDER.x) * w;
-      const sDz = Math.abs((L_SHOULDER.z || 0) - (R_SHOULDER.z || 0)) * w;
-      const hDx = Math.abs(L_HIP.x - R_HIP.x) * w;
-      const hDz = Math.abs((L_HIP.z || 0) - (R_HIP.z || 0)) * w;
-
-      const sRot = Math.atan2(sDz, sDx) * (180 / Math.PI);
-      const hRot = Math.atan2(hDz, hDx) * (180 / Math.PI);
-
-      const gaugePercent = Math.min(100, Math.max(0, Math.round((sRot / 75) * 100)));
-      gaugePin.style.top = `${Math.max(5, Math.min(95, 100 - gaugePercent))}%`;
-
-      let statusType = "TOO_SHALLOW";
-      if (hRot > 18) {
-        statusType = "TOO_DEEP";
-      } else if (sRot >= 55) {
-        statusType = "MATCHED";
-      } else {
-        statusType = "TOO_SHALLOW";
-      }
-
-      let skeletonColor = (statusType === "MATCHED") ? "#10b981" : ((statusType === "TOO_DEEP") ? "#f43f5e" : "rgba(56, 189, 248, 0.9)");
-      drawSkeleton(ctx, landmarks, w, h, skeletonColor);
-
-      if (statusType === "MATCHED") {
-        drillHud.classList.add('matched');
-        drillStatusIcon.textContent = "🟢";
-        drillStatusText.innerHTML = `<b>✨ 骨盤ストップ＆胸回旋！</b>（回旋 ${Math.round(sRot)}°）そのままキープ！`;
-        drillStatusText.className = "text-emerald-300 font-black";
-        drillHintText.innerHTML = `🎯 <b>完璧！</b> お尻がロックされたまま胸だけ真横に向けられてるぞ！`;
-        triggerHoldCount();
-      } else if (statusType === "TOO_DEEP") {
-        drillHud.classList.remove('matched');
-        drillStatusIcon.textContent = "🔴";
-        drillStatusText.innerHTML = `<b>⚠️ 腰（お尻）が動いちゃった！</b>（お尻を座面に押し付けて！）`;
-        drillStatusText.className = "text-rose-400 font-black";
-        drillHintText.innerHTML = `⚠️ <b>コツ：</b>イスにドカンと深く座り、膝を軽く締めてお尻を絶対に回さない！`;
-        resetHoldCount();
-      } else {
-        drillHud.classList.remove('matched');
-        drillStatusIcon.textContent = "🔵";
-        drillStatusText.innerHTML = `<b>🔄 もっと胸を真横に向けて！</b>（現在 ${Math.round(sRot)}° / 目標 60°以上）`;
-        drillStatusText.className = "text-sky-300 font-black";
-        drillHintText.innerHTML = `💡 <b>息をフーーッと吐きながら</b>、胸のユニフォームのロゴを横の壁に向けよう！`;
-        resetHoldCount();
-      }
-    }
-
-    function handleMatchState(statusType, hipAngle) {
-      if (statusType === "MATCHED") {
-        drillHud.classList.add('matched');
-        drillStatusIcon.textContent = "🟢";
-        drillStatusText.innerHTML = `<b>✨ 完璧な角度！</b>（股関節 ${hipAngle}°）そのままキープ！`;
-        drillStatusText.className = "text-emerald-300 font-black";
-        drillHintText.innerHTML = `🎯 <b>その姿勢！</b> 腰を止めたまま上体をしっかり制御できてるぞ！`;
-        triggerHoldCount();
-      } else if (statusType === "TOO_SHALLOW") {
-        drillHud.classList.remove('matched');
-        drillStatusIcon.textContent = "🔵";
-        drillStatusText.innerHTML = `<b>⬇️ もう少し腰を引こう！</b>（現在 ${hipAngle}° / 目標 125°）`;
-        drillStatusText.className = "text-sky-300 font-black";
-        drillHintText.innerHTML = `💡 <b>コツ：</b>腰（骨盤）をグラつかせずピタッと止めたまま、お辞儀するように股関節を折りたたもう！`;
-        resetHoldCount();
-      } else if (statusType === "TOO_DEEP") {
-        drillHud.classList.remove('matched');
-        drillStatusIcon.textContent = "🔴";
-        drillStatusText.innerHTML = `<b>⬆️ 曲げすぎ！少し腰を上げて！</b>（しゃがみすぎ ${hipAngle}°）`;
-        drillStatusText.className = "text-rose-400 font-black";
-        drillHintText.innerHTML = `⚠️ <b>注意：</b>膝を前に出しすぎると腰が落ちちゃうぞ！腰を少し浮かせて体幹を止めよう！`;
-        resetHoldCount();
-      }
-    }
-
-    function triggerHoldCount() {
-      if (!isHoldingPose) {
-        isHoldingPose = true;
-        playMatchPing();
-        drillHoldBox.classList.remove('hidden');
-        drillHoldSeconds = 3;
-        drillHoldCounter.textContent = drillHoldSeconds;
-
-        drillHoldTimer = setInterval(() => {
-          drillHoldSeconds--;
-          if (drillHoldSeconds > 0) {
-            drillHoldCounter.textContent = drillHoldSeconds;
-            playSound(950, 0.08, 'sine');
-          } else {
-            clearInterval(drillHoldTimer);
-            drillHoldTimer = null;
-            isHoldingPose = false;
-            drillSuccessCount++;
-            drillSuccessCountEl.textContent = `${drillSuccessCount} / 3 回`;
-
-            playFanfare();
-            speakVoice(`ナイス！ ${drillSuccessCount}回成功！`);
-            drillHoldBox.classList.add('hidden');
-
-            if (drillSuccessCount >= 3) {
-              showToast("🏆 ドリルクリア！神経回路が完全に覚醒したぜ！");
-              speakVoice("ドリルクリア！覚醒完了！もう一度テストしてみよう！");
-              setTimeout(() => {
-                exitDrillMode();
-              }, 1200);
-            } else {
-              drillStatusText.innerHTML = `🌟 ナイス！あと ${3 - drillSuccessCount} 回！`;
-            }
-          }
-        }, 1000);
-      }
-    }
-
-    function resetHoldCount() {
-      if (isHoldingPose) {
-        isHoldingPose = false;
-        clearInterval(drillHoldTimer);
-        drillHoldTimer = null;
-        drillHoldBox.classList.add('hidden');
-      }
-    }
-
-    function drawGhostSkeleton(targetCtx, userHip, userAnkle, w, h, isFacingRight) {
-      if (!userHip || !userAnkle) return;
-
-      const hipX = userHip.x * w;
-      const hipY = userHip.y * h;
-      const ankleX = userAnkle.x * w;
-      const ankleY = userAnkle.y * h;
-      const legHeight = Math.abs(ankleY - hipY);
-
-      if (legHeight < 40) return;
-
-      const dir = isFacingRight ? 1 : -1;
-      const idealKneeX = ankleX - (legHeight * 0.08 * dir);
-      const idealKneeY = ankleY - (legHeight * 0.48);
-      const idealHipX = ankleX - (legHeight * 0.28 * dir);
-      const idealHipY = idealKneeY - (legHeight * 0.45);
-      const idealShoulderX = ankleX + (legHeight * 0.05 * dir);
-      const idealShoulderY = idealHipY - (legHeight * 0.65);
-
-      targetCtx.save();
-      targetCtx.strokeStyle = "rgba(16, 185, 129, 0.45)";
-      targetCtx.lineWidth = 3;
-      targetCtx.setLineDash([8, 6]);
-
-      targetCtx.beginPath();
-      targetCtx.moveTo(idealShoulderX, idealShoulderY);
-      targetCtx.lineTo(idealHipX, idealHipY);
-      targetCtx.lineTo(idealKneeX, idealKneeY);
-      targetCtx.lineTo(ankleX, ankleY);
-      targetCtx.stroke();
-
-      [
-        { x: idealShoulderX, y: idealShoulderY },
-        { x: idealHipX, y: idealHipY },
-        { x: idealKneeX, y: idealKneeY }
-      ].forEach(pt => {
-        targetCtx.beginPath();
-        targetCtx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-        targetCtx.fillStyle = "rgba(16, 185, 129, 0.5)";
-        targetCtx.fill();
-        targetCtx.strokeStyle = "#ffffff";
-        targetCtx.lineWidth = 1;
-        targetCtx.stroke();
-      });
-
-      targetCtx.fillStyle = "rgba(52, 211, 153, 0.75)";
-      targetCtx.font = "bold 9px sans-serif";
-      targetCtx.textAlign = isFacingRight ? "right" : "left";
-      targetCtx.fillText("✨ 理想の型（ここを目指そう！）", idealHipX - (10 * dir), idealHipY);
-
-      targetCtx.restore();
-    }
-
-    // ==========================================
-    // 8. モーダル制御＆起動イベント
-    // ==========================================
-    function openModal(id) {
-      playSound(600, 0.08);
-      document.getElementById(id)?.classList.add('active');
-    }
-
-    function closeModal(id) {
-      document.getElementById(id)?.classList.remove('active');
-    }
-
-    function closeModalOnBackdrop(e, id) {
-      if (e.target.id === id) closeModal(id);
-    }
-
-    document.getElementById('btn-open-result-preview').addEventListener('click', () => {
-      renderDiagnosisResult();
-      openModal('result-modal');
-    });
-
-    document.getElementById('btn-open-reset-drill').addEventListener('click', () => {
-      enterDrillMode();
-    });
-
-    window.addEventListener('touchstart', () => {
-      if (!currentStream) {
-        startDirectCamera();
-      }
-    }, { passive: true, once: true });
-
-    window.addEventListener('click', () => {
-      if (!currentStream) {
-        startDirectCamera();
-      }
-    }, { once: true });
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      selectTestMode('STEPPING');
-      await startDirectCamera();
-      initPoseEngine();
-    });
-  </script>
+<div class="brawl-bg-pattern"></div>
+<div class="sunburst"></div>
+<header class="w-full max-w-md flex flex-col gap-1 flex-shrink-0 z-10 mb-1" id="app-header">
+<div class="flex items-center justify-between">
+<a href="./index.html" class="btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-sky-400 text-xs font-black no-underline">
+🏠 ロビー
+</a>
+<h1 class="text-xs font-black text-purple-300 flex items-center gap-1" id="header-title">
+🧠 身体図式・脳内GPSドック 📡
+</h1>
+<div class="flex items-center gap-1">
+<button id="btn-open-calib-modal" class="btn-3d px-2 py-1 rounded-full bg-slate-900 border border-amber-500/70 text-amber-300 text-[10px] font-black">
+📏 <span id="header-height-badge">140cm</span>
+</button>
+<button id="btn-switch-camera" class="btn-3d px-2 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-[10px] font-black">
+🔄 カメラ
+</button>
+</div>
+</div>
+<!-- 4大テスト選択タブ -->
+<div class="grid grid-cols-4 gap-1 mt-0.5" id="test-tabs-container">
+<button class="test-tab active" id="tab-step" onclick="selectTestMode('STEPPING')">
+👣 ① 足踏み
+<span class="text-[8px] text-purple-300">骨盤GPS</span>
+</button>
+<button class="test-tab" id="tab-tpose" onclick="selectTestMode('TPOSE')">
+⚖️ ② Tポーズ
+<span class="text-[8px] text-slate-400">肩甲骨水平</span>
+</button>
+<button class="test-tab" id="tab-balance" onclick="selectTestMode('BALANCE')">
+⚓ ③ 片足立ち
+<span class="text-[8px] text-slate-400">足裏センサー</span>
+</button>
+<button class="test-tab" id="tab-xfactor" onclick="selectTestMode('XFACTOR')">
+🪑 ④ 骨盤制動
+<span class="text-[8px] text-amber-300">X-Factor</span>
+</button>
+</div>
+</header>
+<main class="w-full max-w-md flex-1 brawl-panel p-2 flex flex-col gap-1.5 min-h-0 relative z-10 overflow-hidden">
+<!-- ガイダンスバナー -->
+<div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2" id="guidance-banner">
+<span class="text-xl flex-shrink-0" id="guide-icon">👣</span>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[11px] font-black text-purple-200 truncate" id="guide-title">
+目隠し足踏みテスト（骨盤・股関節の回旋マップ）
+</span>
+<span class="voice-guide-badge flex-shrink-0">🔊 音声ナビON</span>
+</div>
+<span class="text-[9px] text-slate-300 leading-tight" id="guide-desc">
+カメラから約2m離れて直立！全身を映してスタート！
+</span>
+</div>
+<!-- 全身認識ステータスバッジ（タップで再キャリブレーション可能） -->
+<div id="body-detect-badge" class="px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer">
+<span class="w-2 h-2 rounded-full bg-slate-500" id="detect-dot"></span>
+<span id="detect-text">カメラ接続中...</span>
+</div>
+</div>
+<!-- カメラ＆骨格キャンバス画面 -->
+<div class="screen-wrapper" id="camera-screen-wrapper">
+<video id="webcam-video" playsinline webkit-playsinline muted autoplay></video>
+<canvas id="output-canvas"></canvas>
+<!-- セーフ境界枠（テスト時のみ） -->
+<div class="safe-boundary-box" id="safe-boundary"></div>
+<!-- キャリブレーションガイド線（未完了時・調整時オーバーレイ） -->
+<div id="calib-guide-overlay" class="absolute inset-0 pointer-events-none hidden flex-col justify-between p-4 z-20">
+<div class="w-full border-t-2 border-dashed border-amber-400/80 text-right pr-2">
+<span class="text-[9px] font-black text-amber-300 bg-slate-950/80 px-1 rounded">👑 あたまの頂点</span>
+</div>
+<div class="w-full border-b-2 border-dashed border-sky-400/80 text-right pr-2">
+<span class="text-[9px] font-black text-sky-300 bg-slate-950/80 px-1 rounded">👟 かかと・じめん</span>
+</div>
+</div>
+<!-- リアルタイム・センサーバッジ -->
+<div class="absolute top-2 left-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-purple-400 text-xs font-black text-purple-300 flex items-center gap-1.5 z-20" id="test-badge-left">
+<span id="metric-main-label">ズレ移動:</span>
+<span class="text-amber-400 font-mono text-sm" id="metric-main-val">0 cm</span>
+</div>
+<div class="absolute top-2 right-2 bg-slate-950/85 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-black text-slate-300 flex items-center gap-1.5 z-20" id="test-badge-right">
+<span id="metric-sub-label">回転ズレ:</span>
+<span class="text-cyan-400 font-mono text-sm" id="metric-sub-val">0 °</span>
+</div>
+<!-- カウントダウン演出レイヤー -->
+<div class="countdown-overlay" id="countdown-box">
+<span class="text-xs font-black text-purple-300 uppercase tracking-widest">TEST STARTING...</span>
+<div class="countdown-number" id="countdown-num">3</div>
+<span class="text-sm font-black text-white" id="countdown-sub">目を閉じてスタンバイ！</span>
+</div>
+<!-- 測定中インジケーター -->
+<div class="absolute bottom-2 left-2 bg-purple-950/90 border border-purple-500 px-3 py-1 rounded-full text-[10px] font-black text-purple-200 hidden items-center gap-2 z-20" id="measuring-badge">
+<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+<span id="measuring-text">🧠 脳内GPSを記録中... (残り 15 秒)</span>
+</div>
+<!-- ローカル自動録画中バッジ -->
+<div class="absolute bottom-2 right-2 bg-rose-950/80 border border-rose-500/60 px-2 py-0.5 rounded text-[9px] font-black text-rose-300 hidden items-center gap-1 z-20" id="recording-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+<span>REC (端末内のみ)</span>
+</div>
+<!-- 大画面AI骨格誘導ゲーム HUDオーバーレイ -->
+<div class="drill-hud-overlay" id="drill-hud">
+<div class="flex items-center justify-between w-full">
+<div class="bg-slate-950/95 px-3 py-1.5 rounded-xl border border-emerald-500 text-xs font-black flex items-center gap-2 shadow-lg" id="drill-angle-badge">
+<span id="drill-status-icon">🟡</span>
+<span id="drill-status-text">スマホの真横を向いて立とう！</span>
+</div>
+<button onclick="exitDrillMode()" class="pointer-events-auto btn-3d px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 text-xs font-black">
+✕ テストへ戻る
+</button>
+</div>
+<div class="drill-gauge-container" id="drill-gauge">
+<span class="text-[8px] font-black text-sky-300" id="gauge-label-top">浅い</span>
+<div class="gauge-track">
+<div class="gauge-indicator" id="gauge-pin" style="top: 10%;"></div>
+</div>
+<span class="text-[8px] font-black text-rose-400" id="gauge-label-bottom">深すぎ</span>
+</div>
+<div id="drill-hold-box" class="hidden flex-col items-center justify-center my-auto">
+<span class="text-sm font-black text-emerald-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">✨ ピッタリ一致！キープ！</span>
+<span class="text-7xl font-black text-emerald-400 font-mono drop-shadow-[0_0_24px_rgba(16,185,129,0.9)]" id="drill-hold-counter">3</span>
+</div>
+<div class="flex flex-col gap-1 w-full">
+<div class="w-full bg-slate-950/90 px-3 py-1.5 rounded-lg border border-slate-800 text-center" id="drill-hint-box">
+<span class="text-[11px] font-black text-amber-300" id="drill-hint-text">
+💡 腰（骨盤）を動かさずピタッと止めたまま、お辞儀するように股関節を折りたたもう！
+</span>
+</div>
+<div class="flex items-center justify-between w-full bg-slate-950/85 px-3 py-1.5 rounded-xl border border-slate-800">
+<span class="text-[10px] text-slate-300 font-bold" id="drill-sub-hint">緑に光らせて3秒キープ！</span>
+<div class="flex items-center gap-1.5 text-xs font-black">
+<span class="text-slate-400 text-[11px]">成功:</span>
+<span class="text-amber-400 font-mono text-sm" id="drill-success-count">0 / 3 回</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- 下部操作ボタン -->
+<div class="w-full flex flex-col gap-1.5 flex-shrink-0" id="test-controls-container">
+<button id="btn-start-test" class="btn-3d btn-purple w-full py-2.5 rounded-xl text-sm font-black shadow-md">
+🚀 全身を映すと自動スタート！ (タップでもOK)
+</button>
+<div class="grid grid-cols-2 gap-1.5">
+<button id="btn-open-result-preview" class="btn-3d py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-black text-slate-300">
+📋 診断レポートを見る
+</button>
+<button id="btn-open-reset-drill" class="btn-3d py-1.5 rounded-lg btn-emerald text-xs font-black shadow">
+🎮 大画面AI骨格ドリルへ
+</button>
+</div>
+</div>
+</main>
+<!-- 📏 直立スキャン＆身長設定モーダル（STEP 1：測定精度キャリブレーション） -->
+<div id="calibration-modal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'calibration-modal')">
+<div class="brawl-panel p-4 max-w-sm w-full bg-slate-900 border-amber-500 space-y-3">
+<div class="flex items-center justify-between border-b border-slate-700 pb-2">
+<div class="flex items-center gap-1.5">
+<span class="text-2xl">📏</span>
+<div>
+<h3 class="font-black text-amber-400 text-xs">直立スキャン＆身長キャリブレーション</h3>
+<span class="text-[9px] text-slate-400">本物のミリ単位・1度単位の精度へ同期</span>
+</div>
+</div>
+<button onclick="closeModal('calibration-modal')" class="text-slate-400 hover:text-white font-black text-base">✕</button>
+</div>
+<div class="space-y-2 text-xs">
+<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+<span class="text-[10px] font-black text-sky-300 block">① 選手の身長を入力（cm）</span>
+<div class="flex items-center gap-2">
+<input type="number" id="calib-height-input" class="w-24 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-center font-black text-amber-400 text-base font-mono" value="140" min="80" max="210">
+<span class="text-xs text-slate-300 font-bold">cm</span>
+<span class="text-[9px] text-slate-400">※ カメラ前で直立した時の基準モノサシになります</span>
+</div>
+</div>
+<div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1">
+<span class="text-[10px] font-black text-emerald-400 block">② カメラの前にピシッと直立</span>
+<p class="text-[11px] text-slate-300 leading-relaxed font-bold">
+カメラから約2m離れ、<b>頭から足元（かかと）まで画面に収まるようにまっすぐ前を向いて直立</b>してください。
+</p>
+</div>
+<div class="p-2 rounded-lg bg-amber-950/40 border border-amber-500/40 flex items-center justify-between text-[10px] font-black text-amber-200">
+<span id="calib-status-text">全身スキャン待機中...</span>
+<span id="calib-detected-badge" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">未検知</span>
+</div>
+</div>
+<div class="flex gap-2 pt-1">
+<button onclick="executeCalibrationScan()" id="btn-exec-scan" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
+📸 この姿勢でキャリブレーション！
+</button>
+</div>
+</div>
+</div>
+<!-- 診断結果＆完全ローカルリプレイ動画モーダル -->
+<div id="result-modal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'result-modal')">
+<div class="brawl-panel p-3.5 max-w-sm w-full bg-slate-900 border-purple-500 space-y-2.5 max-h-[90dvh] flex flex-col">
+<div class="flex items-center justify-between border-b border-slate-700 pb-1.5 flex-shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="text-2xl" id="res-icon">👣</span>
+<div>
+<h3 class="font-black text-purple-300 text-xs" id="res-title">脳内GPS 診断レポート</h3>
+<span class="text-[9px] text-slate-400">主観（感覚）と客観（現実）のギャップ</span>
+</div>
+</div>
+<button onclick="closeModal('result-modal')" class="text-slate-400 hover:text-white font-black text-base">✕</button>
+</div>
+<div class="overflow-y-auto space-y-2 flex-1 pr-1 text-xs">
+<!-- 完全ローカルリプレイ動画 -->
+<div class="bg-slate-950 p-2 rounded-xl border border-sky-500/40 space-y-1">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-black text-sky-300 flex items-center gap-1">
+🎬 いまの動きをリプレイ！（端末内のみ・ネット送信ゼロ）
+</span>
+<span class="text-[8px] bg-sky-950 text-sky-200 border border-sky-600/50 px-1.5 py-0.5 rounded font-black">
+🔒 安全
+</span>
+</div>
+<div class="replay-video-box">
+<video id="replay-video" class="replay-video-element" playsinline webkit-playsinline loop muted autoplay></video>
+<div id="replay-placeholder" class="text-[10px] text-slate-500 font-bold p-2 text-center">
+動画を準備中...
+</div>
+</div>
+<p class="text-[9px] text-slate-400 leading-tight text-center">
+※ サーバー送信なし。この画面を閉じると端末メモリから自動消去されます。
+</p>
+</div>
+<!-- 総合ズレ度バッジ -->
+<div class="bg-purple-950/50 p-2.5 rounded-xl border border-purple-500/50 text-center">
+<span class="text-[10px] text-purple-300 font-bold block">🧠 あなたの身体図式（脳内GPS）のズレ度</span>
+<span class="text-xl font-black text-amber-400 my-0.5 block" id="res-score-disp">ズレ度: 18 %（良好！）</span>
+<span class="text-[9px] text-slate-300 font-bold leading-tight block" id="res-score-sub">
+本人の感覚と実際の体の位置に差があります。
+</span>
+</div>
+<div class="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-0.5">
+<span class="text-[9px] font-black text-emerald-400 block">🔍 狂っている身体のセンサー：</span>
+<p class="text-[11px] text-slate-200 font-bold leading-relaxed" id="res-sensor-reason">
+--
+</p>
+</div>
+<div class="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-0.5">
+<span class="text-[9px] font-black text-amber-400 block">⚾ これが野球で引き起こすエラー：</span>
+<p class="text-[11px] text-slate-200 font-bold leading-relaxed" id="res-baseball-impact">
+--
+</p>
+</div>
+</div>
+<div class="flex gap-1.5 pt-1 flex-shrink-0">
+<button onclick="saveAndSyncToHome()" class="flex-1 btn-3d py-2 btn-gold text-xs font-black rounded-xl shadow">
+💾 ホームに保存
+</button>
+<button onclick="enterDrillMode()" class="flex-1 btn-3d py-2 btn-emerald text-xs font-black rounded-xl shadow">
+🎮 大画面ドリルへ
+</button>
+</div>
+</div>
+</div>
+<div id="toast-box" class="toast-msg"></div>
+<script>
+// ==========================================
+// 1. システム状態管理 & Web Audio API
+// ==========================================
+let currentAppMode = 'TEST_IDLE'; // TEST_IDLE | TEST_RUNNING | DRILL_ACTIVE
+let audioCtx = null;
+function getAudioContext() {
+if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+if (audioCtx.state === 'suspended') audioCtx.resume();
+return audioCtx;
+}
+function playSound(freq, duration = 0.08, type = 'sine', volume = 0.22) {
+try {
+const ctx = getAudioContext();
+const osc = ctx.createOscillator();
+const gain = ctx.createGain();
+osc.type = type;
+osc.frequency.setValueAtTime(freq, ctx.currentTime);
+gain.gain.setValueAtTime(volume, ctx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+osc.connect(gain);
+gain.connect(ctx.destination);
+osc.start();
+osc.stop(ctx.currentTime + duration);
+} catch(e) {}
+}
+function playMetronomeTick() {
+playSound(800, 0.04, 'square', 0.15);
+}
+function playWhistle() {
+playSound(2800, 0.22, 'triangle', 0.35);
+setTimeout(() => playSound(2800, 0.45, 'triangle', 0.35), 240);
+}
+function playBuzzer() {
+playSound(180, 0.35, 'sawtooth', 0.4);
+setTimeout(() => playSound(130, 0.45, 'sawtooth', 0.4), 300);
+}
+function playFanfare() {
+[523, 659, 783, 1046].forEach((f, i) => {
+setTimeout(() => playSound(f, 0.18, 'triangle'), i * 110);
+});
+}
+function playMatchPing() {
+playSound(880, 0.12, 'triangle', 0.3);
+setTimeout(() => playSound(1320, 0.2, 'triangle', 0.35), 100);
+}
+function speakVoice(text, cancelCurrent = true) {
+try {
+if ('speechSynthesis' in window) {
+if (cancelCurrent) window.speechSynthesis.cancel();
+const u = new SpeechSynthesisUtterance(text);
+u.lang = 'ja-JP';
+u.rate = 1.15;
+u.pitch = 1.1;
+window.speechSynthesis.speak(u);
+}
+} catch (e) {}
+}
+function showToast(text, duration = 2600) {
+const t = document.getElementById('toast-box');
+t.textContent = text;
+t.classList.add('show');
+setTimeout(() => t.classList.remove('show'), duration);
+}
+// ==========================================
+// 2. 身長基準キャリブレーション（高精度幾何エンジン）
+// ==========================================
+let userHeightCm = 140;
+let baselineCalibration = {
+isCalibrated: false,
+heightCm: 140,
+initialHeightPx: 0,
+initialShoulderWidthPx: 0,
+initialHipWidthPx: 0,
+initialHipCenter: { x: 0, y: 0 },
+pxPerCm: 2.0
+};
+function loadUserHeightProfile() {
+try {
+const p = JSON.parse(localStorage.getItem('baseball_user_profile') || '{}');
+if (p.height && Number.isFinite(p.height)) {
+userHeightCm = parseFloat(p.height);
+}
+} catch (e) {}
+document.getElementById('calib-height-input').value = userHeightCm;
+document.getElementById('header-height-badge').textContent = ⁠${userHeightCm}cm⁠;
+}
+// 最新フレームのランドマークを保持
+let latestLandmarks = null;
+function executeCalibrationScan() {
+if (!latestLandmarks) {
+showToast("⚠️ 全身が映っていません。カメラから2m離れて直立してください。");
+return;
+}
+const l = latestLandmarks;
+const w = canvasEl.width;
+const h = canvasEl.height;
+const NOSE = l[0];
+const L_SHOULDER = l[11], R_SHOULDER = l[12];
+const L_HIP = l[23], R_HIP = l[24];
+const L_HEEL = l[29] || l[27], R_HEEL = l[30] || l[28];
+if (!NOSE || !L_SHOULDER || !R_SHOULDER || !L_HIP || !R_HIP || !L_HEEL || !R_HEEL) {
+showToast("⚠️ 頭から足元まで全身を枠内に収めてください。");
+return;
+}
+const inputVal = parseFloat(document.getElementById('calib-height-input').value);
+if (Number.isFinite(inputVal) && inputVal >= 80 && inputVal <= 220) {
+userHeightCm = inputVal;
+}
+// 身長ピクセル：頭頂（鼻の上マージン加算）〜 かかと最大Y
+const topHeadY = Math.max(0.01, NOSE.y - (Math.abs(L_SHOULDER.y - NOSE.y) * 0.95)) * h;
+const bottomHeelY = Math.max(L_HEEL.y, R_HEEL.y) * h;
+const measuredHeightPx = Math.abs(bottomHeelY - topHeadY);
+if (measuredHeightPx < 100) {
+showToast("⚠️ カメラに近すぎるか、小さすぎます。2m離れてください。");
+return;
+}
+const shoulderWidthPx = Math.hypot((L_SHOULDER.x - R_SHOULDER.x) * w, (L_SHOULDER.y - R_SHOULDER.y) * h);
+const hipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_HIP.y - R_HIP.y) * h);
+const hipCenterX = (L_HIP.x + R_HIP.x) / 2 * w;
+const hipCenterY = (L_HIP.y + R_HIP.y) / 2 * h;
+baselineCalibration = {
+isCalibrated: true,
+heightCm: userHeightCm,
+initialHeightPx: measuredHeightPx,
+initialShoulderWidthPx: shoulderWidthPx,
+initialHipWidthPx: hipWidthPx,
+initialHipCenter: { x: hipCenterX, y: hipCenterY },
+pxPerCm: measuredHeightPx / userHeightCm
+};
+document.getElementById('header-height-badge').textContent = ⁠${userHeightCm}cm (OK)⁠;
+showToast(⁠🎯 身長【${userHeightCm}cm】で直立キャリブレーション完了！\n1cm・1度単位の超高精度モードが有効化されました！⁠);
+speakVoice(⁠キャリブレーション完了！身長${userHeightCm}センチで測定スタンバイ！⁠);
+closeModal('calibration-modal');
+}
+// ==========================================
+// 3. 4大テスト設定定義 ＆ フルボイス台本
+// ==========================================
+const TEST_CONFIGS = {
+STEPPING: {
+icon: "👣",
+title: "目隠し足踏みテスト（骨盤・股関節の回旋マップ）",
+desc: "カメラから約2m離れて枠内に直立！自動検知でスタート！",
+duration: 15,
+mainLabel: "移動ズレ:",
+mainUnit: "cm",
+subLabel: "回転ズレ:",
+subUnit: "°",
+sensorReason: "【骨盤・股関節の回旋マップ＆脳内垂直軸】が狂っています。本人はまっすぐ歩いているつもりですが、骨盤の張り（筋緊張）に左右差があるため、体が勝手に前進・旋回してしまいます。",
+baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。",
+voiceScript: {
+countdown: "目を閉じてスタンバイ！3",
+start: "スタート！目を閉じたまま、その場でしっかり腿を上げて足踏み！",
+midpoint: "その調子！頭の中で同じ場所を踏み続けよう！前に進まないぞ！",
+ending: "ラスト3秒！リズミカルに踏み続けろ！",
+finish: "ストップ！終了！目を開けて結果を見よう！"
+}
+},
+TPOSE: {
+icon: "⚖️",
+title: "目隠し腕の水平Tポーズ（肩甲骨・腕の高さ認知）",
+desc: "枠内に全身を映して目を閉じ、両腕を真横（180度）に開いてキープ！",
+duration: 6,
+mainLabel: "左右高低差:",
+mainUnit: "cm",
+subLabel: "腕垂れ角:",
+subUnit: "°",
+sensorReason: "【肩甲帯（肩甲骨）の空間位置覚】がズレています。投球側またはバット側の肩甲骨が下に落ちているのに、脳が『水平に上がっている』と錯覚しています。",
+baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。",
+voiceScript: {
+countdown: "目を閉じてスタンバイ！3",
+start: "スタート！目を閉じたまま、両腕を真横にピーンと広げて水平キープ！",
+midpoint: "地面と平行をイメージ！肩甲骨を真っ直ぐ保とう！",
+ending: "そのままピタッとキープ！",
+finish: "終了！目を開けて左右の高さを確認しよう！"
+}
+},
+BALANCE: {
+icon: "⚓",
+title: "目隠し片足立ちテスト（足裏センサー＆中殿筋支持力）",
+desc: "枠内に全身を映して目を閉じ、軸足1本で何秒ピタッと止まれるか！？（足がついたら即終了！）",
+duration: 15,
+mainLabel: "耐えた時間:",
+mainUnit: "秒",
+subLabel: "頭部ブレ幅:",
+subUnit: "cm",
+sensorReason: "【足裏のメカノレセプター（圧力センサー）とお尻（中殿筋）】の通信が遅れています。視覚のカンニングが消えた瞬間、足裏のどこに重心があるか見失い、地面に足が落ちてしまいます。",
+baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。",
+voiceScript: {
+countdown: "片足を上げて目を閉じて！3",
+start: "スタート！目を閉じて片足立ちキープ！足裏で地面を噛め！",
+midpoint: "ナイスバランス！お尻の外側に力を入れて耐えろ！",
+ending: "あと3秒！ピタッと止まり続けろ！",
+finish: "終了！ナイスキープ！目を開けてね！"
+}
+},
+XFACTOR: {
+icon: "🪑",
+title: "骨盤制動・体幹90度回旋テスト（X-Factor分離能力）",
+desc: "正面を向いて両手を胸の前でクロス！腰（骨盤）を正面に止めたまま胸だけ真横へ回そう！",
+duration: 10,
+mainLabel: "胸郭純回旋:",
+mainUnit: "°",
+subLabel: "骨盤逃げ角:",
+subUnit: "°",
+sensorReason: "【胸郭（胸椎）と骨盤の分離運動マップ】が未発達です。本人は腰を止めているつもりでも、腰椎・骨盤が一緒に回る『ドラム缶回り（同時収縮）』を起こしています。",
+baseballImpact: "投球での【手投げ・早い開き】、打撃での【ドアスイング・タメの消失】の真犯人です。腰を止めて胸を回せないため、下半身先行のエネルギー連鎖が完全に遮断されます。",
+voiceScript: {
+countdown: "両手を胸の前でクロス！目を閉じて3",
+start: "スタート！腰をピタッと正面に止めたまま、胸だけ真横へ回そう！",
+midpoint: "お尻を動かさない！胸のマークを横の壁に向けるイメージ！",
+ending: "腰を固定したまま、胸を大きく回し切れ！",
+finish: "終了！目を開けて分離角度を見よう！"
+}
+}
+};
+let currentTestMode = 'STEPPING';
+let isCountingDown = false;
+let cameraFacing = 'user';
+let pose = null;
+let isPoseReady = false;
+let isProcessingFrame = false;
+let currentStream = null;
+const videoEl = document.getElementById('webcam-video');
+const canvasEl = document.getElementById('output-canvas');
+const ctx = canvasEl.getContext('2d');
+const screenWrapperEl = document.getElementById('camera-screen-wrapper');
+const safeBoundaryEl = document.getElementById('safe-boundary');
+let fullBodyDetectedFrames = 0;
+const REQUIRED_STABLE_FRAMES = 12;
+let autoStartTriggered = false;
+let baselineData = null;
+let testRunningElapsedTime = 0;
+// 片足立ちの足接地検知用
+let balanceFootBaseline = null;
+let isFootTouchGroundDetected = false;
+let currentMetrics = {
+driftCm: 0,
+rotDeg: 0,
+tposeDiffCm: 0,
+tposeTiltDeg: 0,
+balanceSeconds: 0,
+headWobbleCm: 0,
+xfactorChestDeg: 0,
+xfactorPelvisDeg: 0,
+isWarpOut: false
+};
+let testTimerInterval = null;
+let testRemainingSeconds = 0;
+let metronomeInterval = null;
+// ==========================================
+// 4. 完全ローカル自動録画（MediaRecorder）
+// ==========================================
+let mediaRecorder = null;
+let recordedChunks = [];
+let localReplayBlobUrl = null;
+function startLocalRecording() {
+if (localReplayBlobUrl) {
+URL.revokeObjectURL(localReplayBlobUrl);
+localReplayBlobUrl = null;
+}
+recordedChunks = [];
+try {
+if (!canvasEl.captureStream) return;
+const stream = canvasEl.captureStream(24);
+const options = { mimeType: 'video/webm;codecs=vp8' };
+if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+mediaRecorder = new MediaRecorder(stream, options);
+} else {
+mediaRecorder = new MediaRecorder(stream);
+}
+mediaRecorder.ondataavailable = (e) => {
+if (e.data && e.data.size > 0) {
+recordedChunks.push(e.data);
+}
+};
+mediaRecorder.onstop = () => {
+const blob = new Blob(recordedChunks, { type: 'video/webm' });
+localReplayBlobUrl = URL.createObjectURL(blob);
+const replayVideo = document.getElementById('replay-video');
+const placeholder = document.getElementById('replay-placeholder');
+if (replayVideo) {
+replayVideo.src = localReplayBlobUrl;
+replayVideo.style.display = 'block';
+if (placeholder) placeholder.style.display = 'none';
+replayVideo.play().catch(() => {});
+}
+};
+mediaRecorder.start();
+document.getElementById('recording-badge').classList.replace('hidden', 'flex');
+} catch (err) {
+console.warn("ローカル録画非対応環境です:", err);
+}
+}
+function stopLocalRecording() {
+document.getElementById('recording-badge').classList.replace('flex', 'hidden');
+if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+try {
+mediaRecorder.stop();
+} catch (e) {}
+}
+}
+// ==========================================
+// 5. 直結カメラ起動（iOS Safari最適化）
+// ==========================================
+let isCameraStarting = false;
+async function startDirectCamera() {
+if (isCameraStarting) return;
+isCameraStarting = true;
+const detectTextEl = document.getElementById('detect-text');
+const detectDotEl = document.getElementById('detect-dot');
+try {
+if (currentStream) {
+currentStream.getTracks().forEach(track => track.stop());
+currentStream = null;
+}
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+throw new Error("SECURE_CONTEXT_REQUIRED");
+}
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const constraints = isIOS ? {
+video: { facingMode: cameraFacing },
+audio: false
+} : {
+video: {
+facingMode: cameraFacing,
+width: { ideal: 640 },
+height: { ideal: 480 }
+},
+audio: false
+};
+const stream = await navigator.mediaDevices.getUserMedia(constraints);
+currentStream = stream;
+videoEl.setAttribute('playsinline', '');
+videoEl.setAttribute('webkit-playsinline', '');
+videoEl.muted = true;
+videoEl.srcObject = stream;
+const onStreamReady = async () => {
+try {
+await videoEl.play();
+} catch (e) {}
+updateDetectBadge(false, 0, "枠内に全身を入れてね");
+requestAnimationFrame(renderLoop);
+};
+videoEl.onloadedmetadata = onStreamReady;
+setTimeout(onStreamReady, 350);
+} catch (err) {
+console.error("Camera access failed:", err);
+detectDotEl.className = "w-2 h-2 rounded-full bg-rose-500";
+detectTextEl.textContent = "タップしてカメラ起動";
+showToast("🚨 カメラへのアクセスを許可してください。");
+} finally {
+isCameraStarting = false;
+}
+}
+async function initPoseEngine() {
+try {
+pose = new Pose({
+locateFile: (file) => ⁠https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}⁠
+});
+pose.setOptions({
+modelComplexity: 1,
+smoothLandmarks: true,
+enableSegmentation: false,
+minDetectionConfidence: 0.35,
+minTrackingConfidence: 0.35
+});
+pose.onResults(onPoseResults);
+await pose.initialize();
+isPoseReady = true;
+} catch (err) {
+console.warn("MediaPipe Pose load failed:", err);
+}
+}
+async function renderLoop() {
+if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
+if (canvasEl.width !== videoEl.videoWidth || canvasEl.height !== videoEl.videoHeight) {
+canvasEl.width = videoEl.videoWidth;
+canvasEl.height = videoEl.videoHeight;
+}
+if (pose && isPoseReady && !isProcessingFrame) {
+isProcessingFrame = true;
+try {
+await pose.send({ image: videoEl });
+} catch (e) {
+// Skip frame
+} finally {
+isProcessingFrame = false;
+}
+}
+}
+requestAnimationFrame(renderLoop);
+}
+document.getElementById('btn-switch-camera').addEventListener('click', () => {
+playSound(700, 0.08);
+cameraFacing = (cameraFacing === 'user') ? 'environment' : 'user';
+videoEl.style.transform = (cameraFacing === 'user') ? 'scaleX(-1)' : 'none';
+canvasEl.style.transform = (cameraFacing === 'user') ? 'scaleX(-1)' : 'none';
+startDirectCamera();
+showToast(⁠📷 ${cameraFacing === 'user' ? 'インカメラ（自撮り）' : '外カメラ'}に切り替えました⁠);
+});
+document.getElementById('body-detect-badge').addEventListener('click', () => {
+playSound(600, 0.08);
+openModal('calibration-modal');
+});
+document.getElementById('btn-open-calib-modal').addEventListener('click', () => {
+playSound(600, 0.08);
+openModal('calibration-modal');
+});
+// ==========================================
+// 6. 高精度・厳密バイオメカニクス判定（完全再計算）
+// ==========================================
+function onPoseResults(results) {
+ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+if (!results.poseLandmarks) {
+latestLandmarks = null;
+if (currentAppMode === 'TEST_RUNNING' && testRunningElapsedTime > 2.0) {
+handleFrameOutBreakthrough();
+return;
+}
+if (currentAppMode === 'TEST_IDLE') updateDetectBadge(false);
+return;
+}
+const l = results.poseLandmarks;
+latestLandmarks = l;
+const w = canvasEl.width;
+const h = canvasEl.height;
+// ドリルモード中は専用ロジックへ
+if (currentAppMode === 'DRILL_ACTIVE') {
+processSkeletonGameInDrill(l, w, h);
+return;
+}
+const NOSE = l[0];
+const L_SHOULDER = l[11], R_SHOULDER = l[12];
+const L_WRIST = l[15], R_WRIST = l[16];
+const L_HIP = l[23], R_HIP = l[24];
+const L_KNEE = l[25], R_KNEE = l[26];
+const L_ANKLE = l[27], R_ANKLE = l[28];
+const L_HEEL = l[29], R_HEEL = l[30];
+// 厳格な全身視野判定（頭・体幹・両膝・両足首/かかとが全て画面内に存在）
+const hasHead = Boolean(NOSE && (NOSE.visibility || 0) > 0.45 && NOSE.y > 0.01 && NOSE.y < 0.55);
+const hasTorso = Boolean(
+L_SHOULDER && R_SHOULDER && L_HIP && R_HIP &&
+(L_SHOULDER.visibility || 0) > 0.35 && (R_SHOULDER.visibility || 0) > 0.35 &&
+(L_HIP.visibility || 0) > 0.35 && (R_HIP.visibility || 0) > 0.35
+);
+const hasKnees = Boolean(
+L_KNEE && R_KNEE &&
+(L_KNEE.visibility || 0) > 0.35 && (R_KNEE.visibility || 0) > 0.35
+);
+const hasLeftFoot = Boolean(
+(L_ANKLE && (L_ANKLE.visibility || 0) > 0.35 && L_ANKLE.y <= 0.98) ||
+(L_HEEL && (L_HEEL.visibility || 0) > 0.35 && L_HEEL.y <= 0.98)
+);
+const hasRightFoot = Boolean(
+(R_ANKLE && (R_ANKLE.visibility || 0) > 0.35 && R_ANKLE.y <= 0.98) ||
+(R_HEEL && (R_HEEL.visibility || 0) > 0.35 && R_HEEL.y <= 0.98)
+);
+const hasFullBody = Boolean(hasHead && hasTorso && hasKnees && hasLeftFoot && hasRightFoot);
+// キャリブレーションモーダル内ステータス更新
+const calibBadge = document.getElementById('calib-detected-badge');
+const calibText = document.getElementById('calib-status-text');
+if (calibBadge && calibText) {
+if (hasFullBody) {
+calibBadge.textContent = "全身OK";
+calibBadge.className = "px-1.5 py-0.5 rounded bg-emerald-600 text-white";
+calibText.textContent = "直立姿勢を認識中！ボタンを押して決定！";
+} else {
+calibBadge.textContent = "足元未検知";
+calibBadge.className = "px-1.5 py-0.5 rounded bg-rose-900 text-rose-300";
+calibText.textContent = "頭から足首・かかとまで全身を映してください";
+}
+}
+// 未キャリブレーション時の安全なフォールバック
+if (!baselineCalibration.isCalibrated && hasFullBody) {
+const measuredHeightPx = Math.abs(Math.max(L_HEEL ? L_HEEL.y : 0.85, R_HEEL ? R_HEEL.y : 0.85) - NOSE.y) * h;
+baselineCalibration.heightCm = userHeightCm;
+baselineCalibration.initialHeightPx = measuredHeightPx;
+baselineCalibration.initialShoulderWidthPx = Math.hypot((L_SHOULDER.x - R_SHOULDER.x) * w, (L_SHOULDER.y - R_SHOULDER.y) * h);
+baselineCalibration.initialHipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_HIP.y - R_HIP.y) * h);
+baselineCalibration.initialHipCenter = { x: (L_HIP.x + R_HIP.x) / 2 * w, y: (L_HIP.y + R_HIP.y) / 2 * h };
+baselineCalibration.pxPerCm = measuredHeightPx / userHeightCm;
+}
+// はみ出し判定用マージン
+const EDGE_MIN = 0.04;
+const EDGE_MAX_X = 0.96;
+const EDGE_MAX_Y = 0.96;
+const isTouchingEdge = Boolean(
+(NOSE && (NOSE.y < EDGE_MIN || NOSE.x < EDGE_MIN || NOSE.x > EDGE_MAX_X)) ||
+(L_HIP && (L_HIP.x < EDGE_MIN || L_HIP.x > EDGE_MAX_X || L_HIP.y > EDGE_MAX_Y)) ||
+(R_HIP && (R_HIP.x < EDGE_MIN || R_HIP.x > EDGE_MAX_X || R_HIP.y > EDGE_MAX_Y)) ||
+(L_ANKLE && L_ANKLE.y > EDGE_MAX_Y) ||
+(R_ANKLE && R_ANKLE.y > EDGE_MAX_Y)
+);
+// ① 待機中：全身検知で自動スタートトリガー
+if (currentAppMode === 'TEST_IDLE' && !isCountingDown) {
+if (hasFullBody) {
+fullBodyDetectedFrames++;
+updateDetectBadge(true, fullBodyDetectedFrames);
+safeBoundaryEl.className = "safe-boundary-box ready";
+if (fullBodyDetectedFrames >= REQUIRED_STABLE_FRAMES && !autoStartTriggered) {
+autoStartTriggered = true;
+triggerCountdownAndStart();
+}
+} else {
+fullBodyDetectedFrames = 0;
+autoStartTriggered = false;
+updateDetectBadge(false);
+safeBoundaryEl.className = "safe-boundary-box";
+}
+}
+// ② 測定中：境界接触または消失で即終了
+if (currentAppMode === 'TEST_RUNNING') {
+if (testRunningElapsedTime > 1.8 && (isTouchingEdge || !hasFullBody)) {
+handleFrameOutBreakthrough();
+return;
+}
+}
+// 骨格描画
+drawSkeleton(ctx, l, w, h, "rgba(192, 132, 252, 0.85)");
+const activePxPerCm = baselineCalibration.pxPerCm || 2.0;
+// -------------------------------------------------------------
+// 👣 ① 足踏みテスト：【突進Z軸三角測量】＆【腰幅コサイン水平回転】
+// -------------------------------------------------------------
+if (currentTestMode === 'STEPPING' && L_HIP && R_HIP && NOSE) {
+const curHipCenterX = (L_HIP.x + R_HIP.x) / 2 * w;
+const curHipCenterY = (L_HIP.y + R_HIP.y) / 2 * h;
+const curHipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_HIP.y - R_HIP.y) * h);
+const curAnkleY = Math.max(L_ANKLE ? L_ANKLE.y : 0.85, R_ANKLE ? R_ANKLE.y : 0.85) * h;
+const curHeightPx = Math.abs(curAnkleY - NOSE.y * h);
+if (currentAppMode === 'TEST_RUNNING') {
+if (!baselineData) {
+baselineData = {
+x: curHipCenterX,
+y: curHipCenterY,
+hipWidth: curHipWidthPx || baselineCalibration.initialHipWidthPx,
+heightPx: curHeightPx || baselineCalibration.initialHeightPx
+};
+}
+// 1. 左右・上下のX/Y移動（cm）
+const lateralDxCm = (curHipCenterX - baselineData.x) / activePxPerCm;
+const verticalDyCm = (curHipCenterY - baselineData.y) / activePxPerCm;
+// 2. 前後突進（Z軸cm）：全身高または肩幅のピクセル拡大率から三角測量
+const scaleFactor = curHeightPx / Math.max(50, baselineData.heightPx);
+// 2m立ち位置（200cm）基準での前方接近距離: ΔZ = 200 * (1 - 1/scale)
+let forwardZCm = 0;
+if (scaleFactor > 1.0) {
+forwardZCm = Math.round(200 * (1.0 - (1.0 / scaleFactor)));
+} else {
+forwardZCm = Math.round((curHeightPx - baselineData.heightPx) / activePxPerCm * 1.5);
+}
+forwardZCm = Math.max(-20, forwardZCm); // 後退も微小許容
+// 総移動ズレ（cm）
+const totalDriftCm = Math.round(Math.hypot(lateralDxCm, forwardZCm));
+// 3. 水平回転（ヨー角 °）：見かけの腰幅の縮み比率からアークコサイン逆算
+const baseWidth = Math.max(20, baselineData.hipWidth);
+const ratio = Math.min(1.0, Math.max(0.0, curHipWidthPx / baseWidth));
+let pureYawAngle = Math.round(Math.acos(ratio) * (180 / Math.PI));
+// 向き判定（左右腰の深度差 Z）
+const hipZDiff = ((L_HIP.z || 0) - (R_HIP.z || 0));
+if (Math.abs(hipZDiff) > 0.05) {
+pureYawAngle = Math.min(90, pureYawAngle);
+}
+currentMetrics.driftCm = totalDriftCm;
+currentMetrics.rotDeg = pureYawAngle;
+document.getElementById('metric-main-val').textContent = ⁠${totalDriftCm} cm⁠;
+document.getElementById('metric-sub-val').textContent = ⁠${pureYawAngle} °⁠;
+}
+}
+// -------------------------------------------------------------
+// ⚖️ ② Tポーズテスト：【両腕の独立水平角判定】（ハの字誤認を完全排除）
+// -------------------------------------------------------------
+else if (currentTestMode === 'TPOSE' && L_WRIST && R_WRIST && L_SHOULDER && R_SHOULDER) {
+// 左腕の水平角（真横180°からの垂れ下がり・上がり角度）
+const lArmDx = (L_WRIST.x - L_SHOULDER.x) * w;
+const lArmDy = (L_WRIST.y - L_SHOULDER.y) * h;
+const lArmTilt = Math.abs(Math.round(Math.atan2(lArmDy, Math.abs(lArmDx)) * (180 / Math.PI)));
+// 右腕の水平角
+const rArmDx = (R_WRIST.x - R_SHOULDER.x) * w;
+const rArmDy = (R_WRIST.y - R_SHOULDER.y) * h;
+const rArmTilt = Math.abs(Math.round(Math.atan2(rArmDy, Math.abs(rArmDx)) * (180 / Math.PI)));
+// 左右の手首の高さ差（cm）
+const wristDiffCm = Math.round(Math.abs(L_WRIST.y - R_WRIST.y) * h / activePxPerCm);
+// 腕の水平からの最大垂れ下がり・傾斜角度（ハの字なら両腕とも傾き大として検知）
+const maxArmSagAngle = Math.max(lArmTilt, rArmTilt);
+currentMetrics.tposeDiffCm = wristDiffCm;
+currentMetrics.tposeTiltDeg = maxArmSagAngle;
+document.getElementById('metric-main-val').textContent = ⁠${wristDiffCm} cm⁠;
+document.getElementById('metric-sub-val').textContent = ⁠${maxArmSagAngle} °⁠;
+}
+// -------------------------------------------------------------
+// ⚓ ③ 片足立ちテスト：【浮かせ足の着地リアルタイム検知＆即座停止】
+// -------------------------------------------------------------
+else if (currentTestMode === 'BALANCE' && NOSE && L_HEEL && R_HEEL && L_ANKLE && R_ANKLE) {
+if (currentAppMode === 'TEST_RUNNING') {
+const lFootY = Math.max(L_HEEL.y, L_ANKLE.y) * h;
+const rFootY = Math.max(R_HEEL.y, R_ANKLE.y) * h;
+if (!balanceFootBaseline) {
+// 初期化：上がっている方の足（対地高度が高い＝画面Yが小さい方）を検知
+const isLeftFootRaised = lFootY < (rFootY - 20);
+const isRightFootRaised = rFootY < (lFootY - 20);
+balanceFootBaseline = {
+standFoot: isLeftFootRaised ? 'RIGHT' : (isRightFootRaised ? 'LEFT' : 'UNKNOWN'),
+raisedFootInitialY: isLeftFootRaised ? lFootY : rFootY,
+groundLevelY: Math.max(lFootY, rFootY),
+noseX: NOSE.x * w,
+noseY: NOSE.y * h
+};
+}
+// 頭部ブレ幅
+const wobblePx = Math.hypot(NOSE.x * w - balanceFootBaseline.noseX, NOSE.y * h - balanceFootBaseline.noseY);
+const wobbleCm = Math.round(wobblePx / activePxPerCm);
+currentMetrics.headWobbleCm = Math.max(currentMetrics.headWobbleCm, wobbleCm);
+document.getElementById('metric-sub-val').textContent = ⁠${currentMetrics.headWobbleCm} cm⁠;
+// ★着地検知：上がっていた足が地面レベル（軸足踵の高さ付近）に落ちて接地したか
+if (balanceFootBaseline.standFoot !== 'UNKNOWN' && !isFootTouchGroundDetected && testRunningElapsedTime > 1.2) {
+const raisedCurY = (balanceFootBaseline.standFoot === 'RIGHT') ? lFootY : rFootY;
+const dropDiffPx = Math.abs(raisedCurY - balanceFootBaseline.groundLevelY);
+// 地面との差が小さくなった（足をついた）判定
+if (dropDiffPx < 18 || (raisedCurY - balanceFootBaseline.raisedFootInitialY) > 40) {
+isFootTouchGroundDetected = true;
+handleBalanceFootTouchDown();
+return;
+}
+}
+}
+}
+// -------------------------------------------------------------
+// 🪑 ④ 骨盤制動テスト（X-Factor）：【アークコサイン純粋セパレーション】
+// -------------------------------------------------------------
+else if (currentTestMode === 'XFACTOR' && L_SHOULDER && R_SHOULDER && L_HIP && R_HIP) {
+const curShoulderWidthPx = Math.hypot((L_SHOULDER.x - R_SHOULDER.x) * w, (L_SHOULDER.y - R_SHOULDER.y) * h);
+const curHipWidthPx = Math.hypot((L_HIP.x - R_HIP.x) * w, (L_HIP.y - R_HIP.y) * h);
+if (currentAppMode === 'TEST_RUNNING') {
+if (!baselineData) {
+baselineData = {
+shoulderWidth: curShoulderWidthPx || baselineCalibration.initialShoulderWidthPx,
+hipWidth: curHipWidthPx || baselineCalibration.initialHipWidthPx
+};
+}
+// 胸の回旋角度（肩幅の縮み比率）
+const baseS = Math.max(30, baselineData.shoulderWidth);
+const sRatio = Math.min(1.0, Math.max(0.0, curShoulderWidthPx / baseS));
+const pureChestRot = Math.round(Math.acos(sRatio) * (180 / Math.PI));
+// 骨盤の逃げ角（腰幅の縮み比率）
+const baseH = Math.max(20, baselineData.hipWidth);
+const hRatio = Math.min(1.0, Math.max(0.0, curHipWidthPx / baseH));
+const purePelvisRot = Math.round(Math.acos(hRatio) * (180 / Math.PI));
+// 骨盤を止めて胸だけ回した純粋セパレーション角
+const pureSeparation = Math.max(0, pureChestRot - purePelvisRot);
+currentMetrics.xfactorChestDeg = Math.max(currentMetrics.xfactorChestDeg, pureSeparation);
+currentMetrics.xfactorPelvisDeg = Math.max(currentMetrics.xfactorPelvisDeg, purePelvisRot);
+document.getElementById('metric-main-val').textContent = ⁠${currentMetrics.xfactorChestDeg} °⁠;
+document.getElementById('metric-sub-val').textContent = ⁠${currentMetrics.xfactorPelvisDeg} °⁠;
+}
+}
+}
+function updateDetectBadge(isDetected, count = 0, overrideText = null) {
+const badge = document.getElementById('body-detect-badge');
+const dot = document.getElementById('detect-dot');
+const text = document.getElementById('detect-text');
+if (overrideText) {
+text.textContent = overrideText;
+return;
+}
+if (isDetected) {
+dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+badge.className = "px-2 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500 text-[10px] font-black text-emerald-300 flex items-center gap-1 flex-shrink-0 cursor-pointer";
+text.textContent = count >= REQUIRED_STABLE_FRAMES ? "全身OK！スタンバイ" : "全身検知中...";
+} else {
+dot.className = "w-2 h-2 rounded-full bg-slate-500";
+badge.className = "px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-slate-400 flex items-center gap-1 flex-shrink-0 cursor-pointer";
+text.textContent = "枠内に全身を入れてね";
+}
+}
+// 片足立ちで足がついた瞬間の強制停止
+function handleBalanceFootTouchDown() {
+if (currentAppMode !== 'TEST_RUNNING') return;
+currentAppMode = 'TEST_IDLE';
+clearInterval(testTimerInterval);
+clearInterval(metronomeInterval);
+testTimerInterval = null;
+metronomeInterval = null;
+stopLocalRecording();
+playBuzzer();
+speakVoice(⁠足がついた！ストップ！記録は${currentMetrics.balanceSeconds}秒！⁠);
+document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
+setTimeout(() => {
+renderDiagnosisResult();
+openModal('result-modal');
+showToast(⁠⚓ 足が地面についたため測定終了！\n記録：${currentMetrics.balanceSeconds} 秒キープ！⁠, 3200);
+}, 400);
+}
+function handleFrameOutBreakthrough() {
+if (currentAppMode !== 'TEST_RUNNING') return;
+currentAppMode = 'TEST_IDLE';
+clearInterval(testTimerInterval);
+clearInterval(metronomeInterval);
+testTimerInterval = null;
+metronomeInterval = null;
+stopLocalRecording();
+safeBoundaryEl.className = "safe-boundary-box warning";
+document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
+playBuzzer();
+speakVoice("ストップ！画面からはみ出たので測定終了！目を開けてね！");
+currentMetrics.isWarpOut = true;
+currentMetrics.driftCm = Math.max(currentMetrics.driftCm, 85);
+renderDiagnosisResult();
+openModal('result-modal');
+showToast("🚨 画面からはみ出たため測定を終了しました！\n（前方への強い突進を記録しました）", 3500);
+}
+function drawSkeleton(targetCtx, landmarks, w, h, strokeColor, isDashed = false) {
+const connections = [
+[11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+[11, 23], [12, 24], [23, 24],
+[23, 25], [25, 27], [24, 26], [26, 28]
+];
+targetCtx.save();
+targetCtx.strokeStyle = strokeColor;
+targetCtx.lineWidth = isDashed ? 3 : 4;
+if (isDashed) targetCtx.setLineDash([6, 6]);
+connections.forEach(([i, j]) => {
+if (landmarks[i] && landmarks[j]) {
+targetCtx.beginPath();
+targetCtx.moveTo(landmarks[i].x * w, landmarks[i].y * h);
+targetCtx.lineTo(landmarks[j].x * w, landmarks[j].y * h);
+targetCtx.stroke();
+}
+});
+[11, 12, 15, 16, 23, 24, 27, 28].forEach(idx => {
+if (landmarks[idx]) {
+targetCtx.beginPath();
+targetCtx.arc(landmarks[idx].x * w, landmarks[idx].y * h, isDashed ? 4.5 : 6.5, 0, Math.PI * 2);
+targetCtx.fillStyle = strokeColor;
+targetCtx.fill();
+targetCtx.strokeStyle = "#ffffff";
+targetCtx.lineWidth = 1.5;
+targetCtx.stroke();
+}
+});
+targetCtx.restore();
+}
+// ==========================================
+// 7. テスト実行＆カウントダウン制御
+// ==========================================
+function selectTestMode(mode) {
+playSound(600, 0.08);
+currentTestMode = mode;
+currentAppMode = 'TEST_IDLE';
+isCountingDown = false;
+autoStartTriggered = false;
+fullBodyDetectedFrames = 0;
+baselineData = null;
+balanceFootBaseline = null;
+isFootTouchGroundDetected = false;
+testRunningElapsedTime = 0;
+currentMetrics.isWarpOut = false;
+currentMetrics.xfactorChestDeg = 0;
+currentMetrics.xfactorPelvisDeg = 0;
+clearInterval(testTimerInterval);
+clearInterval(metronomeInterval);
+testTimerInterval = null;
+metronomeInterval = null;
+stopLocalRecording();
+safeBoundaryEl.className = "safe-boundary-box";
+['tab-step', 'tab-tpose', 'tab-balance', 'tab-xfactor'].forEach(id => {
+document.getElementById(id)?.classList.remove('active');
+});
+const config = TEST_CONFIGS[mode];
+document.getElementById('guide-icon').textContent = config.icon;
+document.getElementById('guide-title').textContent = config.title;
+document.getElementById('guide-desc').textContent = config.desc;
+document.getElementById('metric-main-label').textContent = config.mainLabel;
+document.getElementById('metric-sub-label').textContent = config.subLabel;
+document.getElementById('metric-main-val').textContent = ⁠0 ${config.mainUnit}⁠;
+document.getElementById('metric-sub-val').textContent = ⁠0 ${config.subUnit}⁠;
+if (mode === 'STEPPING') document.getElementById('tab-step')?.classList.add('active');
+if (mode === 'TPOSE') document.getElementById('tab-tpose')?.classList.add('active');
+if (mode === 'BALANCE') document.getElementById('tab-balance')?.classList.add('active');
+if (mode === 'XFACTOR') document.getElementById('tab-xfactor')?.classList.add('active');
+document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
+document.getElementById('btn-start-test').textContent = ⁠🚀 全身を映すと自動スタート！ (タップでもOK)⁠;
+if (mode === 'STEPPING') speakVoice("足踏みテスト！枠内に立って全身を映そう！");
+else if (mode === 'TPOSE') speakVoice("Tポーズテスト！腕を広げて水平をキープしよう！");
+else if (mode === 'BALANCE') speakVoice("片足立ちテスト！軸足でしっかり止まろう！");
+else if (mode === 'XFACTOR') speakVoice("骨盤制動テスト！腰を止めて胸だけ回そう！");
+}
+document.getElementById('btn-start-test').addEventListener('click', () => {
+if (!currentStream) {
+startDirectCamera();
+}
+if (currentAppMode !== 'TEST_IDLE' || isCountingDown) return;
+triggerCountdownAndStart();
+});
+function triggerCountdownAndStart() {
+if (isCountingDown) return;
+isCountingDown = true;
+const overlay = document.getElementById('countdown-box');
+const numEl = document.getElementById('countdown-num');
+overlay.style.display = 'flex';
+let count = 3;
+numEl.textContent = count;
+playSound(520, 0.12, 'sine');
+const script = TEST_CONFIGS[currentTestMode].voiceScript;
+speakVoice(script.countdown);
+const cdInterval = setInterval(() => {
+count--;
+if (count > 0) {
+numEl.textContent = count;
+playSound(520, 0.12, 'sine');
+speakVoice(String(count));
+} else if (count === 0) {
+numEl.textContent = "GO!";
+playSound(880, 0.35, 'triangle');
+speakVoice(script.start);
+} else {
+clearInterval(cdInterval);
+overlay.style.display = 'none';
+isCountingDown = false;
+runActiveTest();
+}
+}, 1000);
+}
+function runActiveTest() {
+currentAppMode = 'TEST_RUNNING';
+baselineData = null;
+balanceFootBaseline = null;
+isFootTouchGroundDetected = false;
+testRunningElapsedTime = 0;
+currentMetrics.isWarpOut = false;
+const config = TEST_CONFIGS[currentTestMode];
+testRemainingSeconds = config.duration;
+const totalDuration = config.duration;
+const script = config.voiceScript;
+const badge = document.getElementById('measuring-badge');
+badge.classList.replace('hidden', 'flex');
+document.getElementById('measuring-text').textContent = ⁠🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)⁠;
+startLocalRecording();
+metronomeInterval = setInterval(() => {
+if (currentAppMode === 'TEST_RUNNING') playMetronomeTick();
+}, 550);
+let playedMidVoice = false;
+let playedEndVoice = false;
+testTimerInterval = setInterval(() => {
+testRemainingSeconds--;
+testRunningElapsedTime += 1.0;
+if (testRemainingSeconds > 0) {
+document.getElementById('measuring-text').textContent = ⁠🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)⁠;
+if (!playedMidVoice && testRunningElapsedTime >= Math.floor(totalDuration / 2)) {
+playedMidVoice = true;
+speakVoice(script.midpoint, false);
+}
+if (!playedEndVoice && testRemainingSeconds === 3) {
+playedEndVoice = true;
+playSound(1200, 0.08, 'sine');
+speakVoice(script.ending, false);
+}
+if (currentTestMode === 'BALANCE') {
+currentMetrics.balanceSeconds = config.duration - testRemainingSeconds;
+document.getElementById('metric-main-val').textContent = ⁠${currentMetrics.balanceSeconds} 秒⁠;
+}
+} else {
+clearInterval(testTimerInterval);
+clearInterval(metronomeInterval);
+testTimerInterval = null;
+metronomeInterval = null;
+if (currentTestMode === 'BALANCE') {
+currentMetrics.balanceSeconds = config.duration;
+}
+finishTestNormally();
+}
+}, 1000);
+}
+function finishTestNormally() {
+currentAppMode = 'TEST_IDLE';
+document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
+stopLocalRecording();
+playWhistle();
+const script = TEST_CONFIGS[currentTestMode].voiceScript;
+speakVoice(script.finish);
+setTimeout(() => {
+playFanfare();
+showToast("🎉 測定完了！目を開けて結果を見よう！");
+renderDiagnosisResult();
+openModal('result-modal');
+}, 400);
+}
+function renderDiagnosisResult() {
+const config = TEST_CONFIGS[currentTestMode];
+document.getElementById('res-icon').textContent = config.icon;
+document.getElementById('res-title').textContent = ⁠${config.title.split('（')[0]} 診断結果⁠;
+document.getElementById('res-sensor-reason').textContent = config.sensorReason;
+document.getElementById('res-baseball-impact').textContent = config.baseballImpact;
+let scoreDisp = "";
+let subDisp = "";
+if (currentMetrics.isWarpOut) {
+scoreDisp = ⁠🚨 画面はみ出し終了！【ズレ度: MAX 95%】⁠;
+subDisp = ⁠本人はその場にいたつもりですが、画面からはみ出るほど【 85cm以上 前方へ突進 】していました！骨盤が前に倒れ、重心が突っ走っています！⁠;
+document.getElementById('res-sensor-reason').textContent = "【前傾重心＆骨盤の倒れ込み】が起きています。足踏みしているうちに無意識に足が前へ前へと接地し、空間内の定位置を完全に見失っていました。";
+document.getElementById('res-baseball-impact').textContent = "打撃で【頭がピッチャー側に突っ込んで変化球に泳がされる】、投球で【体が突っ込んで高めに抜ける】最大の原因です！";
+} else if (currentTestMode === 'STEPPING') {
+const d = currentMetrics.driftCm;
+const r = currentMetrics.rotDeg;
+const errScore = Math.min(100, Math.round((d * 1.4) + (r * 1.5)));
+const accuracy = Math.max(10, 100 - errScore);
+scoreDisp = ⁠脳内GPS精度: ${accuracy} % 【ズレ度: ${errScore}%】⁠;
+subDisp = ⁠スタート位置から【 合計${d}cm 】移動（前方突進含む）し、骨盤が水平に【 ${r}度 】回旋していました！⁠;
+} else if (currentTestMode === 'TPOSE') {
+const diff = currentMetrics.tposeDiffCm;
+const tilt = currentMetrics.tposeTiltDeg;
+const accuracy = Math.max(10, 100 - (diff * 5 + tilt * 2));
+scoreDisp = ⁠肩甲骨アライメント覚醒度: ${accuracy} %⁠;
+subDisp = ⁠左右の手の高低差【 ${diff}cm 】、腕の水平からの垂れ下がり・傾き【 ${tilt}° 】を記録しました！⁠;
+} else if (currentTestMode === 'BALANCE') {
+const sec = currentMetrics.balanceSeconds;
+const wob = currentMetrics.headWobbleCm;
+scoreDisp = ⁠足裏支持力レベル: ${sec >= 12 ? 'MASTER ★★★' : (sec >= 7 ? 'LEVEL 2' : 'LEVEL 1')}⁠;
+subDisp = ⁠目隠し片足立ち【 ${sec}秒間 】耐え抜いた！頭部の揺らぎは最大【 ${wob}cm 】でした！⁠;
+} else if (currentTestMode === 'XFACTOR') {
+const pureSep = currentMetrics.xfactorChestDeg;
+const pRot = currentMetrics.xfactorPelvisDeg;
+if (pRot <= 12 && pureSep >= 50) {
+scoreDisp = ⁠🌟 分離マスター達成！【X-Factor覚醒度: 95%】⁠;
+subDisp = ⁠骨盤のブレはわずか【 ${pRot}° 】！腰を止めたまま胸だけを【 ${pureSep}° 】独立回旋できています！完璧なタメを作れる身体です！⁠;
+} else if (pRot > 18) {
+scoreDisp = ⁠⚠️ 要解除！【ドラム缶同調エラー】⁠;
+subDisp = ⁠胸と一緒に骨盤が【 ${pRot}° 】も回ってしまいました！脳内で上半身と下半身が一体化して手投げ・早い開きの原因になっています！⁠;
+} else {
+scoreDisp = ⁠⚡ LEVEL 2【胸郭可動域ロック中】⁠;
+subDisp = ⁠骨盤の静止はできていますが、胸の純回旋が【 ${pureSep}° 】と硬くなっています！背中のロックを解除しよう！⁠;
+}
+}
+document.getElementById('res-score-disp').textContent = scoreDisp;
+document.getElementById('res-score-sub').textContent = subDisp;
+}
+function saveAndSyncToHome() {
+playSound(520, 0.12);
+try {
+let engine = JSON.parse(localStorage.getItem('baseball_body_engine_v1') || '{}');
+if (currentTestMode === 'STEPPING') {
+engine.schema = {
+val: currentMetrics.driftCm || 4,
+unit: "cm",
+status: ⁠【★ 覚醒度 ${Math.max(20, 100 - (currentMetrics.driftCm * 2))}%】⁠,
+alert: currentMetrics.driftCm > 15
+};
+} else if (currentTestMode === 'BALANCE') {
+engine.balance = {
+val: currentMetrics.balanceSeconds || 15,
+unit: "秒",
+status: currentMetrics.balanceSeconds >= 12 ? "【🌟 MASTER達成！】" : "【⚡ LEVEL 2】",
+alert: currentMetrics.balanceSeconds < 8
+};
+} else if (currentTestMode === 'XFACTOR') {
+const sep = currentMetrics.xfactorChestDeg;
+engine.flex = {
+val: sep || 38,
+unit: "°",
+status: sep >= 50 ? "【🌟 MASTER達成！】" : "【🔒 あと12°で覚醒！】",
+alert: sep < 45 || currentMetrics.xfactorPelvisDeg > 18
+};
+}
+localStorage.setItem('baseball_body_engine_v1', JSON.stringify(engine));
+showToast("✅ ホーム画面の身体エンジンに同期しました！");
+} catch(e) {}
+closeModal('result-modal');
+}
+// ==========================================
+// 8. 大画面AI骨格ドリル（ヒンジ＆X-Factorイス座り回旋）
+// ==========================================
+let drillSuccessCount = 0;
+let drillHoldTimer = null;
+let drillHoldSeconds = 3;
+let isHoldingPose = false;
+const drillHud = document.getElementById('drill-hud');
+const drillHoldBox = document.getElementById('drill-hold-box');
+const drillHoldCounter = document.getElementById('drill-hold-counter');
+const drillSuccessCountEl = document.getElementById('drill-success-count');
+const drillStatusText = document.getElementById('drill-status-text');
+const drillStatusIcon = document.getElementById('drill-status-icon');
+const drillHintText = document.getElementById('drill-hint-text');
+const gaugePin = document.getElementById('gauge-pin');
+function calcAngle(p1, p2, p3) {
+if (!p1 || !p2 || !p3) return 0;
+const v1 = { x: p1.x - p2.x, y: p1.y - p2.y };
+const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
+const mag1 = Math.hypot(v1.x, v1.y);
+const mag2 = Math.hypot(v2.x, v2.y);
+if (mag1 < 1e-6 || mag2 < 1e-6) return 0;
+const dot = v1.x * v2.x + v1.y * v2.y;
+return Math.round((Math.acos(Math.max(-1, Math.min(1, dot / (mag1 * mag2)))) * 180) / Math.PI);
+}
+function enterDrillMode() {
+closeModal('result-modal');
+playSound(660, 0.1);
+currentAppMode = 'DRILL_ACTIVE';
+clearInterval(testTimerInterval);
+clearInterval(metronomeInterval);
+testTimerInterval = null;
+metronomeInterval = null;
+stopLocalRecording();
+isCountingDown = false;
+autoStartTriggered = false;
+document.getElementById('test-tabs-container').classList.add('hidden');
+document.getElementById('test-controls-container').classList.add('hidden');
+document.getElementById('test-badge-left').classList.add('hidden');
+document.getElementById('test-badge-right').classList.add('hidden');
+safeBoundaryEl.classList.add('hidden');
+screenWrapperEl.classList.add('drill-active');
+drillHud.classList.add('active');
+drillSuccessCount = 0;
+drillSuccessCountEl.textContent = ⁠0 / 3 回⁠;
+drillHoldSeconds = 3;
+isHoldingPose = false;
+drillHoldBox.classList.add('hidden');
+if (currentTestMode === 'XFACTOR') {
+document.getElementById('guide-icon').textContent = "🪑";
+document.getElementById('guide-title').textContent = "🪑 物理ロック！イス座り胸回し体操";
+document.getElementById('guide-desc').textContent = "イスに座ってお尻を固定！そのまま胸だけ左右に回して緑に光らせろ！";
+document.getElementById('gauge-label-top').textContent = "正面";
+document.getElementById('gauge-label-bottom').textContent = "真横";
+document.getElementById('drill-status-text').textContent = "イスに深く座って正面を向こう！";
+document.getElementById('drill-hint-text').innerHTML = "💡 <b>物理ロック：</b>イスに座ると骨盤は絶対に回らない！そのまま胸のマークを真横の壁に向けよう！";
+document.getElementById('drill-sub-hint').textContent = "骨盤を止め胸を回して3秒キープ！";
+speakVoice("大画面ドリルスタート！イスに座ってお尻を固定！胸のマークを真横に向けよう！");
+} else {
+document.getElementById('guide-icon').textContent = "🎮";
+document.getElementById('guide-title').textContent = "AI骨格を【緑色】に光らせろ！";
+document.getElementById('guide-desc').textContent = "右のメーターを見ながら、腰（骨盤）を動かさずにお辞儀しよう！";
+document.getElementById('gauge-label-top').textContent = "浅い";
+document.getElementById('gauge-label-bottom').textContent = "深すぎ";
+document.getElementById('drill-status-text').textContent = "スマホの真横を向いて立とう！";
+document.getElementById('drill-hint-text').innerHTML = "💡 腰（骨盤）を動かさずピタッと止めたまま、お辞儀するように股関節を折りたたもう！";
+document.getElementById('drill-sub-hint').textContent = "緑に光らせて3秒キープ！";
+speakVoice("大画面ドリルスタート！スマホの横を向いて立とう！腰を止めたまま体幹を折りたたんでね！");
+}
+document.getElementById('detect-text').textContent = "ドリル実行中";
+}
+function exitDrillMode() {
+playSound(600, 0.08);
+clearInterval(drillHoldTimer);
+drillHoldTimer = null;
+isHoldingPose = false;
+drillHud.classList.remove('active');
+drillHud.classList.remove('matched');
+screenWrapperEl.classList.remove('drill-active');
+document.getElementById('test-tabs-container').classList.remove('hidden');
+document.getElementById('test-controls-container').classList.remove('hidden');
+document.getElementById('test-badge-left').classList.remove('hidden');
+document.getElementById('test-badge-right').classList.remove('hidden');
+safeBoundaryEl.classList.remove('hidden');
+currentAppMode = 'TEST_IDLE';
+selectTestMode(currentTestMode);
+showToast("🔄 テスト待機画面に戻りました！");
+}
+function processSkeletonGameInDrill(landmarks, w, h) {
+if (currentTestMode === 'XFACTOR') {
+processXFactorDrillGame(landmarks, w, h);
+return;
+}
+const L_HIP = landmarks[23], R_HIP = landmarks[24];
+const L_SHOULDER = landmarks[11], R_SHOULDER = landmarks[12];
+const L_KNEE = landmarks[25], R_KNEE = landmarks[26];
+const L_ANKLE = landmarks[27], R_ANKLE = landmarks[28];
+const isFacingRight = (landmarks[0] && L_HIP && landmarks[0].x > L_HIP.x);
+const SHOULDER = isFacingRight ? (R_SHOULDER || L_SHOULDER) : (L_SHOULDER || R_SHOULDER);
+const HIP = isFacingRight ? (R_HIP || L_HIP) : (L_HIP || R_HIP);
+const KNEE = isFacingRight ? (R_KNEE || L_KNEE) : (L_KNEE || R_KNEE);
+const ANKLE = isFacingRight ? (R_ANKLE || L_ANKLE) : (L_ANKLE || R_ANKLE);
+if (!SHOULDER || !HIP || !KNEE || !ANKLE) return;
+const hipAngle = calcAngle(SHOULDER, HIP, KNEE);
+const kneeAngle = calcAngle(HIP, KNEE, ANKLE);
+drawGhostSkeleton(ctx, HIP, ANKLE, w, h, isFacingRight);
+let statusType = "TOO_SHALLOW";
+if (hipAngle > 142) {
+statusType = "TOO_SHALLOW";
+} else if (hipAngle < 100 || kneeAngle < 115) {
+statusType = "TOO_DEEP";
+} else if (hipAngle >= 105 && hipAngle <= 142 && kneeAngle >= 118 && kneeAngle <= 165) {
+statusType = "MATCHED";
+} else {
+statusType = "TOO_SHALLOW";
+}
+const clampedAngle = Math.max(70, Math.min(180, hipAngle));
+const gaugePercent = Math.round(((180 - clampedAngle) / 110) * 100);
+gaugePin.style.top = ⁠${Math.max(5, Math.min(95, gaugePercent))}%⁠;
+let skeletonColor = "rgba(56, 189, 248, 0.9)";
+if (statusType === "MATCHED") {
+skeletonColor = "#10b981";
+} else if (statusType === "TOO_DEEP") {
+skeletonColor = "#f43f5e";
+}
+drawSkeleton(ctx, landmarks, w, h, skeletonColor);
+handleMatchState(statusType, hipAngle);
+}
+function processXFactorDrillGame(landmarks, w, h) {
+const L_SHOULDER = landmarks[11], R_SHOULDER = landmarks[12];
+const L_HIP = landmarks[23], R_HIP = landmarks[24];
+if (!L_SHOULDER || !R_SHOULDER || !L_HIP || !R_HIP) return;
+const sDx = Math.abs(L_SHOULDER.x - R_SHOULDER.x) * w;
+const hDx = Math.abs(L_HIP.x - R_HIP.x) * w;
+const baseS = baselineCalibration.initialShoulderWidthPx || 120;
+const baseH = baselineCalibration.initialHipWidthPx || 80;
+const sRatio = Math.min(1.0, Math.max(0.0, sDx / baseS));
+const hRatio = Math.min(1.0, Math.max(0.0, hDx / baseH));
+const sRot = Math.round(Math.acos(sRatio) * (180 / Math.PI));
+const hRot = Math.round(Math.acos(hRatio) * (180 / Math.PI));
+const gaugePercent = Math.min(100, Math.max(0, Math.round((sRot / 75) * 100)));
+gaugePin.style.top = ⁠${Math.max(5, Math.min(95, 100 - gaugePercent))}%⁠;
+let statusType = "TOO_SHALLOW";
+if (hRot > 18) {
+statusType = "TOO_DEEP";
+} else if (sRot >= 50) {
+statusType = "MATCHED";
+} else {
+statusType = "TOO_SHALLOW";
+}
+let skeletonColor = (statusType === "MATCHED") ? "#10b981" : ((statusType === "TOO_DEEP") ? "#f43f5e" : "rgba(56, 189, 248, 0.9)");
+drawSkeleton(ctx, landmarks, w, h, skeletonColor);
+if (statusType === "MATCHED") {
+drillHud.classList.add('matched');
+drillStatusIcon.textContent = "🟢";
+drillStatusText.innerHTML = ⁠<b>✨ 骨盤ストップ＆胸回旋！</b>（回旋 ${sRot}°）そのままキープ！⁠;
+drillStatusText.className = "text-emerald-300 font-black";
+drillHintText.innerHTML = ⁠🎯 <b>完璧！</b> お尻がロックされたまま胸だけ真横に向けられてるぞ！⁠;
+triggerHoldCount();
+} else if (statusType === "TOO_DEEP") {
+drillHud.classList.remove('matched');
+drillStatusIcon.textContent = "🔴";
+drillStatusText.innerHTML = ⁠<b>⚠️ 腰（お尻）が動いちゃった！</b>（お尻を座面に押し付けて！）⁠;
+drillStatusText.className = "text-rose-400 font-black";
+drillHintText.innerHTML = ⁠⚠️ <b>コツ：</b>イスにドカンと深く座り、膝を軽く締めてお尻を絶対に回さない！⁠;
+resetHoldCount();
+} else {
+drillHud.classList.remove('matched');
+drillStatusIcon.textContent = "🔵";
+drillStatusText.innerHTML = ⁠<b>🔄 もっと胸を真横に向けて！</b>（現在 ${sRot}° / 目標 55°以上）⁠;
+drillStatusText.className = "text-sky-300 font-black";
+drillHintText.innerHTML = ⁠💡 <b>息をフーーッと吐きながら</b>、胸のユニフォームのロゴを横の壁に向けよう！⁠;
+resetHoldCount();
+}
+}
+function handleMatchState(statusType, hipAngle) {
+if (statusType === "MATCHED") {
+drillHud.classList.add('matched');
+drillStatusIcon.textContent = "🟢";
+drillStatusText.innerHTML = ⁠<b>✨ 完璧な角度！</b>（股関節 ${hipAngle}°）そのままキープ！⁠;
+drillStatusText.className = "text-emerald-300 font-black";
+drillHintText.innerHTML = ⁠🎯 <b>その姿勢！</b> 腰を止めたまま上体をしっかり制御できてるぞ！⁠;
+triggerHoldCount();
+} else if (statusType === "TOO_SHALLOW") {
+drillHud.classList.remove('matched');
+drillStatusIcon.textContent = "🔵";
+drillStatusText.innerHTML = ⁠<b>⬇️ もう少し腰を引こう！</b>（現在 ${hipAngle}° / 目標 125°）⁠;
+drillStatusText.className = "text-sky-300 font-black";
+drillHintText.innerHTML = ⁠💡 <b>コツ：</b>腰（骨盤）をグラつかせずピタッと止めたまま、お辞儀するように股関節を折りたたもう！⁠;
+resetHoldCount();
+} else if (statusType === "TOO_DEEP") {
+drillHud.classList.remove('matched');
+drillStatusIcon.textContent = "🔴";
+drillStatusText.innerHTML = ⁠<b>⬆️ 曲げすぎ！少し腰を上げて！</b>（しゃがみすぎ ${hipAngle}°）⁠;
+drillStatusText.className = "text-rose-400 font-black";
+drillHintText.innerHTML = ⁠⚠️ <b>注意：</b>膝を前に出しすぎると腰が落ちちゃうぞ！腰を少し浮かせて体幹を止めよう！⁠;
+resetHoldCount();
+}
+}
+function triggerHoldCount() {
+if (!isHoldingPose) {
+isHoldingPose = true;
+playMatchPing();
+drillHoldBox.classList.remove('hidden');
+drillHoldSeconds = 3;
+drillHoldCounter.textContent = drillHoldSeconds;
+drillHoldTimer = setInterval(() => {
+drillHoldSeconds--;
+if (drillHoldSeconds > 0) {
+drillHoldCounter.textContent = drillHoldSeconds;
+playSound(950, 0.08, 'sine');
+} else {
+clearInterval(drillHoldTimer);
+drillHoldTimer = null;
+isHoldingPose = false;
+drillSuccessCount++;
+drillSuccessCountEl.textContent = ⁠${drillSuccessCount} / 3 回⁠;
+playFanfare();
+speakVoice(⁠ナイス！ ${drillSuccessCount}回成功！⁠);
+drillHoldBox.classList.add('hidden');
+if (drillSuccessCount >= 3) {
+showToast("🏆 ドリルクリア！神経回路が完全に覚醒したぜ！");
+speakVoice("ドリルクリア！覚醒完了！もう一度テストしてみよう！");
+setTimeout(() => {
+exitDrillMode();
+}, 1200);
+} else {
+drillStatusText.innerHTML = ⁠🌟 ナイス！あと ${3 - drillSuccessCount} 回！⁠;
+}
+}
+}, 1000);
+}
+}
+function resetHoldCount() {
+if (isHoldingPose) {
+isHoldingPose = false;
+clearInterval(drillHoldTimer);
+drillHoldTimer = null;
+drillHoldBox.classList.add('hidden');
+}
+}
+function drawGhostSkeleton(targetCtx, userHip, userAnkle, w, h, isFacingRight) {
+if (!userHip || !userAnkle) return;
+const hipX = userHip.x * w;
+const hipY = userHip.y * h;
+const ankleX = userAnkle.x * w;
+const ankleY = userAnkle.y * h;
+const legHeight = Math.abs(ankleY - hipY);
+if (legHeight < 40) return;
+const dir = isFacingRight ? 1 : -1;
+const idealKneeX = ankleX - (legHeight * 0.08 * dir);
+const idealKneeY = ankleY - (legHeight * 0.48);
+const idealHipX = ankleX - (legHeight * 0.28 * dir);
+const idealHipY = idealKneeY - (legHeight * 0.45);
+const idealShoulderX = ankleX + (legHeight * 0.05 * dir);
+const idealShoulderY = idealHipY - (legHeight * 0.65);
+targetCtx.save();
+targetCtx.strokeStyle = "rgba(16, 185, 129, 0.45)";
+targetCtx.lineWidth = 3;
+targetCtx.setLineDash([8, 6]);
+targetCtx.beginPath();
+targetCtx.moveTo(idealShoulderX, idealShoulderY);
+targetCtx.lineTo(idealHipX, idealHipY);
+targetCtx.lineTo(idealKneeX, idealKneeY);
+targetCtx.lineTo(ankleX, ankleY);
+targetCtx.stroke();
+[
+{ x: idealShoulderX, y: idealShoulderY },
+{ x: idealHipX, y: idealHipY },
+{ x: idealKneeX, y: idealKneeY }
+].forEach(pt => {
+targetCtx.beginPath();
+targetCtx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+targetCtx.fillStyle = "rgba(16, 185, 129, 0.5)";
+targetCtx.fill();
+targetCtx.strokeStyle = "#ffffff";
+targetCtx.lineWidth = 1;
+targetCtx.stroke();
+});
+targetCtx.fillStyle = "rgba(52, 211, 153, 0.75)";
+targetCtx.font = "bold 9px sans-serif";
+targetCtx.textAlign = isFacingRight ? "right" : "left";
+targetCtx.fillText("✨ 理想の型（ここを目指そう！）", idealHipX - (10 * dir), idealHipY);
+targetCtx.restore();
+}
+// ==========================================
+// 9. モーダル制御＆起動イベント
+// ==========================================
+function openModal(id) {
+playSound(600, 0.08);
+document.getElementById(id)?.classList.add('active');
+}
+function closeModal(id) {
+document.getElementById(id)?.classList.remove('active');
+}
+function closeModalOnBackdrop(e, id) {
+if (e.target.id === id) closeModal(id);
+}
+document.getElementById('btn-open-result-preview').addEventListener('click', () => {
+renderDiagnosisResult();
+openModal('result-modal');
+});
+document.getElementById('btn-open-reset-drill').addEventListener('click', () => {
+enterDrillMode();
+});
+window.addEventListener('touchstart', () => {
+if (!currentStream) {
+startDirectCamera();
+}
+}, { passive: true, once: true });
+window.addEventListener('click', () => {
+if (!currentStream) {
+startDirectCamera();
+}
+}, { once: true });
+document.addEventListener('DOMContentLoaded', async () => {
+loadUserHeightProfile();
+selectTestMode('STEPPING');
+await startDirectCamera();
+initPoseEngine();
+});
+</script>
 </body>
 </html>
