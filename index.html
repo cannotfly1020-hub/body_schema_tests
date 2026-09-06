@@ -364,6 +364,20 @@
       object-fit: cover;
       transform: scaleX(-1);
     }
+
+    /* 音声案内スピーカーバッジ */
+    .voice-guide-badge {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid #38bdf8;
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
   </style>
 </head>
 <body>
@@ -403,13 +417,16 @@
 
   <main class="w-full max-w-md flex-1 brawl-panel p-2 flex flex-col gap-1.5 min-h-0 relative z-10 overflow-hidden">
     
-    <!-- ガイダンスバナー -->
+    <!-- ガイダンスバナー（音声案内アイコン付き） -->
     <div class="w-full bg-slate-950/80 p-2 rounded-xl border border-purple-500/40 flex items-center gap-2" id="guidance-banner">
       <span class="text-xl flex-shrink-0" id="guide-icon">👣</span>
       <div class="flex flex-col flex-1 min-w-0">
-        <span class="text-[11px] font-black text-purple-200 truncate" id="guide-title">
-          目隠し足踏みテスト（骨盤・股関節の回旋マップ）
-        </span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] font-black text-purple-200 truncate" id="guide-title">
+            目隠し足踏みテスト（骨盤・股関節の回旋マップ）
+          </span>
+          <span class="voice-guide-badge flex-shrink-0">🔊 音声ナビON</span>
+        </div>
         <span class="text-[9px] text-slate-300 leading-tight" id="guide-desc">
           カメラから約2m離れて枠内に全身を映そう！自動検知でスタート！
         </span>
@@ -646,13 +663,14 @@
       setTimeout(() => playSound(1320, 0.2, 'triangle', 0.35), 100);
     }
 
-    function speakVoice(text) {
+    // 音声案内（音声合成）
+    function speakVoice(text, cancelCurrent = true) {
       try {
         if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
+          if (cancelCurrent) window.speechSynthesis.cancel();
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'ja-JP';
-          u.rate = 1.1;
+          u.rate = 1.15; // 明瞭でテンポの良い指導レート
           u.pitch = 1.1;
           window.speechSynthesis.speak(u);
         }
@@ -667,7 +685,7 @@
     }
 
     // ==========================================
-    // 2. 4大テスト設定定義（X-Factor完全統合）
+    // 2. 4大テスト設定定義 ＆ フルボイス動作指示台本
     // ==========================================
     const TEST_CONFIGS = {
       STEPPING: {
@@ -680,7 +698,15 @@
         subLabel: "回転ズレ:",
         subUnit: "°",
         sensorReason: "【骨盤・股関節の回旋マップ＆脳内垂直軸】が狂っています。本人はまっすぐ歩いているつもりですが、骨盤の張り（筋緊張）に左右差があるため、体が勝手に旋回してしまいます。",
-        baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。"
+        baseballImpact: "投球・打撃でキャッチャーに向かってまっすぐ踏み出しているつもりなのに、【インステップ】または【アウトステップ】してボールが抜ける・詰まる最大の原因になります。",
+        // ★ テスト専用ボイスガイド台本
+        voiceScript: {
+          countdown: "準備完了！目を閉じてスタンバイ！3",
+          start: "スタート！目を閉じたまま、その場でしっかり腿を上げて足踏み！",
+          midpoint: "その調子！頭の中で同じ場所を踏み続けよう！前に進まないぞ！",
+          ending: "ラスト3秒！リズミカルに踏み続けろ！",
+          finish: "ストップ！終了！目を開けて結果を見よう！"
+        }
       },
       TPOSE: {
         icon: "⚖️",
@@ -692,7 +718,14 @@
         subLabel: "傾斜角:",
         subUnit: "°",
         sensorReason: "【肩甲帯（肩甲骨）の空間位置覚】がズレています。投球側またはバット側の肩甲骨が下に落ちているのに、脳が『水平に上がっている』と錯覚しています。",
-        baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。"
+        baseballImpact: "投球時に『肘を上げろ』と言われても本人は上げているつもりで【肘下がり・打点低下】が起き、打撃では【トップでヘッドが下がる】原因になります。",
+        voiceScript: {
+          countdown: "目を閉じてスタンバイ！3",
+          start: "スタート！目を閉じたまま、両腕を真横にピーンと広げて水平キープ！",
+          midpoint: "地面と平行をイメージ！肩甲骨を真っ直ぐ保とう！",
+          ending: "そのままピタッとキープ！",
+          finish: "終了！目を開けて左右の高さを確認しよう！"
+        }
       },
       BALANCE: {
         icon: "⚓",
@@ -704,7 +737,14 @@
         subLabel: "頭部ブレ幅:",
         subUnit: "cm",
         sensorReason: "【足裏のメカノレセプター（圧力センサー）とお尻（中殿筋）】の通信が遅れています。視覚のカンニングが消えた瞬間、足裏のどこに重心があるか見失っています。",
-        baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。"
+        baseballImpact: "投球の脚上げで三塁側にグラついてタメが作れず、打撃ではテイクバックで軸足に乗れずに【ピッチャー側へ突っ込む】最大の原因になります。",
+        voiceScript: {
+          countdown: "軸足で立って目を閉じて！3",
+          start: "スタート！目を閉じて片足立ち！足の裏で地面をしっかり掴んで！",
+          midpoint: "ナイスバランス！お尻の外側に力を入れてグラつきを耐えろ！",
+          ending: "あと3秒！ピタッと止まり続けろ！",
+          finish: "終了！ナイスキープ！目を開けてね！"
+        }
       },
       XFACTOR: {
         icon: "🪑",
@@ -716,7 +756,14 @@
         subLabel: "骨盤逃げ角:",
         subUnit: "°",
         sensorReason: "【胸郭（胸椎）と骨盤の分離運動マップ】が未発達です。本人は腰を止めているつもりでも、腰椎・骨盤が一緒に回る『ドラム缶回り（同時収縮）』を起こしています。",
-        baseballImpact: "投球での【手投げ・早い開き】、打撃での【ドアスイング・タメの消失】の真犯人です。腰を止めて胸を回せないため、下半身先行のエネルギー連鎖が完全に遮断されます。"
+        baseballImpact: "投球での【手投げ・早い開き】、打撃での【ドアスイング・タメの消失】の真犯人です。腰を止めて胸を回せないため、下半身先行のエネルギー連鎖が完全に遮断されます。",
+        voiceScript: {
+          countdown: "両手を胸の前でクロス！目を閉じて3",
+          start: "スタート！腰をピタッと正面に止めたまま、胸だけ真横へ回そう！",
+          midpoint: "お尻を動かさない！胸のマークを横の壁に向けるイメージ！",
+          ending: "腰を固定したまま、胸を大きく回し切れ！",
+          finish: "終了！目を開けて分離角度を見よう！"
+        }
       }
     };
 
@@ -1227,7 +1274,7 @@
     }
 
     // ==========================================
-    // 6. テスト実行＆カウントダウン制御
+    // 6. テスト実行＆カウントダウン制御（音声ナビゲーション完全対応）
     // ==========================================
     function selectTestMode(mode) {
       playSound(600, 0.08);
@@ -1270,6 +1317,12 @@
 
       document.getElementById('measuring-badge').classList.replace('flex', 'hidden');
       document.getElementById('btn-start-test').textContent = `🚀 全身を映すと自動スタート！ (タップでもOK)`;
+
+      // モード切り替え時の音声プレビュー
+      if (mode === 'STEPPING') speakVoice("足踏みテスト！枠内に立って全身を映そう！");
+      else if (mode === 'TPOSE') speakVoice("Tポーズテスト！腕を広げて水平をキープしよう！");
+      else if (mode === 'BALANCE') speakVoice("片足立ちテスト！軸足でしっかり止まろう！");
+      else if (mode === 'XFACTOR') speakVoice("骨盤制動テスト！腰を止めて胸だけ回そう！");
     }
 
     document.getElementById('btn-start-test').addEventListener('click', () => {
@@ -1291,7 +1344,8 @@
       numEl.textContent = count;
 
       playSound(520, 0.12, 'sine');
-      speakVoice(currentTestMode === 'XFACTOR' ? "イスに座るか立って準備！目を閉じて3" : "目を閉じてスタンバイ！3");
+      const script = TEST_CONFIGS[currentTestMode].voiceScript;
+      speakVoice(script.countdown);
 
       const cdInterval = setInterval(() => {
         count--;
@@ -1302,7 +1356,7 @@
         } else if (count === 0) {
           numEl.textContent = "GO!";
           playSound(880, 0.35, 'triangle');
-          speakVoice(currentTestMode === 'XFACTOR' ? "腰を止めて胸を回せ！" : "スタート！");
+          speakVoice(script.start);
         } else {
           clearInterval(cdInterval);
           overlay.style.display = 'none';
@@ -1319,6 +1373,8 @@
       currentMetrics.isWarpOut = false;
       const config = TEST_CONFIGS[currentTestMode];
       testRemainingSeconds = config.duration;
+      const totalDuration = config.duration;
+      const script = config.voiceScript;
 
       const badge = document.getElementById('measuring-badge');
       badge.classList.replace('hidden', 'flex');
@@ -1326,9 +1382,14 @@
 
       startLocalRecording();
 
+      // リズム用メトロノーム（足踏み時はとくに効果的）
       metronomeInterval = setInterval(() => {
         if (currentAppMode === 'TEST_RUNNING') playMetronomeTick();
       }, 550);
+
+      // 中間・残り3秒などの音声フラグ
+      let playedMidVoice = false;
+      let playedEndVoice = false;
 
       testTimerInterval = setInterval(() => {
         testRemainingSeconds--;
@@ -1337,8 +1398,17 @@
         if (testRemainingSeconds > 0) {
           document.getElementById('measuring-text').textContent = `🧠 目を閉じて！ 記録中... (残り ${testRemainingSeconds} 秒)`;
           
-          if (testRemainingSeconds <= 3) {
+          // 中間地点での動作誘導ボイス
+          if (!playedMidVoice && testRunningElapsedTime >= Math.floor(totalDuration / 2)) {
+            playedMidVoice = true;
+            speakVoice(script.midpoint, false);
+          }
+
+          // ラストスパート（残り3秒）での音声励まし
+          if (!playedEndVoice && testRemainingSeconds === 3) {
+            playedEndVoice = true;
             playSound(1200, 0.08, 'sine');
+            speakVoice(script.ending, false);
           }
 
           if (currentTestMode === 'BALANCE') {
@@ -1361,14 +1431,15 @@
       stopLocalRecording();
 
       playWhistle();
-      speakVoice("終了！目を開けて結果を見よう！");
+      const script = TEST_CONFIGS[currentTestMode].voiceScript;
+      speakVoice(script.finish);
 
       setTimeout(() => {
         playFanfare();
         showToast("🎉 測定完了！目を開けて結果を見よう！");
         renderDiagnosisResult();
         openModal('result-modal');
-      }, 350);
+      }, 400);
     }
 
     function renderDiagnosisResult() {
