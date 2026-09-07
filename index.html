@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック v2.0</title>
+  <title>身体図式・脳内GPSドック v2.1</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0a0f1d">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,12 +12,11 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- MediaPipe Pose CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <!-- MediaPipe Pose CDN (Cameraヘルパー不使用・自前描画ループで安定化) -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Chango&family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
 
     :root {
       --bg-dark: #0a0f1d;
@@ -45,20 +44,25 @@
       color: #ffffff;
     }
 
-    /* iPhone縦長画面余白撲滅用レイアウト定義 */
+    /* 画面切り替えの絶対ルール: IDセレクタの詳細度に左右されない強制クラス制御 */
+    .app-screen {
+      display: none !important;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .app-screen.active {
+      display: flex !important;
+    }
+
+    /* アプリベースコンテナ: iPhone縦長100dvh完全固定 */
     #appContainer {
       height: 100dvh;
       max-height: 100dvh;
       display: flex;
       flex-direction: column;
-    }
-
-    #screenLobby {
-      display: flex;
-      flex-direction: column;
-      height: calc(100dvh - 3.5rem); /* ヘッダー分(56px)を引いた全高を100%活用 */
-      justify-content: space-between;
-      overflow-y: hidden; /* 不要なスクロールや浮き上がりを完全防止 */
+      overflow: hidden;
     }
 
     /* 4大テストグリッドを縦方向に強制ストレッチ */
@@ -142,7 +146,7 @@
       box-shadow: 0 1px 0 #7f1d1d;
     }
 
-    /* 鏡像反転 */
+    /* 鏡像反転モード */
     .mirror-mode {
       transform: scaleX(-1);
     }
@@ -170,7 +174,7 @@
             <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
               脳内GPSドック
             </h1>
-            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v2.0</span>
+            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v2.1</span>
           </div>
           <div id="activePlayerBadge" class="text-[10px] text-emerald-400 font-bold leading-tight truncate max-w-[120px]">
             未設定
@@ -179,21 +183,21 @@
       </div>
 
       <!-- 操作ボタン群 -->
-    <div class="flex items-center space-x-1.5">
-      <button id="btnCameraFlip" class="brawl-btn btn-blue text-xs px-2.5 py-1" title="カメラ切替">
-        🔄 反転
-      </button>
-      <button id="btnSoundToggle" class="brawl-btn btn-yellow text-xs px-2.5 py-1" title="音声">
-        🔊 ON
-      </button>
-      <button id="btnHome" class="brawl-btn btn-purple text-xs px-2.5 py-1" title="ホーム">
-        🏠
-      </button>
-    </div>
-  </header>
+      <div class="flex items-center space-x-1.5">
+        <button id="btnCameraFlip" class="brawl-btn btn-blue text-xs px-2.5 py-1" title="カメラ切替">
+          🔄 反転
+        </button>
+        <button id="btnSoundToggle" class="brawl-btn btn-yellow text-xs px-2.5 py-1" title="音声">
+          🔊 ON
+        </button>
+        <button id="btnHome" class="brawl-btn btn-purple text-xs px-2.5 py-1" title="ホーム">
+          🏠
+        </button>
+      </div>
+    </header>
 
-    <!-- トップロビー画面: iPhoneの縦長アスペクト比を100%活かし余白を完全ゼロ化 -->
-    <section id="screenLobby" class="w-full relative p-3 space-y-2.5">
+    <!-- ① トップロビー画面: 余白を完全ゼロ化し縦長画面に自動フィット -->
+    <section id="screenLobby" class="app-screen active p-3 justify-between flex-1">
       
       <!-- 上段: 選手プロファイル ＆ モノサシ設定 -->
       <div class="flex flex-col space-y-2 flex-shrink-0">
@@ -237,7 +241,7 @@
       </div>
 
       <!-- 中段: 4大テスト選択セクション（flex-1 ＆ grid-template-rows: 1fr 1fr で縦長画面いっぱいに拡大） -->
-      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col flex-1 min-h-[220px]">
+      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col flex-1 min-h-[220px] my-1">
         <div class="flex items-center justify-between mb-2 flex-shrink-0">
           <span class="text-xs font-black text-emerald-400 flex items-center space-x-1">
             <span>🎯</span><span>2. 4大目隠し・身体図式テスト</span>
@@ -245,7 +249,6 @@
           <span class="text-[9px] text-slate-400">主観と客観のズレ検知</span>
         </div>
 
-        <!-- テストボタン4つ（上下に自動伸長して余白を完全吸収） -->
         <div class="test-grid-container">
           <!-- テスト1: 足踏み -->
           <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="stepping">
@@ -274,7 +277,7 @@
         </div>
       </div>
 
-      <!-- 下段: クイックアクション ＆ 脳内GPSワンポイントTips（余白を完全に埋める安心構造） -->
+      <!-- 下段: クイックアクション ＆ 脳内GPSワンポイントTips（余白完全吸収） -->
       <div class="flex flex-col space-y-2 flex-shrink-0 pb-1">
         <!-- ドリル ＆ カルテボタン -->
         <div class="grid grid-cols-2 gap-2">
@@ -288,7 +291,7 @@
           </button>
         </div>
 
-        <!-- 脳内GPS ワンポイントアドバイスバナー（最下部を美しくガード） -->
+        <!-- 脳内GPS ワンポイントアドバイスバナー -->
         <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex items-center space-x-2.5">
           <div class="w-7 h-7 rounded-lg bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center flex-shrink-0 text-sm">
             💡
@@ -301,8 +304,8 @@
 
     </section>
 
-    <!-- スキャン画面 -->
-    <section id="screenScan" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
+    <!-- ② スキャン画面 -->
+    <section id="screenScan" class="app-screen">
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoScan" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasScan" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
@@ -333,8 +336,8 @@
       </div>
     </section>
 
-    <!-- テスト測定画面（音響ビートインジケーター搭載） -->
-    <section id="screenTest" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
+    <!-- ③ テスト測定画面（音響ビートインジケーター搭載） -->
+    <section id="screenTest" class="app-screen">
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoTest" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasTest" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
@@ -403,8 +406,8 @@
       </div>
     </section>
 
-    <!-- 結果＆ローカルリプレイ画面 -->
-    <section id="screenResult" class="flex-1 w-full h-full relative overflow-y-auto flex flex-col p-4 space-y-3 pb-6 hidden">
+    <!-- ④ 結果＆ローカルリプレイ画面 -->
+    <section id="screenResult" class="app-screen overflow-y-auto p-4 space-y-3 pb-6">
       <div class="bg-gradient-to-br from-slate-900 to-indigo-950 border-2 border-yellow-400/80 rounded-2xl p-4 shadow-xl text-center relative overflow-hidden">
         <div class="text-xs font-black text-yellow-300 tracking-wider">TEST RESULT</div>
         <div id="resTestName" class="text-lg font-black text-white mt-0.5">目隠し足踏みテスト</div>
@@ -478,8 +481,8 @@
       </div>
     </section>
 
-    <!-- 1分再構築ドリル画面 -->
-    <section id="screenDrill" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
+    <!-- ⑤ 1分再構築ドリル画面 -->
+    <section id="screenDrill" class="app-screen">
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
@@ -517,7 +520,7 @@
             <div class="border-l border-slate-700 h-6"></div>
             <div class="flex-1 text-center">
               <div class="text-[9px] text-slate-400">目標達成ライン</div>
-              <div class="text-base font-black text-emerald-400">≥ 30.0°</div>
+              <div class="text-base font-black text-emerald-400">≥ 28.0°</div>
             </div>
           </div>
         </div>
@@ -531,8 +534,8 @@
       </div>
     </section>
 
-    <!-- 成長カルテ・推移画面 -->
-    <section id="screenRecord" class="flex-1 w-full h-full relative overflow-y-auto flex flex-col p-4 space-y-3 pb-8 hidden">
+    <!-- ⑥ 成長カルテ・推移画面 -->
+    <section id="screenRecord" class="app-screen overflow-y-auto p-4 space-y-3 pb-8">
       <div class="flex items-center justify-between">
         <span class="text-sm font-black text-yellow-300">📈 成長カルテ・覚醒度推移</span>
         <button id="btnExportCsv" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold text-sky-400">
@@ -644,10 +647,10 @@
 
   <script>
     /**
-     * 身体図式・脳内GPSドック v2.0 - 完全安定版
+     * 身体図式・脳内GPSドック v2.1 - 完全安定版
      */
 
-    // 全DOM要素への安全な動的アクセサ（未定義クラッシュを根絶）
+    // DOM要素への安全な動的Proxy（未定義参照エラーを根絶）
     const DOM = new Proxy({}, {
       get: (_, id) => document.getElementById(id)
     });
@@ -681,7 +684,6 @@
       testTimerInterval: null,
       testCountdownInterval: null,
       testMetronomeInterval: null,
-      testTickInterval: null,
       testRemainingSec: 0,
       testGracePeriod: true,
       stableDetectionFrames: 0,
@@ -692,6 +694,7 @@
       lastRecordedUrl: null,
       mediaRecorder: null,
       recordedChunks: [],
+      hasLegLifted: false, // 片足立ちテストの誤判定防止ステート
 
       // ドリルセッション
       drillHoldFrames: 0,
@@ -719,7 +722,7 @@
             source.start(0);
             AppState.audioUnlocked = true;
           } catch (e) {
-            console.warn('Audio unlock failed:', e);
+            console.warn('Audio unlock notice:', e);
           }
         }
       }
@@ -749,7 +752,7 @@
           osc.start(now);
           osc.stop(now + duration);
         } catch (e) {
-          console.warn('Audio play failed', e);
+          console.warn('Audio play notice:', e);
         }
       }
 
@@ -758,7 +761,7 @@
         this.playTone(660, 0.12, 'triangle', 0.5);
       }
 
-      // 測定スタート合図音（ホイッスル調）
+      // 測定スタート合図音（ホイッスル調: ピピッ・ピーーッ！）
       static playStartWhistle() {
         if (!AppState.isSoundEnabled) return;
         this.playTone(1760, 0.08, 'square', 0.45);
@@ -766,7 +769,7 @@
         setTimeout(() => this.playTone(2093, 0.38, 'triangle', 0.6), 200);
       }
 
-      // 測定終了合図音（ホイッスル調）
+      // 測定終了合図音（ホイッスル調: ピーッ・ピピッ！）
       static playFinishWhistle() {
         if (!AppState.isSoundEnabled) return;
         this.playTone(2093, 0.35, 'triangle', 0.6);
@@ -774,7 +777,7 @@
         setTimeout(() => this.playTone(1760, 0.15, 'square', 0.45), 480);
       }
 
-      // 毎秒のチクタク音（目隠し中の進行確認）
+      // 毎秒のチクタク音（目隠し中の進行確認: 5秒毎にアクセント）
       static playTestTick(isAccent = false) {
         if (isAccent) {
           this.playTone(1050, 0.08, 'triangle', 0.4);
@@ -790,14 +793,14 @@
         this.playTone(f, 0.18, 'triangle', 0.5);
       }
 
-      // 足踏み用メトロノーム音
+      // 足踏み用メトロノーム音（100BPM）
       static beepMetronome() {
         this.playTone(1250, 0.04, 'triangle', 0.45);
       }
 
       // 危険逸脱アラート
       static alertBuzzer() {
-        this.playTone(220, 0.45, 'sawtooth', 0.5);
+        this.playTone(220, 0.45, 'sawtooth', 0.55);
       }
 
       // 達成ファンファーレ
@@ -808,13 +811,13 @@
         setTimeout(() => this.playTone(1046.5, 0.38, 'triangle', 0.55), 390);
       }
 
-      // スタンプ・絵文字を100%完全除去するフィルター
+      // スタンプ・絵文字を100%安全かつ完全に消去するフィルター
       static stripEmojis(text) {
         if (!text) return '';
         return text
-          .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji}\uFE0F\u200D]/gu, '')
+          .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/gu, '')
           .replace(/[【】★⚡🔒🎬📊📑🚨💡⚓👣⚖️🪑]/g, '')
-          .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+          .replace(/\s+/g, ' ')
           .trim();
       }
 
@@ -832,7 +835,7 @@
           uttr.pitch = 1.0;
           window.speechSynthesis.speak(uttr);
         } catch (e) {
-          console.warn('TTS error:', e);
+          console.warn('TTS notice:', e);
         }
       }
     }
@@ -920,15 +923,12 @@
         await stopCamera();
       }
 
-      const allScreens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
-      allScreens.forEach(id => {
-        const el = DOM[id];
-        if (el) {
-          if (id === targetScreenId) {
-            el.classList.remove('hidden');
-          } else {
-            el.classList.add('hidden');
-          }
+      // 明確なクラス制御（.app-screen.active）で確実に表示切り替え
+      document.querySelectorAll('.app-screen').forEach(el => {
+        if (el.id === targetScreenId) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
         }
       });
       AppState.currentScreen = targetScreenId;
@@ -970,7 +970,6 @@
 
       if (!videoEl) return;
 
-      // モバイルで確実に失敗しない安全なカメラ制約
       const constraints = {
         audio: false,
         video: {
@@ -1000,18 +999,18 @@
         await new Promise(resolve => {
           if (videoEl.readyState >= 1) return resolve();
           videoEl.onloadedmetadata = () => resolve();
-          setTimeout(resolve, 300); // 300msでフォールバック通過
+          setTimeout(resolve, 300); // 300msフォールバック
         });
 
         try {
           await videoEl.play();
         } catch (playErr) {
-          console.warn('Video play triggered:', playErr);
+          console.warn('Video play notice:', playErr);
         }
 
         updateCameraMirrorStyles();
 
-        // 競合する外部Cameraヘルパーを廃止し、自前のrequestAnimationFrameループで超安定化
+        // 競合のない自前のrequestAnimationFrameループ
         stopCameraLoop();
         const renderLoop = async () => {
           if (AppState.isSleeping || !AppState.stream) return;
@@ -1022,7 +1021,7 @@
             try {
               await AppState.poseDetector.send({ image: currentVideo });
             } catch (err) {
-              // フレームドロップは無視して継続
+              // フレームドロップは無視
             } finally {
               AppState.isProcessingPose = false;
             }
@@ -1033,7 +1032,7 @@
         AppState.cameraAnimId = requestAnimationFrame(renderLoop);
 
       } catch (err) {
-        console.error('Camera access failed:', err);
+        console.error('Camera access notice:', err);
         SoundFX.speak('カメラの起動に失敗しました。カメラの利用許可を確認してください。');
       }
     }
@@ -1237,6 +1236,7 @@
       AppState.recentMetricsBuffer = [];
       AppState.initialPoseSnapshot = null;
       AppState.testGracePeriod = true;
+      AppState.hasLegLifted = false;
 
       DOM.testBadgeTitle.textContent = cfg.title;
       DOM.testInstructionSubtitle.textContent = cfg.sub;
@@ -1247,7 +1247,7 @@
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
-      // 絵文字を読ませず滑らかにアナウンス
+      // 絵文字を読ませない安全アナウンス
       SoundFX.speak(`${cfg.speechTitle}。全身を枠に収めて静止してください。静止後3秒で開始します。`);
     }
 
@@ -1324,8 +1324,7 @@
         if (!AppState.testGracePeriod) {
           const expansionRatio = currentHipWidth / AppState.baseHipWidthPx;
           if (expansionRatio >= 1.7) {
-            const forwardCm = ((expansionRatio - 1.0) * 100).toFixed(0);
-            triggerDangerAbort(`前方へ突進しました！`);
+            triggerDangerAbort('前方へ突進しました！');
             return;
           }
 
@@ -1345,6 +1344,7 @@
         DOM.metricZVal.textContent = `${frameMetric.zDisplacementCm.toFixed(1)} cm`;
         DOM.metricDynamicVal.textContent = `${frameMetric.dynamicVal.toFixed(1)} ${frameMetric.dynamicUnit}`;
 
+        // 片足立ちテストの安全な着地判定
         if (AppState.activeTestId === 'oneleg' && !AppState.testGracePeriod) {
           if (frameMetric.hasLanded) {
             SoundFX.alertBuzzer();
@@ -1401,7 +1401,11 @@
         }
         if (leftAnkle && rightAnkle) {
           const ankleDiffY = Math.abs(leftAnkle.y - rightAnkle.y) * h;
-          if (ankleDiffY < 25) {
+          // 一度足が上がったことを確認してから着地を有効化
+          if (ankleDiffY >= 35) {
+            AppState.hasLegLifted = true;
+          }
+          if (AppState.hasLegLifted && ankleDiffY < 20) {
             hasLanded = true;
           }
         }
@@ -1454,7 +1458,6 @@
         } else if (count === 0) {
           DOM.testBigBannerNumber.textContent = 'START!';
           DOM.testBigBannerSub.textContent = '測定開始！';
-          // スタートホイッスル
           SoundFX.playStartWhistle();
           pulseAudioIcon(true);
         } else {
@@ -1571,7 +1574,7 @@
         recorder.start();
         AppState.mediaRecorder = recorder;
       } catch (err) {
-        console.warn('MediaRecorder init error (fallback recording skipped):', err);
+        console.warn('MediaRecorder notice (fallback recording skipped):', err);
       }
     }
 
@@ -1605,10 +1608,6 @@
       if (AppState.testMetronomeInterval) {
         clearInterval(AppState.testMetronomeInterval);
         AppState.testMetronomeInterval = null;
-      }
-      if (AppState.testTickInterval) {
-        clearInterval(AppState.testTickInterval);
-        AppState.testTickInterval = null;
       }
       stopLocalRecording();
       if (window.speechSynthesis) {
@@ -2161,12 +2160,13 @@
       });
     }
 
-    window.addEventListener('load', () => {
+    // DOM読み込み直後に即時リスナー登録し起動遅延を解消
+    document.addEventListener('DOMContentLoaded', () => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then((reg) => {
           reg.update();
         }).catch(err => {
-          console.warn('SW registration failed:', err);
+          console.warn('SW registration notice:', err);
         });
       }
 
