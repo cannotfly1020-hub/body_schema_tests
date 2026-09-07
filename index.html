@@ -365,6 +365,9 @@
             <span id="testModeTitle" class="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-900/80 text-amber-300 border border-amber-400/40 backdrop-blur-md">
               👣 目隠し足踏み (15秒)
             </span>
+            <span id="testSampleBadge" class="hidden px-2 py-1 rounded-full text-[9px] font-black bg-slate-900/80 text-cyan-300 border border-cyan-400/40 font-num">
+              SAMPLES: <span id="testSampleCount">0</span>
+            </span>
           </div>
 
           <!-- 残り時間 / タイマー表示 -->
@@ -609,9 +612,7 @@
       </div>
     </section>
 
-    <!-- ============================================================ -->
     <!-- モーダル: 選手登録 ＆ 切替モーダル -->
-    <!-- ============================================================ -->
     <div id="playerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
       <div class="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-4">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
@@ -733,15 +734,17 @@
     let isTestRunning = false;
     let testTimerInterval = null;
     let testRemainingTime = 15.0;
+    let testStartTime = 0;
     let stableFrameCount = 0;
     const REQUIRED_STABLE_FRAMES = 12;
 
-    // リアルタイムサンプリング用バッファ
+    // リアルタイムサンプリング用バッファ & 初期基準バックアップ
     let testSamples = [];
+    let initialTestSample = null;
 
     // ドリルステート
     let currentDrillType = 'xfactor';
-    let drillSuccessCounter = 0;
+    let drillSuccessCount = 0;
     let drillHoldStartTime = null;
     let drillHoldTimer = null;
 
@@ -1057,7 +1060,7 @@
       const requiredIndices = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30];
       const allVisible = requiredIndices.every(i => lm[i] && lm[i].visibility > 0.6);
 
-      // 画面境界内に収まっているか（y: 0.05 ~ 0.95）
+      // 画面境界内に収まっているか（y: 0.04 ~ 0.96）
       const headY = lm[0].y;
       const heelY = Math.max(lm[29].y, lm[30].y);
       const isInside = (headY > 0.04 && heelY < 0.96);
@@ -1093,7 +1096,7 @@
         return;
       }
 
-      // 頭頂〜踵のピクセル距離（鼻から頭頂までのオフセット推定: 鼻〜肩距離の約0.6倍を加算）
+      // 頭頂〜踵のピクセル距離（鼻から頭頂までのオフセット推定: 鼻〜肩距離の約0.7倍を加算）
       const noseY = lm[0].y * canvasH;
       const shoulderAvgY = ((lm[11].y + lm[12].y) / 2) * canvasH;
       const headTopEstimatedY = noseY - Math.abs(shoulderAvgY - noseY) * 0.7;
@@ -1135,8 +1138,10 @@
       isTestRunning = false;
       stableFrameCount = 0;
       testSamples = [];
+      initialTestSample = null;
       document.getElementById('dangerOverlay').classList.add('hidden');
       document.getElementById('testRecordingBadge').classList.add('hidden');
+      document.getElementById('testSampleBadge').classList.add('hidden');
       document.getElementById('btnStopTestManual').classList.add('hidden');
 
       // 種目に応じた時間とタイトルのセット
@@ -1180,11 +1185,16 @@
       drawConnectors(ctx, lm, POSE_CONNECTIONS, { color: isTestRunning ? '#10b981' : '#38bdf8', lineWidth: 3 });
       drawLandmarks(ctx, lm, { color: '#ffea00', lineWidth: 1.5, radius: 4 });
 
-      // セーフゾーン境界検知 (画面端から 4%〜6% の余白)
-      const isOutsideBoundary = checkBoundaryViolation(lm);
-      if (isTestRunning && isOutsideBoundary) {
-        triggerDangerAbort('🚨 85cm以上 前方へ突進または枠外へ逸脱しました！');
-        return;
+      // セーフゾーン境界検知 (開始1.5秒以降に判定・足元は正常直立で下端に来るため除外)
+      if (isTestRunning) {
+        const elapsed = (performance.now() - testStartTime) / 1000;
+        if (elapsed > 1.5) {
+          const violation = checkBoundaryViolation(lm);
+          if (violation.isViolated) {
+            triggerDangerAbort(violation.reason);
+            return;
+          }
+        }
       }
 
       // テスト未開始時: 12フレーム安定検出
@@ -1193,6 +1203,10 @@
         if (isFullBodyDetected) {
           stableFrameCount++;
           updateTestStabilizeUI(true, stableFrameCount);
+
+          // 開始直前の基準姿勢サンプルを常に保持
+          initialTestSample = extractPoseSample(lm, canvas.width, canvas.height);
+
           if (stableFrameCount >= REQUIRED_STABLE_FRAMES) {
             beginTestCountdown();
           }
@@ -1209,16 +1223,32 @@
     function checkFullBodyVisible(lm) {
       // 0:鼻, 11/12:肩, 23/24:腰, 25/26:膝, 27/28:足首, 29/30:踵
       const criticalKeys = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30];
-      return criticalKeys.every(k => lm[k] && lm[k].visibility > 0.55);
+      return criticalKeys.every(k => lm[k] && lm[k].visibility > 0.45);
     }
 
     function checkBoundaryViolation(lm) {
-      // いずれかの主要関節が画面上下左右の極端な縁（<0.02 または >0.98）に触れたら検知
-      const checkKeys = [0, 11, 12, 23, 24, 27, 28];
-      return checkKeys.some(k => {
-        const pt = lm[k];
-        return (pt.x < 0.02 || pt.x > 0.98 || pt.y < 0.02 || pt.y > 0.98);
-      });
+      // 1. 腰幅の急拡大判定（初期腰幅より1.7倍以上拡大 ➔ カメラに急接近・前方85cm以上突進）
+      if (initialTestSample && initialTestSample.hipWidth > 10) {
+        const hipL = { x: lm[23].x, y: lm[23].y };
+        const hipR = { x: lm[24].x, y: lm[24].y };
+        const currentHipWNorm = Math.hypot(hipR.x - hipL.x, hipR.y - hipL.y);
+        const initHipWNorm = initialTestSample.hipWidthNorm || currentHipWNorm;
+        if (currentHipWNorm / initHipWNorm > 1.7) {
+          return { isViolated: true, reason: '🚨 85cm以上 前方へ突進しました！' };
+        }
+      }
+
+      // 2. 頭部が上端または腰が左右端から完全に逸脱した場合
+      const nose = lm[0];
+      const hipCenter = (lm[23].x + lm[24].x) / 2;
+      if (nose.y < 0.01) {
+        return { isViolated: true, reason: '🚨 頭部が画面上方へ逸脱しました！' };
+      }
+      if (hipCenter < 0.05 || hipCenter > 0.95) {
+        return { isViolated: true, reason: '🚨 身体が左右へ大きく逸脱しました！' };
+      }
+
+      return { isViolated: false, reason: '' };
     }
 
     function updateTestStabilizeUI(isOk, count) {
@@ -1275,7 +1305,15 @@
     function executeTestStart() {
       isTestRunning = true;
       testSamples = [];
+      testStartTime = performance.now();
+
+      // 初期基準サンプルを最初の1点として追加
+      if (initialTestSample) {
+        testSamples.push({ ...initialTestSample, time: testStartTime });
+      }
+
       document.getElementById('testRecordingBadge').classList.remove('hidden');
+      document.getElementById('testSampleBadge').classList.remove('hidden');
       document.getElementById('btnStopTestManual').classList.remove('hidden');
       document.getElementById('testInstructionText').textContent = '測定中... 目隠しのまま継続してください';
 
@@ -1284,12 +1322,15 @@
 
       // メトロノーム（足踏み時100BPM）
       let beatCount = 0;
-      const startTime = performance.now();
 
       testTimerInterval = setInterval(() => {
-        const elapsed = (performance.now() - startTime) / 1000;
+        const elapsed = (performance.now() - testStartTime) / 1000;
         const remain = Math.max(0, testRemainingTime - elapsed);
         document.getElementById('testTimerDisplay').textContent = remain.toFixed(1);
+
+        // サンプル数更新
+        const sampleEl = document.getElementById('testSampleCount');
+        if (sampleEl) sampleEl.textContent = testSamples.length;
 
         // 足踏み専用メトロノーム音
         if (currentSelectedTest === 'step' && soundEnabled) {
@@ -1310,10 +1351,8 @@
       }, 100);
     }
 
-    // リアルタイムサンプリング計算
-    function processTestRealtimeMetrics(lm, canvasW, canvasH) {
-      const pxRatio = currentPxPerCm || 3.5; // 未測定時デフォルトフォールバック
-
+    // 骨格特徴抽出ヘルパー
+    function extractPoseSample(lm, canvasW, canvasH) {
       const hipL = { x: lm[23].x * canvasW, y: lm[23].y * canvasH, z: lm[23].z };
       const hipR = { x: lm[24].x * canvasW, y: lm[24].y * canvasH, z: lm[24].z };
       const shL = { x: lm[11].x * canvasW, y: lm[11].y * canvasH, z: lm[11].z };
@@ -1324,32 +1363,41 @@
       const ankleR = { x: lm[28].x * canvasW, y: lm[28].y * canvasH };
       const nose = { x: lm[0].x * canvasW, y: lm[0].y * canvasH };
 
-      // サンプルオブジェクト
-      const sample = {
+      return {
         time: performance.now(),
         nose,
         hipCenter: { x: (hipL.x + hipR.x) / 2, y: (hipL.y + hipR.y) / 2 },
         hipWidth: Math.hypot(hipR.x - hipL.x, hipR.y - hipL.y),
+        hipWidthNorm: Math.hypot(lm[24].x - lm[23].x, lm[24].y - lm[23].y),
         shoulderWidth: Math.hypot(shR.x - shL.x, shR.y - shL.y),
-        hipRotDeg: (Math.atan2(hipR.z - hipL.z, (hipR.x - hipL.x) / canvasW) * (180 / Math.PI)),
-        shoulderRotDeg: (Math.atan2(shR.z - shL.z, (shR.x - shL.x) / canvasW) * (180 / Math.PI)),
+        hipRotDeg: (Math.atan2(hipR.z - hipL.z, (hipR.x - hipL.x) / (canvasW || 720)) * (180 / Math.PI)),
+        shoulderRotDeg: (Math.atan2(shR.z - shL.z, (shR.x - shL.x) / (canvasW || 720)) * (180 / Math.PI)),
         wristL, wristR, shL, shR, ankleL, ankleR
       };
+    }
 
-      testSamples.push(sample);
+    // リアルタイムサンプリング計算
+    function processTestRealtimeMetrics(lm, canvasW, canvasH) {
+      try {
+        const sample = extractPoseSample(lm, canvasW, canvasH);
+        testSamples.push(sample);
 
-      // 片足立ち専用: 浮かせた足の接地判定
-      if (currentSelectedTest === 'oneleg' && testSamples.length > 10) {
-        const isLHigher = ankleL.y < ankleR.y;
-        const liftedAnkleY = isLHigher ? ankleL.y : ankleR.y;
-        const supportAnkleY = isLHigher ? ankleR.y : ankleL.y;
+        // 片足立ち専用: 浮かせた足の接地判定（開始1.5秒以降）
+        const elapsed = (performance.now() - testStartTime) / 1000;
+        if (currentSelectedTest === 'oneleg' && elapsed > 1.5 && testSamples.length > 8) {
+          const isLHigher = sample.ankleL.y < sample.ankleR.y;
+          const liftedAnkleY = isLHigher ? sample.ankleL.y : sample.ankleR.y;
+          const supportAnkleY = isLHigher ? sample.ankleR.y : sample.ankleL.y;
 
-        // 浮かせ足が支持足の高さまで落ちたら着地と判定（接地閾値: 35px以内）
-        if (Math.abs(supportAnkleY - liftedAnkleY) < 30) {
-          playAlarmBuzzer();
-          speak('着地を検知しました');
-          finishTestNormally('足裏センサー着地');
+          // 浮かせ足が支持足の高さまで落ちたら着地と判定（接地閾値: 30px以内）
+          if (Math.abs(supportAnkleY - liftedAnkleY) < 30) {
+            playAlarmBuzzer();
+            speak('着地を検知しました');
+            finishTestNormally('足裏センサー着地');
+          }
         }
+      } catch (err) {
+        console.warn('Pose metric sampling error:', err);
       }
     }
 
@@ -1432,8 +1480,16 @@
        8. バイオメカニクス解析・覚醒度スコア計算
     ========================================== */
     function computeAndShowResults() {
-      if (testSamples.length < 5) {
-        showToast('十分なサンプルが取得できませんでした');
+      // 最低限のサンプル確保（1つしかなければ初期基準を複製してフォールバック）
+      if (testSamples.length === 0 && initialTestSample) {
+        testSamples.push(initialTestSample);
+      }
+      if (testSamples.length === 1) {
+        testSamples.push({ ...testSamples[0], time: testSamples[0].time + 1000 });
+      }
+
+      if (testSamples.length < 2) {
+        showToast('十分な骨格データが取得できませんでした。もう一度お試しください');
         switchScreen('screenLobby');
         return;
       }
@@ -1450,14 +1506,12 @@
 
       if (currentSelectedTest === 'step') {
         // ① 足踏み: 前後突進(Z軸cm) + 左右ズレ(cm) + 水平回旋角(°)
-        // Z軸移動量: 初期腰幅と最終腰幅・頭部位置などの幾何変化からcm換算
         const deltaX_px = last.hipCenter.x - first.hipCenter.x;
         const lateralDriftCm = Math.abs(deltaX_px / pxRatio);
         
         // 前後突進 (Z軸): 身長ピクセル比または腰幅拡大比から推定
         const initialHipW = baselineHipWidth || first.hipWidth;
         const hipScale = last.hipWidth / initialHipW;
-        // 近づくと大きくなる: 画角60度想定で拡大率からZ軸移動量算出
         const forwardRushCm = Math.max(0, (hipScale - 1.0) * 120);
 
         // 回旋角
@@ -1620,9 +1674,6 @@
 
       if (currentDrillType === 'xfactor') {
         // 🪑 イス座り・頭の後ろ手組み胸回し判定
-        // 条件1: 両手首(15, 16)が頭部近傍(鼻0や耳7,8の近く・肩より上)
-        // 条件2: 肘(13, 14)が肩幅より外側に張っている
-        // 条件3: 肩の回旋角が 25度以上
         const wristL = lm[15];
         const wristR = lm[16];
         const nose = lm[0];
