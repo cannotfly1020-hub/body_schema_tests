@@ -724,6 +724,7 @@
       mediaRecorder: null,
       recordedChunks: [],
       hasLegLifted: false,
+      isSpeechGuiding: false,
 
       // 高精度ピークホールド・メトリクス
       testSessionData: {
@@ -863,20 +864,43 @@
           .trim();
       }
 
-      static speak(text) {
-        if (!AppState.isSoundEnabled || !window.speechSynthesis) return;
+      static speak(text, onEndCallback = null) {
+        if (!AppState.isSoundEnabled || !window.speechSynthesis) {
+          if (onEndCallback) onEndCallback();
+          return;
+        }
         try {
           window.speechSynthesis.cancel();
           const cleanText = this.stripEmojis(text);
-          if (!cleanText) return;
+          if (!cleanText) {
+            if (onEndCallback) onEndCallback();
+            return;
+          }
 
           const uttr = new SpeechSynthesisUtterance(cleanText);
           uttr.lang = 'ja-JP';
           uttr.rate = 1.05;
           uttr.pitch = 1.0;
+
+          let hasEnded = false;
+          const finishCall = () => {
+            if (!hasEnded) {
+              hasEnded = true;
+              if (onEndCallback) onEndCallback();
+            }
+          };
+
+          uttr.onend = finishCall;
+          uttr.onerror = finishCall;
+
+          // フォールバック: 長時間音声が終了検知されない場合の安全タイマー（文字数に応じた最大待機時間）
+          const maxWaitMs = Math.max(3500, cleanText.length * 160);
+          setTimeout(finishCall, maxWaitMs);
+
           window.speechSynthesis.speak(uttr);
         } catch (e) {
           console.warn('TTS notice:', e);
+          if (onEndCallback) onEndCallback();
         }
       }
     }
@@ -1312,12 +1336,21 @@
       DOM.metricLabel2.textContent = cfg.metric2Label;
       DOM.metricDynamicLabel.textContent = cfg.dynamicLabel;
       DOM.testTimerText.textContent = cfg.duration;
-      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span>全身（頭〜足首）を映してください</span>';
       DOM.testDangerAlert.classList.add('hidden');
       DOM.testBigBanner.classList.add('hidden');
 
+      // 音声ガイダンス待機ロックをONにする
+      AppState.isSpeechGuiding = true;
+      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
+
       switchScreen('screenTest');
-      SoundFX.speak(cfg.guidanceSpeech);
+
+      // ガイダンス音声が最後まで終了した時に初めて静止待機へ移行する
+      SoundFX.speak(cfg.guidanceSpeech, () => {
+        AppState.isSpeechGuiding = false;
+        SoundFX.playTone(880, 0.08, 'triangle', 0.4); // 説明終了時の合図音
+        DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span class="text-yellow-300 font-bold">👀 全身を映して静止してください</span>';
+      });
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1344,6 +1377,13 @@
       const hasFullBody = allDetected && isWithinBounds;
 
       if (AppState.testState === 'prepping') {
+        // 説明音声が流れている最中は静止判定およびカウントダウンをロック
+        if (AppState.isSpeechGuiding) {
+          AppState.stableDetectionFrames = 0;
+          DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
+          return;
+        }
+
         if (!hasFullBody) {
           AppState.stableDetectionFrames = 0;
           DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-300 font-bold">全身（頭〜足首）を枠内に収めてください</span>';
@@ -1722,6 +1762,7 @@
     }
 
     function cleanupTestSession() {
+      AppState.isSpeechGuiding = false;
       if (AppState.testCountdownInterval) {
         clearInterval(AppState.testCountdownInterval);
         AppState.testCountdownInterval = null;
