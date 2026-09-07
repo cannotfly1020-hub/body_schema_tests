@@ -1,4 +1,4 @@
-const CACHE_NAME = 'brain-gps-dock-v1';
+const CACHE_NAME = 'brain-gps-dock-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const ASSETS_TO_CACHE = [
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
-  'https://fonts.googleapis.com/css2?family=Chango&family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap'
+  'https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
@@ -17,6 +17,7 @@ self.addEventListener('install', (event) => {
       });
     })
   );
+  // 新しいService Workerを即座にアクティベート
   self.skipWaiting();
 });
 
@@ -25,6 +26,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
+          // 古いバージョンのキャッシュ（v1〜v4等）を全消去
           if (key !== CACHE_NAME) {
             return caches.delete(key);
           }
@@ -36,29 +38,22 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // カメラストリームやBlob URL、POST等はキャッシュ対象外
   if (event.request.method !== 'GET' || event.request.url.startsWith('blob:')) {
     return;
   }
 
+  // 常に最新ファイルを取得するNetwork First戦略
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
       }
-      return fetch(event.request).then((networkResponse) => {
-        // 正常レスポンスならキャッシュに保存しつつ返却
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // オフライン時のフォールバック
-        return caches.match('./index.html');
-      });
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(event.request);
     })
   );
 });
