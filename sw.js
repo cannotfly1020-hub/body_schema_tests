@@ -1,49 +1,62 @@
 const CACHE_NAME = 'gps-dock-v1';
-const ASSETS = [
-    './index.html',
-    './manifest.json'
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
+  'https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap'
 ];
 
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ASSETS))
-            .then(() => self.skipWaiting())
-    );
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        // CDNリソースはCORSの問題を避けるためno-corsモードで追加するよう工夫するか、
+        // 必須なローカルアセットのみキャッシュしてCDNはネットワークファーストにするのが安全です。
+        return cache.addAll(ASSETS_TO_CACHE.filter(url => url.startsWith('./')));
+      })
+  );
+  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
-    );
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-    // 外部CDN等のリソースはNetwork First、ローカルファイルはCache Firstベースで処理
-    if (event.request.url.startsWith('http')) {
-        event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-                return fetch(event.request).then((networkResponse) => {
-                    // キャッシュに保存（Blob等の動的URLは除外）
-                    if (event.request.url.includes('blob:')) return networkResponse;
-                    
-                    return caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, networkResponse.clone());
-                        return networkResponse;
-                    });
-                }).catch(() => {
-                    // オフライン時のフォールバック処理をここに追加可能
-                });
-            })
+self.addEventListener('fetch', event => {
+  // CDNや外部リソースはネットワークファースト、ローカルはキャッシュファースト等の戦略
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response; // Cache hit
+        }
+        return fetch(event.request).then(
+          function(response) {
+            // Check if we received a valid response
+            if(!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            // 外部CDN等はここで動的キャッシュも可能ですが、ストレージ圧迫を防ぐため今回はそのまま返します
+            return response;
+          }
         );
-    }
+      })
+  );
 });
