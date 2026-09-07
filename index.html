@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック v3.0</title>
+  <title>身体図式・脳内GPSドック v4.0</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0a0f1d">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -171,7 +171,7 @@
             <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
               脳内GPSドック
             </h1>
-            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v3.0</span>
+            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v4.0</span>
           </div>
           <div id="activePlayerBadge" class="text-[10px] text-emerald-400 font-bold leading-tight truncate max-w-[120px]">
             未設定
@@ -284,7 +284,7 @@
             💡
           </div>
           <div class="text-[10px] text-slate-300 leading-tight">
-            <span class="font-bold text-yellow-300">捻転測定のコツ:</span> イス座りまたは腕組みで骨盤を固定し、胸郭だけを左右に深く回旋！最大瞬間値（ピーク）が自動記録されます。
+            <span class="font-bold text-yellow-300">測定とドリルの連携:</span> 各テスト終了後、判明した弱点に直結するドリルが即時起動！主観のズレを脳内GPSへ再入力できます。
           </div>
         </div>
       </div>
@@ -330,7 +330,7 @@
 
         <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
           <div class="flex items-start justify-between">
-            <div class="bg-slate-900/85 border border-slate-700 rounded-xl px-3 py-1.5">
+            <div class="bg-slate-900/85 border border-slate-700 rounded-xl px-3 py-1.5 max-w-[70%]">
               <div id="testBadgeTitle" class="text-xs font-black text-yellow-300">テスト種目</div>
               <div id="testInstructionSubtitle" class="text-[10px] text-slate-300 leading-tight">全身を枠内に収めて静止</div>
             </div>
@@ -353,7 +353,7 @@
 
             <div id="testDangerAlert" class="hidden text-center bg-red-600/90 border-2 border-white rounded-2xl px-4 py-3 shadow-2xl max-w-[280px]">
               <div class="text-sm font-black text-white">🚨 危険！前方突進を検知</div>
-              <div id="testDangerReason" class="text-[10px] text-yellow-200 mt-1 font-bold">腰幅が基準の1.7倍以上に拡大しました</div>
+              <div id="testDangerReason" class="text-[10px] text-yellow-200 mt-1 font-bold">腰幅が基準の1.75倍以上に拡大しました</div>
             </div>
           </div>
 
@@ -383,7 +383,7 @@
         </button>
         <div id="testPrepIndicator" class="text-xs font-bold text-yellow-400 flex items-center space-x-1">
           <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
-          <span>姿勢検知中</span>
+          <span>全身を枠内に収めてください</span>
         </div>
       </div>
     </section>
@@ -449,7 +449,7 @@
         </div>
 
         <div id="resFeedbackCommentary" class="mt-1 text-[11px] text-slate-300 bg-slate-900/50 p-2 rounded-xl leading-relaxed">
-          ピーク時の身体図式と実際の骨格位置にズレがみられます。ドリルで再構築しましょう！
+          ピーク時の身体図式と実際の骨格位置にズレがみられます。直結ドリルで再構築しましょう！
         </div>
       </div>
 
@@ -458,12 +458,12 @@
           💾 カルテに記録して戻る
         </button>
         <button id="btnQuickDrillFromResult" class="brawl-btn btn-yellow text-xs px-4 py-3">
-          ⚡ 直ぐドリル
+          ⚡ 弱点直結ドリル
         </button>
       </div>
     </section>
 
-    <!-- ⑤ 1分再構築ドリル画面 -->
+    <!-- ⑤ 4大特化 1分再構築ドリル画面 -->
     <section id="screenDrill" class="app-screen">
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
@@ -471,9 +471,10 @@
 
         <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
           <div class="flex items-center justify-between">
-            <div class="bg-slate-900/85 border border-emerald-400 rounded-xl px-3 py-1.5">
-              <div class="text-xs font-black text-emerald-300">🪑 イス座り頭後ろ胸回しドリル</div>
-              <div class="text-[10px] text-slate-300">両手を後頭部で組み、骨盤を固定して胸郭を回旋</div>
+            <div class="bg-slate-900/90 border border-emerald-400 rounded-xl px-3 py-1.5 max-w-[70%]">
+              <div id="drillCategoryBadge" class="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider">DRILL WORKOUT</div>
+              <div id="drillTitleText" class="text-xs font-black text-yellow-300">ドリル名称</div>
+              <div id="drillSubText" class="text-[10px] text-slate-300 leading-tight truncate">ドリル動作ガイド</div>
             </div>
 
             <div class="bg-slate-900/85 border border-yellow-400 rounded-xl px-3 py-1 text-center min-w-[60px]">
@@ -484,7 +485,7 @@
 
           <div class="flex flex-col items-center justify-center">
             <div id="drillHoldIndicator" class="hidden text-center bg-emerald-950/85 border-2 border-emerald-400 rounded-2xl px-6 py-3 shadow-2xl glow-effect">
-              <div class="text-xs font-extrabold text-emerald-300">✨ 基準角達成！その姿勢をキープ！</div>
+              <div id="drillHoldMainText" class="text-xs font-extrabold text-emerald-300">✨ 基準達成！その姿勢をキープ！</div>
               <div id="drillHoldSecondsText" class="text-3xl font-black text-white mt-1">3.0s</div>
             </div>
 
@@ -496,13 +497,13 @@
 
           <div class="bg-slate-900/85 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
             <div class="flex-1 text-center">
-              <div class="text-[9px] text-slate-400">現在胸郭捻転角</div>
-              <div id="drillLiveAngle" class="text-base font-black text-sky-400">0.0°</div>
+              <div id="drillMetricLabel1" class="text-[9px] text-slate-400">現在リアルタイム値</div>
+              <div id="drillLiveVal1" class="text-base font-black text-sky-400">0.0</div>
             </div>
             <div class="border-l border-slate-700 h-6"></div>
             <div class="flex-1 text-center">
-              <div class="text-[9px] text-slate-400">目標達成ライン</div>
-              <div class="text-base font-black text-emerald-400">≥ 28.0°</div>
+              <div id="drillMetricLabel2" class="text-[9px] text-slate-400">目標クリアライン</div>
+              <div id="drillLiveVal2" class="text-base font-black text-emerald-400">クリア条件</div>
             </div>
           </div>
         </div>
@@ -510,9 +511,11 @@
 
       <div class="h-14 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
         <button id="btnFinishDrill" class="brawl-btn btn-blue text-xs px-4 py-2">
-          ドリル終了（ロビーへ）
+          終了（ロビーへ）
         </button>
-        <span class="text-xs font-bold text-slate-300">骨盤固定・肘を開く</span>
+        <button id="btnSwitchDrillModal" class="brawl-btn btn-purple text-xs px-3 py-2">
+          🔄 ドリル切替
+        </button>
       </div>
     </section>
 
@@ -556,6 +559,52 @@
     </section>
 
     <!-- モーダル群 -->
+    <!-- ドリルセレクターモーダル -->
+    <div id="modalSelectDrill" class="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border-2 border-emerald-400/80 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-black text-emerald-300">🧠 4大再構築ドリル選択</span>
+          <button id="btnCloseDrillModal" class="text-slate-400 hover:text-white font-black text-sm">✕</button>
+        </div>
+        <div class="text-[10px] text-slate-300">目的に応じたドリルで脳内GPSマップを1分再構築！</div>
+
+        <div class="grid grid-cols-1 gap-2 pt-1">
+          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-yellow-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="stepping">
+            <span class="text-2xl">👣</span>
+            <div>
+              <div class="text-xs font-black text-yellow-300">重心センタリング・ハイキック</div>
+              <div class="text-[9px] text-slate-300">骨盤中心軸をキープして左右交互に膝上げ</div>
+            </div>
+          </button>
+
+          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-sky-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="tpose">
+            <span class="text-2xl">⚖️</span>
+            <div>
+              <div class="text-xs font-black text-sky-300">肩甲骨水平アイソメトリック</div>
+              <div class="text-[9px] text-slate-300">両腕を真横に伸ばし完全水平（±3°）をキープ</div>
+            </div>
+          </button>
+
+          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-emerald-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="oneleg">
+            <span class="text-2xl">⚓</span>
+            <div>
+              <div class="text-xs font-black text-emerald-300">足裏3点接地アンカーバランサー</div>
+              <div class="text-[9px] text-slate-300">片膝を上げて頭部動揺2cm以内でバランス静止</div>
+            </div>
+          </button>
+
+          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-purple-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="pelvis">
+            <span class="text-2xl">🪑</span>
+            <div>
+              <div class="text-xs font-black text-purple-300">イス座り頭後ろ胸回し</div>
+              <div class="text-[9px] text-slate-300">両手を後頭部で組み骨盤固定で胸郭を深く回旋</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 選手登録モーダル -->
     <div id="modalNewPlayer" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
       <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col space-y-3">
         <div class="text-sm font-black text-yellow-300">👤 新規選手登録</div>
@@ -628,8 +677,8 @@
 
   <script>
     /**
-     * 身体図式・脳内GPSドック v3.0
-     * 幾何学射影コサイン則 ＆ ピークホールド式バイオメカニクス
+     * 身体図式・脳内GPSドック v4.0
+     * 幾何学射影コサイン則 ＆ 4大特化ドリル体系 ＆ フォーム音声ガイダンス
      */
 
     const DOM = new Proxy({}, {
@@ -691,13 +740,16 @@
         onelegDuration: 0,
         onelegSwaySum: 0,
         onelegFrames: 0,
-        historySamples: []
+        hasLanded: false
       },
 
-      // ドリルセッション
+      // ドリルセッション（4大特化対応）
+      activeDrillId: 'pelvis',
       drillHoldFrames: 0,
       drillSuccessCount: 0,
-      drillCompleted: false
+      drillCompleted: false,
+      drillStepCount: 0,
+      drillLastKneeUp: null
     };
 
     class SoundFX {
@@ -820,7 +872,7 @@
 
           const uttr = new SpeechSynthesisUtterance(cleanText);
           uttr.lang = 'ja-JP';
-          uttr.rate = 1.1;
+          uttr.rate = 1.05;
           uttr.pitch = 1.0;
           window.speechSynthesis.speak(uttr);
         } catch (e) {
@@ -1174,10 +1226,12 @@
       DOM.scanProgressBar.style.width = `${pct}%`;
     }
 
+    // 4大テスト構成（詳細フォーム音声ガイダンス付き）
     const TEST_CONFIGS = {
       stepping: {
         title: '👣 目隠し足踏みテスト',
         speechTitle: '目隠し足踏みテスト',
+        guidanceSpeech: '目隠し足踏みテスト。両腕を胸の前で軽く曲げ、目隠しをしてその場で15秒間リズムよく足踏みしてください。まずはカメラに全身を映して静止してください。',
         sub: '目隠しをしてその場で15秒間リズムよく足踏み',
         duration: 15,
         useMetronome: true,
@@ -1188,6 +1242,7 @@
       tpose: {
         title: '⚖️ Tポーズ水平テスト',
         speechTitle: 'Tポーズ水平テスト',
+        guidanceSpeech: 'Tポーズ水平テスト。両腕を真横へ床と完全に平行になるよう伸ばし、目隠しをして6秒間静止してください。まずはカメラに全身を映してください。',
         sub: '目隠しをして両腕を床と平行（水平）に6秒保持',
         duration: 6,
         useMetronome: false,
@@ -1198,6 +1253,7 @@
       oneleg: {
         title: '⚓ 片足立ちキープテスト',
         speechTitle: '片足立ちキープテスト',
+        guidanceSpeech: '片足立ちキープテスト。両手を腰にあて、目隠しをして片足を浮かせ、最大15秒間バランスを保持してください。まずは直立して静止してください。',
         sub: '目隠しをして片足を上げ最大15秒バランス保持',
         duration: 15,
         useMetronome: false,
@@ -1208,6 +1264,7 @@
       pelvis: {
         title: '🪑 骨盤制動胸捻転テスト',
         speechTitle: '骨盤制動胸捻転テスト',
+        guidanceSpeech: '骨盤制動胸捻転テスト。両手を胸の前で組み、イスに座るか骨盤を正面に向けたまま、上半身だけを左右へ限界まで大きく捻ってください。まずは静止してください。',
         sub: '骨盤を固定し上半身を左右へ最大回旋（10秒）',
         duration: 10,
         useMetronome: false,
@@ -1246,7 +1303,7 @@
         onelegDuration: 0,
         onelegSwaySum: 0,
         onelegFrames: 0,
-        historySamples: []
+        hasLanded: false
       };
 
       DOM.testBadgeTitle.textContent = cfg.title;
@@ -1260,7 +1317,7 @@
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
-      SoundFX.speak(`${cfg.speechTitle}。全身をカメラに映し、静止してください。静止後3秒で開始します。`);
+      SoundFX.speak(cfg.guidanceSpeech);
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1419,8 +1476,7 @@
       data.maxDevZCm = Math.max(data.maxDevZCm, zDisplacementCm);
 
       if (testId === 'pelvis') {
-        // 【射影幾何学コサイン則 ＆ ピークホールド】
-        // 基準幅に対する見かけの投影幅の縮小率から、Zノイズのない正確な角度を逆算
+        // 射影幾何学コサイン則 ＆ ピークホールド
         const baseS = snap.shoulderWidthPx;
         const baseH = snap.hipWidthPx;
 
@@ -1430,13 +1486,10 @@
         const shoulderAngleDeg = Math.acos(ratioS) * (180 / Math.PI);
         const hipAngleDeg = Math.acos(ratioH) * (180 / Math.PI);
 
-        // 胸郭単独の分離度（X-Factor） = 胸郭回旋 - 骨盤の逃げ回旋
         const currentXFactor = Math.max(0, shoulderAngleDeg - (hipAngleDeg * 0.5));
         data.peakXFactor = Math.max(data.peakXFactor, currentXFactor);
 
-        // 左右方向の判定（右肩と左肩のX位置関係）
         if (rightShoulder.x > leftShoulder.x) {
-          // 正面または微小回旋
           data.peakRightTorso = Math.max(data.peakRightTorso, currentXFactor);
         } else {
           data.peakLeftTorso = Math.max(data.peakLeftTorso, currentXFactor);
@@ -1447,7 +1500,6 @@
         DOM.metricDynamicVal.textContent = `${data.peakXFactor.toFixed(1)}°`;
       }
       else if (testId === 'stepping') {
-        // 足踏み: 骨盤回旋ピーク ＆ 偏位
         const dx = (rightHip.x - leftHip.x);
         const dz = (rightHip.z - leftHip.z);
         const rotDeg = Math.abs(Math.atan2(dz, dx) * (180 / Math.PI));
@@ -1458,14 +1510,11 @@
         DOM.metricDynamicVal.textContent = `${data.peakRotationDeg.toFixed(1)}°`;
       }
       else if (testId === 'tpose') {
-        // Tポーズ: 左右独立の水平角度（°）と手首高低差
         if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-          // 左腕の水平線からの傾斜角
           const lDx = (leftWrist.x - leftShoulder.x) * w;
           const lDy = (leftWrist.y - leftShoulder.y) * h;
           const leftAngle = Math.atan2(lDy, Math.abs(lDx)) * (180 / Math.PI);
 
-          // 右腕の水平線からの傾斜角
           const rDx = (rightWrist.x - rightShoulder.x) * w;
           const rDy = (rightWrist.y - rightShoulder.y) * h;
           const rightAngle = Math.atan2(rDy, Math.abs(rDx)) * (180 / Math.PI);
@@ -1483,7 +1532,6 @@
         }
       }
       else if (testId === 'oneleg') {
-        // 片足立ち: 重心動揺度（RMS） ＆ 耐久時間
         const swayPx = Math.abs((nose.x * w) - snap.hipCenterX);
         const swayCm = swayPx / AppState.pxPerCm;
         data.peakSwayCm = Math.max(data.peakSwayCm, swayCm);
@@ -1798,41 +1846,168 @@
       switchScreen('screenResult');
     }
 
-    function startDrillSession() {
+    // 4大再構築ドリルのマスター定義
+    const DRILL_CONFIGS = {
+      stepping: {
+        id: 'stepping',
+        title: '👣 重心センタリング・ハイキック',
+        badge: '足踏み偏位・軸ブレ克服',
+        sub: '骨盤中心の左右ブレを抑え、左右交互に膝を高く引き上げる',
+        speechStart: '重心センタリングハイキックドリル。体の中心軸を意識し、膝を腰の高さまで交互に高く持ち上げてください。',
+        metric1Name: '中心軸ブレ幅',
+        metric2Name: '目標ライン',
+        targetRule: 'ブレ ≤ 6.0cm & 膝上げ',
+        targetValText: '≤ 6.0cm'
+      },
+      tpose: {
+        id: 'tpose',
+        title: '⚖️ 肩甲骨水平アイソメトリック',
+        badge: 'Tポーズ傾き・左右差克服',
+        sub: '両腕を真横に床と平行に伸ばし、左右角度差を±3°以内に保つ',
+        speechStart: '肩甲骨水平アイソメトリックドリル。両腕を床と水平に真横へ伸ばし、左右均等な高さをキープしてください。',
+        metric1Name: '左右腕傾き差',
+        metric2Name: '目標ライン',
+        targetRule: '差 ≤ 3.5°',
+        targetValText: '≤ 3.5°'
+      },
+      oneleg: {
+        id: 'oneleg',
+        title: '⚓ 足裏3点接地アンカーバランサー',
+        badge: '片足動揺・ふらつき克服',
+        sub: '片膝を持ち上げ、頭部・重心の左右揺れを2.5cm以内で静止キープ',
+        speechStart: '足裏3点接地アンカーバランサードリル。母指球・小指球・かかとで床をつかみ、頭を静止させて片足立ちをキープしてください。',
+        metric1Name: '頭部動揺幅',
+        metric2Name: '目標ライン',
+        targetRule: '動揺 ≤ 2.5cm',
+        targetValText: '≤ 2.5cm'
+      },
+      pelvis: {
+        id: 'pelvis',
+        title: '🪑 イス座り頭後ろ胸回しドリル',
+        badge: '骨盤制動・胸郭回旋覚醒',
+        sub: '両手を後頭部で組み、骨盤を動かさず胸郭を大きく回旋キープ',
+        speechStart: 'イス座り頭の後ろ手組み胸回しドリル。両手を後頭部で組み、骨盤を固定して胸郭を大きく回旋してください。',
+        metric1Name: '胸郭捻転角',
+        metric2Name: '目標ライン',
+        targetRule: '捻転 ≥ 26.0°',
+        targetValText: '≥ 26.0°'
+      }
+    };
+
+    function startDrillSession(drillId = null) {
+      if (drillId && DRILL_CONFIGS[drillId]) {
+        AppState.activeDrillId = drillId;
+      } else if (!AppState.activeDrillId) {
+        AppState.activeDrillId = 'pelvis';
+      }
+
+      const cfg = DRILL_CONFIGS[AppState.activeDrillId];
+
       AppState.drillHoldFrames = 0;
       AppState.drillSuccessCount = 0;
       AppState.drillCompleted = false;
+      AppState.drillStepCount = 0;
+      AppState.drillLastKneeUp = null;
+
+      DOM.drillTitleText.textContent = cfg.title;
+      DOM.drillCategoryBadge.textContent = cfg.badge;
+      DOM.drillSubText.textContent = cfg.sub;
+      DOM.drillMetricLabel1.textContent = cfg.metric1Name;
+      DOM.drillMetricLabel2.textContent = cfg.metric2Name;
+      DOM.drillLiveVal2.textContent = cfg.targetValText;
       DOM.drillSuccessCount.textContent = '0';
       DOM.drillHoldIndicator.classList.add('hidden');
       DOM.drillCelebrateBanner.classList.add('hidden');
 
       switchScreen('screenDrill');
-      SoundFX.speak('イス座り頭の後ろ手組み胸回しドリル。両手を後頭部で組み、胸を大きく回旋してください。');
+      SoundFX.speak(cfg.speechStart);
     }
 
+    // 4種目対応のリアルタイムAI骨格ドリル判定ロジック
     function processDrillFrame(landmarks, w, h) {
+      const drillId = AppState.activeDrillId;
+      const nose = landmarks[0];
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
       const leftWrist = landmarks[15];
       const rightWrist = landmarks[16];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+      const leftKnee = landmarks[25];
+      const rightKnee = landmarks[26];
+      const leftAnkle = landmarks[27];
+      const rightAnkle = landmarks[28];
 
-      if (!leftShoulder || !rightShoulder || !leftWrist || !rightWrist) return;
-
-      const handsNearHead = (leftWrist.y < leftShoulder.y + 0.1) && (rightWrist.y < rightShoulder.y + 0.1);
-
-      const dx = (rightShoulder.x - leftShoulder.x);
-      const dz = (rightShoulder.z - leftShoulder.z);
-      const angle = Math.abs(Math.atan2(dz, dx) * (180 / Math.PI));
-
-      DOM.drillLiveAngle.textContent = `${angle.toFixed(1)}°`;
-
-      const TARGET_ANGLE = 28.0;
-      const isAchieved = handsNearHead && angle >= TARGET_ANGLE;
+      let isConditionMet = false;
+      let liveValText = '--';
 
       const canvas = DOM.canvasDrill;
       const ctx = canvas.getContext('2d');
 
-      if (isAchieved) {
+      if (drillId === 'pelvis') {
+        // ドリル4: イス座り胸回し
+        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
+          const handsNearHead = (leftWrist.y < leftShoulder.y + 0.12) && (rightWrist.y < rightShoulder.y + 0.12);
+          const dx = (rightShoulder.x - leftShoulder.x);
+          const dz = (rightShoulder.z - leftShoulder.z);
+          const angle = Math.abs(Math.atan2(dz, dx) * (180 / Math.PI));
+
+          liveValText = `${angle.toFixed(1)}°`;
+          isConditionMet = handsNearHead && angle >= 26.0;
+        }
+      }
+      else if (drillId === 'tpose') {
+        // ドリル2: 肩甲骨水平アイソメトリック
+        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
+          const lDx = (leftWrist.x - leftShoulder.x) * w;
+          const lDy = (leftWrist.y - leftShoulder.y) * h;
+          const leftAngle = Math.atan2(lDy, Math.abs(lDx)) * (180 / Math.PI);
+
+          const rDx = (rightWrist.x - rightShoulder.x) * w;
+          const rDy = (rightWrist.y - rightShoulder.y) * h;
+          const rightAngle = Math.atan2(rDy, Math.abs(rDx)) * (180 / Math.PI);
+
+          const diffAngle = Math.abs(leftAngle - rightAngle);
+          liveValText = `${diffAngle.toFixed(1)}°`;
+
+          // 腕を真横に広げ、左右差が3.5°以内
+          const armsSpread = (leftWrist.x < leftShoulder.x - 0.15) && (rightWrist.x > rightShoulder.x + 0.15);
+          isConditionMet = armsSpread && diffAngle <= 3.5;
+        }
+      }
+      else if (drillId === 'oneleg') {
+        // ドリル3: 足裏3点接地アンカーバランサー
+        if (nose && leftHip && rightHip && leftAnkle && rightAnkle) {
+          const hipCenterX = ((leftHip.x + rightHip.x) / 2) * w;
+          const swayCm = Math.abs((nose.x * w) - hipCenterX) / AppState.pxPerCm;
+          const ankleDiffY = Math.abs(leftAnkle.y - rightAnkle.y) * h;
+
+          liveValText = `${swayCm.toFixed(1)}cm`;
+          // 片足がしっかり浮いていて（高さ差25px以上）、頭部動揺が2.5cm以内
+          isConditionMet = (ankleDiffY >= 25) && (swayCm <= 2.5);
+        }
+      }
+      else if (drillId === 'stepping') {
+        // ドリル1: 重心センタリング・ハイキック
+        if (leftHip && rightHip && leftKnee && rightKnee) {
+          const hipCenterXPx = ((leftHip.x + rightHip.x) / 2) * w;
+          const baseCenter = AppState.initialPoseSnapshot ? AppState.initialPoseSnapshot.hipCenterX : hipCenterXPx;
+          const devCm = Math.abs(hipCenterXPx - baseCenter) / AppState.pxPerCm;
+
+          liveValText = `${devCm.toFixed(1)}cm`;
+
+          // どちらかの膝が股関節付近まで持ち上がっているか
+          const leftKneeLifted = leftKnee.y < leftHip.y + 0.12;
+          const rightKneeLifted = rightKnee.y < rightHip.y + 0.12;
+
+          isConditionMet = (devCm <= 6.0) && (leftKneeLifted || rightKneeLifted);
+        }
+      }
+
+      DOM.drillLiveVal1.textContent = liveValText;
+
+      // 保持カウント判定（3秒キープでクリア）
+      if (isConditionMet) {
         drawSkeleton(ctx, landmarks, canvas.width, canvas.height, '#10b981');
 
         AppState.drillHoldFrames++;
@@ -1851,7 +2026,7 @@
             DOM.drillCelebrateBanner.classList.add('hidden');
           }, 2000);
 
-          SoundFX.speak(`グッド！覚醒マップ更新！合計${AppState.drillSuccessCount}回達成！`);
+          SoundFX.speak(`グッド！脳内GPSマップ更新！合計${AppState.drillSuccessCount}回達成！`);
         }
       } else {
         AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 2);
@@ -2053,6 +2228,7 @@
       }
     }
 
+    // イベントリスナーのバインド
     function bindEventListeners() {
       ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evtName => {
         window.addEventListener(evtName, () => {
@@ -2191,13 +2367,32 @@
         switchScreen('screenLobby');
       });
 
+      // 結果画面からの弱点直結ドリル起動
       DOM.btnQuickDrillFromResult.addEventListener('click', () => {
-        startDrillSession();
+        const currentTestId = AppState.lastResultData ? AppState.lastResultData.testId : 'pelvis';
+        startDrillSession(currentTestId);
       });
 
+      // ロビーからのドリルボタンタップでドリル選択モーダルを表示
       DOM.btnGoDrill.addEventListener('click', () => {
         SoundFX.init();
-        startDrillSession();
+        DOM.modalSelectDrill.classList.remove('hidden');
+      });
+
+      DOM.btnCloseDrillModal.addEventListener('click', () => {
+        DOM.modalSelectDrill.classList.add('hidden');
+      });
+
+      DOM.btnSwitchDrillModal.addEventListener('click', () => {
+        DOM.modalSelectDrill.classList.remove('hidden');
+      });
+
+      document.querySelectorAll('.btnSelectDrillItem').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const drillId = e.currentTarget.dataset.drillid;
+          DOM.modalSelectDrill.classList.add('hidden');
+          startDrillSession(drillId);
+        });
       });
 
       DOM.btnFinishDrill.addEventListener('click', () => {
