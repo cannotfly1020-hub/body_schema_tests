@@ -732,7 +732,9 @@
     // テスト測定ステート
     let currentSelectedTest = 'step'; // 'step', 'tpose', 'oneleg', 'xfactor'
     let isTestRunning = false;
+    let isCountingDown = false;
     let testTimerInterval = null;
+    let countdownInterval = null;
     let testRemainingTime = 15.0;
     let testStartTime = 0;
     let stableFrameCount = 0;
@@ -928,14 +930,28 @@
     /* ==========================================
        4. カメラ制御 & MediaPipe Pose 初期化
     ========================================== */
+    function stopCameraStream() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => {
+          track.stop();
+        });
+        currentStream = null;
+      }
+      const videos = ['scanVideo', 'testVideo', 'drillVideo'];
+      videos.forEach(id => {
+        const v = document.getElementById(id);
+        if (v) {
+          v.pause();
+          v.srcObject = null;
+        }
+      });
+    }
+
     async function startCameraStream(videoEl) {
       if (isCameraSwitching) return;
       isCameraSwitching = true;
 
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-        currentStream = null;
-      }
+      stopCameraStream();
 
       const constraints = {
         audio: false,
@@ -1007,6 +1023,7 @@
       else if (currentScreen === 'screenTest') activeVideo = document.getElementById('testVideo');
       else if (currentScreen === 'screenDrill') activeVideo = document.getElementById('drillVideo');
 
+      // テスト画面・スキャン画面・ドリル画面以外（ロビー、結果、カルテ画面）ではPose判定を完全休止
       if (activeVideo && activeVideo.readyState >= 2 && !isProcessingFrame && !isCameraSwitching) {
         isProcessingFrame = true;
         try {
@@ -1134,12 +1151,37 @@
     /* ==========================================
        6. 4大身体図式テスト 測定エンジン
     ========================================== */
-    function startSelectedTest() {
+    function stopAllTestTimers() {
+      if (testTimerInterval) {
+        clearInterval(testTimerInterval);
+        testTimerInterval = null;
+      }
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      isCountingDown = false;
       isTestRunning = false;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function startSelectedTest() {
+      // 既存のタイマーや実行ステートを全停止
+      stopAllTestTimers();
+      stopLocalRecording();
+
       stableFrameCount = 0;
       testSamples = [];
       initialTestSample = null;
-      document.getElementById('dangerOverlay').classList.add('hidden');
+
+      // カウントダウン・警告オーバーレイを初期化
+      const cdOverlay = document.getElementById('countdownOverlay');
+      if (cdOverlay) cdOverlay.classList.add('hidden');
+      const dangerOverlay = document.getElementById('dangerOverlay');
+      if (dangerOverlay) dangerOverlay.classList.add('hidden');
+
       document.getElementById('testRecordingBadge').classList.add('hidden');
       document.getElementById('testSampleBadge').classList.add('hidden');
       document.getElementById('btnStopTestManual').classList.add('hidden');
@@ -1160,11 +1202,15 @@
       }
 
       document.getElementById('testTimerDisplay').textContent = testRemainingTime.toFixed(1);
-      document.getElementById('testInstructionText').textContent = '全身（頭〜踵）を枠内に収めて静止してください';
+      document.getElementById('testInstructionText').textContent = 'テスト画面が開きました。全身を枠内に収めて静止してください';
+      updateTestStabilizeUI(false, 0);
       speak('全身を枠内に入れて静止してください');
     }
 
     function handleTestFrame(results) {
+      // テスト画面以外のときは処理しない
+      if (currentScreen !== 'screenTest') return;
+
       const canvas = document.getElementById('testCanvas');
       const ctx = canvas.getContext('2d');
       const video = document.getElementById('testVideo');
@@ -1175,7 +1221,9 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (!results.poseLandmarks) {
-        updateTestStabilizeUI(false, 0);
+        if (!isTestRunning && !isCountingDown) {
+          updateTestStabilizeUI(false, 0);
+        }
         return;
       }
 
@@ -1197,8 +1245,8 @@
         }
       }
 
-      // テスト未開始時: 12フレーム安定検出
-      if (!isTestRunning) {
+      // テスト未開始かつカウントダウン前: テスト画面上で12フレーム安定検出
+      if (!isTestRunning && !isCountingDown) {
         const isFullBodyDetected = checkFullBodyVisible(lm);
         if (isFullBodyDetected) {
           stableFrameCount++;
@@ -1214,7 +1262,7 @@
           stableFrameCount = Math.max(0, stableFrameCount - 1);
           updateTestStabilizeUI(false, stableFrameCount);
         }
-      } else {
+      } else if (isTestRunning) {
         // テスト実行中: バイオメカニクス実測サンプリング
         processTestRealtimeMetrics(lm, canvas.width, canvas.height);
       }
@@ -1270,9 +1318,8 @@
     }
 
     // 自動カウントダウン (3・2・1・GO!)
-    let isCountingDown = false;
     function beginTestCountdown() {
-      if (isCountingDown || isTestRunning) return;
+      if (isCountingDown || isTestRunning || currentScreen !== 'screenTest') return;
       isCountingDown = true;
 
       const overlay = document.getElementById('countdownOverlay');
@@ -1284,7 +1331,15 @@
       playTick();
       speak('目を閉じて、3、2、1、スタート！');
 
-      const cdInterval = setInterval(() => {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        // 画面が切り替わっていたら即時中止
+        if (currentScreen !== 'screenTest') {
+          stopAllTestTimers();
+          overlay.classList.add('hidden');
+          return;
+        }
+
         count--;
         if (count > 0) {
           numEl.textContent = count;
@@ -1293,7 +1348,8 @@
           numEl.textContent = 'GO!';
           playGoBeep();
         } else {
-          clearInterval(cdInterval);
+          clearInterval(countdownInterval);
+          countdownInterval = null;
           overlay.classList.add('hidden');
           isCountingDown = false;
           executeTestStart();
@@ -1303,6 +1359,7 @@
 
     // テスト本番開始
     function executeTestStart() {
+      if (currentScreen !== 'screenTest') return;
       isTestRunning = true;
       testSamples = [];
       testStartTime = performance.now();
@@ -1323,7 +1380,14 @@
       // メトロノーム（足踏み時100BPM）
       let beatCount = 0;
 
+      if (testTimerInterval) clearInterval(testTimerInterval);
       testTimerInterval = setInterval(() => {
+        if (currentScreen !== 'screenTest') {
+          stopAllTestTimers();
+          stopLocalRecording();
+          return;
+        }
+
         const elapsed = (performance.now() - testStartTime) / 1000;
         const remain = Math.max(0, testRemainingTime - elapsed);
         document.getElementById('testTimerDisplay').textContent = remain.toFixed(1);
@@ -1404,8 +1468,7 @@
     // 突進・はみ出し警告による強制停止
     function triggerDangerAbort(reason) {
       if (!isTestRunning) return;
-      isTestRunning = false;
-      clearInterval(testTimerInterval);
+      stopAllTestTimers();
       stopLocalRecording();
       playAlarmBuzzer();
 
@@ -1418,8 +1481,7 @@
     // 正常終了
     function finishTestNormally(note = '') {
       if (!isTestRunning) return;
-      isTestRunning = false;
-      clearInterval(testTimerInterval);
+      stopAllTestTimers();
       stopLocalRecording();
 
       playTone(523.25, 'sine', 0.15);
@@ -1881,7 +1943,18 @@
       });
       currentScreen = targetScreenId;
 
-      // 各画面切り替え時のカメラ割り当て
+      // テスト関連タイマーとカウントダウンを確実に完全停止
+      if (targetScreenId !== 'screenTest') {
+        stopAllTestTimers();
+        stopLocalRecording();
+      }
+
+      // カメラが不要な画面（ロビー、結果、カルテ画面）ではカメラストリームを完全解放して停止
+      if (targetScreenId === 'screenLobby' || targetScreenId === 'screenResult' || targetScreenId === 'screenRecord') {
+        stopCameraStream();
+      }
+
+      // カメラが必要な画面でのみカメラを起動し、初期化を行う
       if (targetScreenId === 'screenScan') {
         const vid = document.getElementById('scanVideo');
         startCameraStream(vid);
@@ -1889,6 +1962,7 @@
       } else if (targetScreenId === 'screenTest') {
         const vid = document.getElementById('testVideo');
         startCameraStream(vid);
+        // テスト画面が開いてから初めて静止時間の測定準備を開始する
         startSelectedTest();
       } else if (targetScreenId === 'screenDrill') {
         const vid = document.getElementById('drillVideo');
@@ -2029,8 +2103,7 @@
 
       // テスト中断
       document.getElementById('btnBackFromTest').addEventListener('click', () => {
-        isTestRunning = false;
-        clearInterval(testTimerInterval);
+        stopAllTestTimers();
         stopLocalRecording();
         switchScreen('screenLobby');
       });
