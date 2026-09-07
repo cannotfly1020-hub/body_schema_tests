@@ -684,6 +684,41 @@
       </div>
     </div>
 
+    <!-- モーダル: カルテ用 動画リプレイ再生モーダル -->
+    <div id="recordVideoModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl p-4 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 id="recordVideoModalTitle" class="text-xs font-black text-cyan-300 flex items-center">
+            <i class="fa-solid fa-play-circle text-sm mr-1.5"></i>測定リプレイ再生
+          </h3>
+          <button id="btnCloseRecordVideoModal" class="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden border border-slate-800">
+          <video id="modalReplayVideo" class="w-full h-full object-contain" playsinline webkit-playsinline controls autoplay></video>
+        </div>
+        <p class="text-[10px] text-slate-400 text-center font-bold">
+          ※ 撮影動画は端末内メモリで安全に保持されています
+        </p>
+      </div>
+    </div>
+
+    <!-- 1分30秒無操作スリープ画面オーバーレイ -->
+    <div id="sleepOverlay" class="fixed inset-0 bg-black/95 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 text-center hidden cursor-pointer select-none">
+      <div class="w-20 h-20 rounded-full bg-slate-900 border-2 border-amber-400/60 flex items-center justify-center text-3xl text-amber-400 mb-4 shadow-2xl animate-pulse">
+        <i class="fa-solid fa-moon"></i>
+      </div>
+      <h3 class="text-xl font-black text-amber-300 tracking-wider">省電力スリープモード</h3>
+      <p class="text-xs text-slate-400 mt-2 font-bold leading-relaxed">
+        1分30秒間操作がなかったためカメラを一時停止しました。<br>
+        画面をタップすると再開します。
+      </p>
+      <span class="mt-6 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-black text-slate-300">
+        タップして復帰
+      </span>
+    </div>
+
     <!-- カスタム通知トースト -->
     <div id="toastNotification" class="fixed bottom-6 inset-x-8 bg-slate-950 border-2 border-amber-400 text-amber-300 px-4 py-2.5 rounded-2xl shadow-2xl z-50 text-center text-xs font-black transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
       通知メッセージ
@@ -749,6 +784,11 @@
     let drillSuccessCount = 0;
     let drillHoldStartTime = null;
     let drillHoldTimer = null;
+
+    // 1分30秒（90秒）無操作スリープタイマー用
+    const SLEEP_TIMEOUT_MS = 90 * 1000;
+    let sleepTimerId = null;
+    let isSleeping = false;
 
     /* ==========================================
        2. Web Audio API 音響シンセサイザー & 音声ナビゲーション
@@ -1683,7 +1723,8 @@
         testType: currentSelectedTest,
         score: scorePct,
         metrics: metrics,
-        advice: coachAdvice
+        advice: coachAdvice,
+        videoUrl: replayVideoBlobUrl || null // 撮影動画BlobURLをカルテに紐付け
       };
       records.unshift(newRecord);
       saveRecords();
@@ -1833,6 +1874,14 @@
         item.className = 'bg-slate-950/60 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between text-xs';
         const d = new Date(r.date);
         const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        
+        // 動画再生ボタンの有無
+        const videoBtnHtml = r.videoUrl ? `
+          <button data-url="${r.videoUrl}" data-title="${getTestName(r.testType)} (${dateStr})" class="btn-play-record-video bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 text-[10px] font-black px-2 py-1 rounded-lg flex items-center space-x-1 active:scale-95">
+            <i class="fa-solid fa-play text-[9px]"></i><span>動画</span>
+          </button>
+        ` : '';
+
         item.innerHTML = `
           <div>
             <div class="flex items-center space-x-1.5">
@@ -1841,11 +1890,31 @@
             </div>
             <p class="text-[9px] text-slate-400 mt-0.5">${dateStr}</p>
           </div>
-          <button data-id="${r.id}" class="btn-delete-rec text-slate-500 hover:text-rose-400 text-xs px-2 py-1">
-            <i class="fa-solid fa-trash-can"></i>
-          </button>
+          <div class="flex items-center space-x-2">
+            ${videoBtnHtml}
+            <button data-id="${r.id}" class="btn-delete-rec text-slate-500 hover:text-rose-400 text-xs px-2 py-1">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
         `;
         list.appendChild(item);
+      });
+
+      // 動画再生イベントリスナー
+      list.querySelectorAll('.btn-play-record-video').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const url = e.currentTarget.getAttribute('data-url');
+          const title = e.currentTarget.getAttribute('data-title');
+          const modal = document.getElementById('recordVideoModal');
+          const modalVid = document.getElementById('modalReplayVideo');
+          const titleEl = document.getElementById('recordVideoModalTitle');
+          if (url && modal && modalVid) {
+            modalVid.src = url;
+            if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-play-circle text-sm mr-1.5"></i>${title}`;
+            modal.classList.remove('hidden');
+            modalVid.play().catch(() => {});
+          }
+        });
       });
 
       // 削除イベント
@@ -1907,69 +1976,51 @@
 
     function exportHistoryToCSV() {
       if (records.length === 0) {
-        showToast('エクスポートするデータがありません');
-        return;
+      if (targetScreenId === 'screenRecord') {
+        renderRecordScreen();
       }
-      let csv = '\uFEFF日時,選手名,種目,覚醒度スコア(%),メトリクス詳細,アドバイス\n';
-      records.forEach(r => {
-        const metricStr = Object.entries(r.metrics || {}).map(([k, v]) => `${k}:${v}`).join(' / ');
-        const cleanAdvice = (r.advice || '').replace(/"/g, '""');
-        csv += `"${r.date}","${r.playerName}","${getTestName(r.testType)}","${r.score}","${metricStr}","${cleanAdvice}"\n`;
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `body_gps_records_${Date.now()}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast('CSVファイルを書き出しました');
     }
 
     /* ==========================================
-       11. 画面遷移 (SPA Router) 管理
+       11-B. 1分30秒（90秒）無操作スリープ制御
     ========================================== */
-    function switchScreen(targetScreenId) {
-      const screens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
-      screens.forEach(sId => {
-        const el = document.getElementById(sId);
-        if (!el) return;
-        if (sId === targetScreenId) {
-          el.classList.remove('hidden');
-        } else {
-          el.classList.add('hidden');
-        }
-      });
-      currentScreen = targetScreenId;
+    function resetSleepTimer() {
+      if (isSleeping) return; // スリープ中は解除操作でのみ復帰
+      if (sleepTimerId) clearTimeout(sleepTimerId);
+      sleepTimerId = setTimeout(() => {
+        enterSleepMode();
+      }, SLEEP_TIMEOUT_MS);
+    }
 
-      // テスト関連タイマーとカウントダウンを確実に完全停止
-      if (targetScreenId !== 'screenTest') {
-        stopAllTestTimers();
-        stopLocalRecording();
-      }
+    function enterSleepMode() {
+      if (isSleeping) return;
+      isSleeping = true;
+      // カメラストリームを停止して省電力化
+      stopCameraStream();
+      // タイマーや発声を一時停止
+      stopAllTestTimers();
+      const overlay = document.getElementById('sleepOverlay');
+      if (overlay) overlay.classList.remove('hidden');
+    }
 
-      // カメラが不要な画面（ロビー、結果、カルテ画面）ではカメラストリームを完全解放して停止
-      if (targetScreenId === 'screenLobby' || targetScreenId === 'screenResult' || targetScreenId === 'screenRecord') {
-        stopCameraStream();
-      }
+    function wakeFromSleep() {
+      if (!isSleeping) return;
+      isSleeping = false;
+      const overlay = document.getElementById('sleepOverlay');
+      if (overlay) overlay.classList.add('hidden');
 
-      // カメラが必要な画面でのみカメラを起動し、初期化を行う
-      if (targetScreenId === 'screenScan') {
-        const vid = document.getElementById('scanVideo');
-        startCameraStream(vid);
-        scanHoldFrames = 0;
-      } else if (targetScreenId === 'screenTest') {
-        const vid = document.getElementById('testVideo');
-        startCameraStream(vid);
-        // テスト画面が開いてから初めて静止時間の測定準備を開始する
+      // スリープ前の画面に応じてカメラを再開
+      if (currentScreen === 'screenScan') {
+        startCameraStream(document.getElementById('scanVideo'));
+      } else if (currentScreen === 'screenTest') {
+        startCameraStream(document.getElementById('testVideo'));
         startSelectedTest();
-      } else if (targetScreenId === 'screenDrill') {
-        const vid = document.getElementById('drillVideo');
-        startCameraStream(vid);
-      } else if (targetScreenId === 'screenRecord') {
-        renderRecordScreen();
+      } else if (currentScreen === 'screenDrill') {
+        startCameraStream(document.getElementById('drillVideo'));
       }
+
+      resetSleepTimer();
+      showToast('スリープから復帰しました');
     }
 
     /* ==========================================
@@ -1979,6 +2030,24 @@
       loadStorageData();
       initMediaPipePose();
       runMediaPipeLoop();
+
+      // カルテ用動画モーダルのクローズ処理
+      const recVideoModal = document.getElementById('recordVideoModal');
+      const recVideoEl = document.getElementById('modalReplayVideo');
+      document.getElementById('btnCloseRecordVideoModal').addEventListener('click', () => {
+        if (recVideoEl) recVideoEl.pause();
+        recVideoModal.classList.add('hidden');
+      });
+
+      // スリープオーバーレイのタップで復帰
+      document.getElementById('sleepOverlay').addEventListener('click', wakeFromSleep);
+
+      // ユーザー操作イベント検知でスリープタイマーをリセット
+      const activityEvents = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
+      activityEvents.forEach(evt => {
+        window.addEventListener(evt, resetSleepTimer, { passive: true });
+      });
+      resetSleepTimer();
 
       // カメラ切り替えボタン (自撮り ⇄ 外カメラ)
       document.getElementById('btnToggleCamera').addEventListener('click', async () => {
