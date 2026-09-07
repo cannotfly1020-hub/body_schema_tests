@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック</title>
+  <title>身体図式・脳内GPSドック v2.0</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0a0f1d">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,7 +34,7 @@
       user-select: none;
     }
 
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       width: 100vw;
@@ -45,6 +45,33 @@
       color: #ffffff;
     }
 
+    /* iPhone縦長画面余白撲滅用レイアウト定義 */
+    #appContainer {
+      height: 100dvh;
+      max-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #screenLobby {
+      display: flex;
+      flex-direction: column;
+      height: calc(100dvh - 3.5rem); /* ヘッダー分(56px)を引いた全高を100%活用 */
+      justify-content: space-between;
+      overflow-y: hidden; /* 不要なスクロールや浮き上がりを完全防止 */
+    }
+
+    /* 4大テストグリッドを縦方向に強制ストレッチ */
+    .test-grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 0.65rem;
+      height: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+
     /* ブロスタ風 立体ボタンスタイル */
     .brawl-btn {
       position: relative;
@@ -52,17 +79,17 @@
       align-items: center;
       justify-content: center;
       font-weight: 900;
-      border-radius: 0.95rem;
+      border-radius: 1rem;
       border-width: 3px;
       border-style: solid;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       transition: all 0.08s ease-in-out;
       cursor: pointer;
       text-shadow: 1px 2px 0px rgba(0, 0, 0, 0.6);
     }
     .brawl-btn:active {
-      transform: translateY(4px);
+      transform: translateY(3px);
     }
 
     .btn-yellow {
@@ -115,7 +142,7 @@
       box-shadow: 0 1px 0 #7f1d1d;
     }
 
-    /* 鏡像反転用ユーティリティ */
+    /* 鏡像反転 */
     .mirror-mode {
       transform: scaleX(-1);
     }
@@ -132,16 +159,19 @@
 </head>
 <body class="flex justify-center items-center">
 
-  <div id="appContainer" class="max-w-md w-full h-[100dvh] relative flex flex-col overflow-hidden bg-[#0a0f1d] border-x border-slate-800 shadow-2xl">
+  <div id="appContainer" class="max-w-md w-full relative overflow-hidden bg-[#0a0f1d] border-x border-slate-800 shadow-2xl">
     
-    <!-- 固定ヘッダー (h-14) -->
-    <header class="h-14 flex-shrink-0 bg-slate-900/90 backdrop-blur border-b border-slate-800 flex items-center justify-between px-3 z-30">
+    <!-- 固定ヘッダー (h-14 = 56px) -->
+    <header class="h-14 flex-shrink-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 flex items-center justify-between px-3 z-30">
       <div class="flex items-center space-x-2">
         <span class="text-xl animate-pulse">⚡</span>
         <div>
-          <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
-            脳内GPSドック
-          </h1>
+          <div class="flex items-center space-x-1.5">
+            <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
+              脳内GPSドック
+            </h1>
+            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v2.0</span>
+          </div>
           <div id="activePlayerBadge" class="text-[10px] text-emerald-400 font-bold leading-tight truncate max-w-[120px]">
             未設定
           </div>
@@ -162,13 +192,13 @@
       </div>
     </header>
 
-    <!-- トップロビー画面: iPhoneの縦長アスペクト比で余白が生じないよう flex-1 と flex-col justify-between を採用 -->
-    <section id="screenLobby" class="flex-1 w-full h-full relative overflow-y-auto flex flex-col justify-between p-3.5 space-y-2.5 pb-4">
+    <!-- トップロビー画面: iPhoneの縦長アスペクト比を100%活かし余白を完全ゼロ化 -->
+    <section id="screenLobby" class="w-full relative p-3 space-y-2.5">
       
       <!-- 上段: 選手プロファイル ＆ モノサシ設定 -->
-      <div class="flex flex-col space-y-2.5 flex-shrink-0">
+      <div class="flex flex-col space-y-2 flex-shrink-0">
         <!-- 選手セレクターカード -->
-        <div class="bg-slate-800/85 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2">
+        <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col space-y-1.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black text-yellow-300 flex items-center space-x-1">
               <span>👤</span><span>選手プロファイル</span>
@@ -178,28 +208,27 @@
             </button>
           </div>
           <div class="flex space-x-2">
-            <select id="playerSelect" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-bold outline-none">
+            <select id="playerSelect" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none">
               <!-- 動的追加 -->
             </select>
-            <button id="btnDeletePlayer" class="px-3 py-2 bg-red-900/50 hover:bg-red-800 text-red-300 text-xs font-bold rounded-xl border border-red-700">
+            <button id="btnDeletePlayer" class="px-2.5 py-1.5 bg-red-900/50 hover:bg-red-800 text-red-300 text-xs font-bold rounded-xl border border-red-700">
               削除
             </button>
           </div>
-          <!-- 選手ステータス簡易表示 -->
-          <div id="playerStatusSnippet" class="text-[11px] text-slate-300 bg-slate-900/60 p-2 rounded-xl flex justify-between items-center">
+          <div id="playerStatusSnippet" class="text-[10px] text-slate-300 bg-slate-900/60 px-2.5 py-1.5 rounded-xl flex justify-between items-center">
             <span>身長: <b id="dspPlayerHeight" class="text-white">---</b> cm</span>
             <span>スケール: <b id="dspScaleStatus" class="text-yellow-400">未校正</b></span>
             <span>記録: <b id="dspRecordCount" class="text-emerald-400">0</b> 件</span>
           </div>
         </div>
 
-        <!-- 身長・直立スキャン誘導バナー -->
-        <div class="bg-gradient-to-r from-sky-950/70 to-indigo-950/70 border-2 border-sky-500/60 rounded-2xl p-3 shadow-md flex items-center justify-between">
+        <!-- 1. 絶対モノサシ設定バナー -->
+        <div class="bg-gradient-to-r from-sky-950/80 to-indigo-950/80 border-2 border-sky-500/70 rounded-2xl p-2.5 shadow-md flex items-center justify-between">
           <div class="pr-2">
             <div class="text-xs font-black text-sky-300 flex items-center space-x-1">
               <span>📏</span><span>1. 絶対モノサシ設定</span>
             </div>
-            <div class="text-[11px] text-slate-300 leading-tight mt-0.5">カメラから約2m離れて直立し、cm換算スケールを確定。</div>
+            <div class="text-[10px] text-slate-300 leading-tight mt-0.5">約2m離れて直立し、cm換算スケールを確定。</div>
           </div>
           <button id="btnGoScan" class="brawl-btn btn-blue text-xs px-3.5 py-2 flex-shrink-0">
             スキャン
@@ -207,45 +236,46 @@
         </div>
       </div>
 
-      <!-- 中段: 4大テスト選択セクション（flex-1 で余白に合わせてボタンが縦に美しく伸長） -->
-      <div class="bg-slate-800/85 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2 flex-1 min-h-[190px]">
-        <div class="flex items-center justify-between flex-shrink-0">
+      <!-- 中段: 4大テスト選択セクション（flex-1 ＆ grid-template-rows: 1fr 1fr で縦長画面いっぱいに拡大） -->
+      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col flex-1 min-h-[220px]">
+        <div class="flex items-center justify-between mb-2 flex-shrink-0">
           <span class="text-xs font-black text-emerald-400 flex items-center space-x-1">
             <span>🎯</span><span>2. 4大目隠し・身体図式テスト</span>
           </span>
-          <span class="text-[10px] text-slate-400">主観と客観のズレ検知</span>
+          <span class="text-[9px] text-slate-400">主観と客観のズレ検知</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5 flex-1">
+        <!-- テストボタン4つ（上下に自動伸長して余白を完全吸収） -->
+        <div class="test-grid-container">
           <!-- テスト1: 足踏み -->
-          <button class="btnTestSelect brawl-btn btn-yellow text-xs p-2 flex flex-col items-center justify-center space-y-1.5 text-center h-full" data-testid="stepping">
+          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="stepping">
             <span class="text-2xl">👣</span>
             <span class="text-xs font-black leading-none">目隠し足踏み</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-85 bg-amber-200/60 px-1.5 py-0.5 rounded">15秒 / 突進・回旋</span>
+            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">15秒 / 突進・回旋</span>
           </button>
           <!-- テスト2: Tポーズ -->
-          <button class="btnTestSelect brawl-btn btn-yellow text-xs p-2 flex flex-col items-center justify-center space-y-1.5 text-center h-full" data-testid="tpose">
+          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="tpose">
             <span class="text-2xl">⚖️</span>
             <span class="text-xs font-black leading-none">Tポーズ水平</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-85 bg-amber-200/60 px-1.5 py-0.5 rounded">6秒 / 左右腕角度差</span>
+            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">6秒 / 左右腕角度差</span>
           </button>
           <!-- テスト3: 片足立ち -->
-          <button class="btnTestSelect brawl-btn btn-yellow text-xs p-2 flex flex-col items-center justify-center space-y-1.5 text-center h-full" data-testid="oneleg">
+          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="oneleg">
             <span class="text-2xl">⚓</span>
             <span class="text-xs font-black leading-none">片足立ちキープ</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-85 bg-amber-200/60 px-1.5 py-0.5 rounded">最長15秒 / 動揺・落下</span>
+            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">最長15秒 / 動揺・落下</span>
           </button>
           <!-- テスト4: 骨盤制動 -->
-          <button class="btnTestSelect brawl-btn btn-yellow text-xs p-2 flex flex-col items-center justify-center space-y-1.5 text-center h-full" data-testid="pelvis">
+          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="pelvis">
             <span class="text-2xl">🪑</span>
             <span class="text-xs font-black leading-none">骨盤制動胸捻転</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-85 bg-amber-200/60 px-1.5 py-0.5 rounded">10秒 / X-Factor分離</span>
+            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">10秒 / X-Factor分離</span>
           </button>
         </div>
       </div>
 
-      <!-- 下段: クイックアクション ＆ 脳内GPSワンポイントTips（iPhoneの余白を完璧に解消） -->
-      <div class="flex flex-col space-y-2 flex-shrink-0">
+      <!-- 下段: クイックアクション ＆ 脳内GPSワンポイントTips（余白を完全に埋める安心構造） -->
+      <div class="flex flex-col space-y-2 flex-shrink-0 pb-1">
         <!-- ドリル ＆ カルテボタン -->
         <div class="grid grid-cols-2 gap-2">
           <button id="btnGoDrill" class="brawl-btn btn-green text-xs py-3 flex items-center justify-center space-x-1.5">
@@ -258,8 +288,8 @@
           </button>
         </div>
 
-        <!-- 脳内GPS ワンポイントアドバイスバナー（余白埋め＆育成マインド向上） -->
-        <div class="bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center space-x-2.5">
+        <!-- 脳内GPS ワンポイントアドバイスバナー（最下部を美しくガード） -->
+        <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex items-center space-x-2.5">
           <div class="w-7 h-7 rounded-lg bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center flex-shrink-0 text-sm">
             💡
           </div>
@@ -271,32 +301,28 @@
 
     </section>
 
+    <!-- スキャン画面 -->
     <section id="screenScan" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
-      <!-- カメラ＆キャンバス重合コンテナ -->
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoScan" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasScan" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
 
-        <!-- ガイドオーバーレイ -->
         <div class="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-4 z-10">
-          <div class="bg-black/60 border border-sky-400/60 rounded-xl px-3 py-1.5 text-center mt-2">
+          <div class="bg-black/70 border border-sky-400/70 rounded-xl px-3 py-1.5 text-center mt-2">
             <div class="text-xs font-black text-sky-300">直立スキャン</div>
             <div class="text-[10px] text-slate-200">頭頂部と両足首が緑の枠に入るよう2m離れてください</div>
           </div>
 
-          <!-- スキャン進捗インジケーター -->
           <div class="w-full max-w-xs bg-slate-900/80 border border-slate-700 rounded-full h-5 p-0.5 overflow-hidden flex items-center">
             <div id="scanProgressBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 rounded-full transition-all duration-75 w-0"></div>
           </div>
 
-          <!-- メッセージバナー -->
           <div id="scanStatusText" class="bg-slate-900/80 px-4 py-1.5 rounded-full text-xs font-extrabold text-yellow-300 mb-2">
             全身を検出中...
           </div>
         </div>
       </div>
 
-      <!-- 下部フッターバー -->
       <div class="h-16 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
         <button id="btnCancelScan" class="brawl-btn btn-red text-xs px-4 py-2">
           キャンセル
@@ -307,29 +333,27 @@
       </div>
     </section>
 
+    <!-- テスト測定画面（音響ビートインジケーター搭載） -->
     <section id="screenTest" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
-      <!-- カメラ＆キャンバス重合コンテナ -->
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoTest" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasTest" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
 
-        <!-- UIオーバーレイ -->
         <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
           
-          <!-- テスト種目名 ＆ タイマー -->
           <div class="flex items-start justify-between">
-            <div class="bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-1.5">
+            <div class="bg-slate-900/85 border border-slate-700 rounded-xl px-3 py-1.5">
               <div id="testBadgeTitle" class="text-xs font-black text-yellow-300">テスト種目</div>
               <div id="testInstructionSubtitle" class="text-[10px] text-slate-300 leading-tight">全身を枠内に収めて静止</div>
             </div>
 
             <!-- 残り秒数カウントダウン ＆ 音声パルスアニメーション -->
-            <div class="bg-slate-900/80 border border-yellow-400/80 rounded-xl px-3.5 py-1 text-center min-w-[68px] relative">
+            <div class="bg-slate-900/85 border border-yellow-400/80 rounded-xl px-3 py-1 text-center min-w-[70px] relative">
               <div class="text-[9px] text-slate-400 font-bold flex items-center justify-center space-x-1">
                 <span>TIME</span>
-                <span id="testAudioPulseIcon" class="text-[10px] text-yellow-300 opacity-80">🔊</span>
+                <span id="testAudioPulseIcon" class="text-[10px] text-yellow-300 transition-transform duration-100">🔊</span>
               </div>
-              <div id="testTimerText" class="text-xl font-black text-yellow-400 leading-none">--</div>
+              <div id="testTimerText" class="text-xl font-black text-yellow-400 leading-none mt-0.5">--</div>
             </div>
           </div>
 
@@ -337,7 +361,7 @@
           <div class="flex flex-col items-center justify-center">
             <div id="testBigBanner" class="hidden text-center bg-black/85 border-2 border-yellow-400 rounded-2xl px-6 py-4 shadow-2xl">
               <div id="testBigBannerNumber" class="text-4xl font-black text-yellow-300 animate-bounce">3</div>
-              <div id="testBigBannerSub" class="text-xs font-bold text-white mt-1">まもなく開始</div>
+              <div id="testBigBannerSub" class="text-xs font-bold text-white mt-1">目を閉じて準備してください</div>
             </div>
 
             <!-- 突進・逸脱警告 -->
@@ -348,7 +372,7 @@
           </div>
 
           <!-- リアルタイム・バイオメカニクス速報メーター -->
-          <div class="bg-slate-900/85 border border-slate-700 rounded-xl p-2.5 flex justify-around text-center text-xs backdrop-blur-sm">
+          <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex justify-around text-center text-xs backdrop-blur-sm">
             <div>
               <div class="text-[9px] text-slate-400">左右ズレ(X)</div>
               <div id="metricXVal" class="font-black text-sky-400">0.0 cm</div>
@@ -368,7 +392,6 @@
         </div>
       </div>
 
-      <!-- テスト操作ボトムバー -->
       <div class="h-14 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
         <button id="btnAbortTest" class="brawl-btn btn-red text-xs px-4 py-2">
           中止して戻る
@@ -380,27 +403,23 @@
       </div>
     </section>
 
+    <!-- 結果＆ローカルリプレイ画面 -->
     <section id="screenResult" class="flex-1 w-full h-full relative overflow-y-auto flex flex-col p-4 space-y-3 pb-6 hidden">
-      
-      <!-- 覚醒度ヘッダーカード -->
       <div class="bg-gradient-to-br from-slate-900 to-indigo-950 border-2 border-yellow-400/80 rounded-2xl p-4 shadow-xl text-center relative overflow-hidden">
         <div class="text-xs font-black text-yellow-300 tracking-wider">TEST RESULT</div>
         <div id="resTestName" class="text-lg font-black text-white mt-0.5">目隠し足踏みテスト</div>
         
-        <!-- 覚醒度パーセンテージ -->
         <div class="mt-2 flex items-baseline justify-center space-x-1">
           <span class="text-xs font-bold text-emerald-400">【★ 覚醒度</span>
           <span id="resAwakenScore" class="text-4xl font-black text-emerald-300 tracking-tight">85%</span>
           <span class="text-xs font-bold text-emerald-400">】</span>
         </div>
 
-        <!-- RPG風 覚醒へのワンポイントアドバイス -->
         <div id="resNextGoalBadge" class="mt-2 inline-block bg-yellow-400/20 border border-yellow-400 rounded-full px-3 py-1 text-xs font-extrabold text-yellow-300">
           🔒 あと 3.5cm 抑制で完全覚醒！
         </div>
       </div>
 
-      <!-- ローカル録画リプレイプレイヤー（外部通信ゼロ） -->
       <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col space-y-2">
         <div class="flex items-center justify-between px-1">
           <span class="text-xs font-black text-sky-400">🎬 客観リプレイ（主観とのズレ自覚）</span>
@@ -422,35 +441,33 @@
         </div>
       </div>
 
-      <!-- バイオメカニクス測定詳細数値 -->
-      <div class="bg-slate-800/80 border-2 border-slate-700 rounded-2xl p-3.5 shadow-md flex flex-col space-y-2">
+      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-md flex flex-col space-y-2">
         <div class="text-xs font-black text-slate-300">📊 バイオメカニクス解析詳細</div>
         
         <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
             <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel1">左右変位</div>
             <div id="resMetricVal1" class="text-sm font-black text-sky-400 mt-0.5">-- cm</div>
           </div>
-          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
             <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel2">前後移動</div>
             <div id="resMetricVal2" class="text-sm font-black text-emerald-400 mt-0.5">-- cm</div>
           </div>
-          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
             <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel3">回旋角度 / 傾き</div>
             <div id="resMetricVal3" class="text-sm font-black text-yellow-400 mt-0.5">-- °</div>
           </div>
-          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
             <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel4">保持時間 / 分離</div>
             <div id="resMetricVal4" class="text-sm font-black text-purple-400 mt-0.5">--</div>
           </div>
         </div>
 
-        <div id="resFeedbackCommentary" class="mt-1 text-[11px] text-slate-300 bg-slate-900/40 p-2 rounded-xl leading-relaxed">
+        <div id="resFeedbackCommentary" class="mt-1 text-[11px] text-slate-300 bg-slate-900/50 p-2 rounded-xl leading-relaxed">
           脳内GPSの現在位置と実際の骨格位置にズレがみられます。ドリルで再構築しましょう！
         </div>
       </div>
 
-      <!-- アクションボタン -->
       <div class="flex space-x-2 pt-1">
         <button id="btnSaveToChart" class="flex-1 brawl-btn btn-green text-xs py-3">
           💾 カルテに記録して戻る
@@ -459,47 +476,40 @@
           ⚡ 直ぐドリル
         </button>
       </div>
-
     </section>
 
+    <!-- 1分再構築ドリル画面 -->
     <section id="screenDrill" class="flex-1 w-full h-full relative overflow-hidden bg-black hidden flex flex-col">
-      <!-- カメラ＆キャンバス重合コンテナ -->
       <div class="relative w-full flex-1 overflow-hidden bg-black">
         <video id="videoDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
         <canvas id="canvasDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
 
-        <!-- ドリルUIオーバーレイ -->
         <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
-          
           <div class="flex items-center justify-between">
-            <div class="bg-slate-900/80 border border-emerald-400 rounded-xl px-3 py-1.5">
+            <div class="bg-slate-900/85 border border-emerald-400 rounded-xl px-3 py-1.5">
               <div class="text-xs font-black text-emerald-300">🪑 イス座り頭後ろ胸回しドリル</div>
               <div class="text-[10px] text-slate-300">両手を後頭部で組み、骨盤を動かさず胸郭を回旋</div>
             </div>
 
-            <!-- ドリル達成カウント -->
-            <div class="bg-slate-900/80 border border-yellow-400 rounded-xl px-3 py-1 text-center min-w-[60px]">
+            <div class="bg-slate-900/85 border border-yellow-400 rounded-xl px-3 py-1 text-center min-w-[60px]">
               <div class="text-[9px] text-slate-400 font-bold">SUCCESS</div>
               <div id="drillSuccessCount" class="text-xl font-black text-yellow-400 leading-none">0</div>
             </div>
           </div>
 
-          <!-- 中央：保持ゲージ ＆ エメラルド発光判定バナー -->
           <div class="flex flex-col items-center justify-center">
             <div id="drillHoldIndicator" class="hidden text-center bg-emerald-950/85 border-2 border-emerald-400 rounded-2xl px-6 py-3 shadow-2xl glow-effect">
               <div class="text-xs font-extrabold text-emerald-300">✨ 基準角達成！その姿勢をキープ！</div>
               <div id="drillHoldSecondsText" class="text-3xl font-black text-white mt-1">3.0s</div>
             </div>
 
-            <!-- 祝福アニメーションオーバーレイ -->
             <div id="drillCelebrateBanner" class="hidden text-center bg-yellow-400 border-2 border-yellow-700 text-yellow-950 rounded-2xl px-6 py-4 shadow-2xl animate-bounce">
               <div class="text-xl font-black">🎉 覚醒達成！+1 回</div>
               <div class="text-xs font-bold">脳内GPSの身体マップが更新されました！</div>
             </div>
           </div>
 
-          <!-- リアルタイム捻転角メーター -->
-          <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
+          <div class="bg-slate-900/85 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
             <div class="flex-1 text-center">
               <div class="text-[9px] text-slate-400">現在胸郭捻転角</div>
               <div id="drillLiveAngle" class="text-base font-black text-sky-400">0.0°</div>
@@ -510,11 +520,9 @@
               <div class="text-base font-black text-emerald-400">≥ 30.0°</div>
             </div>
           </div>
-
         </div>
       </div>
 
-      <!-- ドリル終了ボタンバー -->
       <div class="h-14 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
         <button id="btnFinishDrill" class="brawl-btn btn-blue text-xs px-4 py-2">
           ドリル終了（ロビーへ）
@@ -523,8 +531,8 @@
       </div>
     </section>
 
+    <!-- 成長カルテ・推移画面 -->
     <section id="screenRecord" class="flex-1 w-full h-full relative overflow-y-auto flex flex-col p-4 space-y-3 pb-8 hidden">
-      
       <div class="flex items-center justify-between">
         <span class="text-sm font-black text-yellow-300">📈 成長カルテ・覚醒度推移</span>
         <button id="btnExportCsv" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold text-sky-400">
@@ -532,24 +540,20 @@
         </button>
       </div>
 
-      <!-- 自前SVG折れ線グラフ（外部依存なし） -->
-      <div class="bg-slate-800/80 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2">
+      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2">
         <div class="text-[11px] font-bold text-slate-300 flex justify-between">
           <span>覚醒度スコア推移（最新10件）</span>
           <span class="text-emerald-400">目標 90% 以上</span>
         </div>
         <div class="w-full h-40 bg-slate-900 rounded-xl p-2 relative flex items-center justify-center">
-          <svg id="chartSvg" class="w-full h-full overflow-visible" viewBox="0 0 300 120">
-            <!-- 動的描画 -->
-          </svg>
+          <svg id="chartSvg" class="w-full h-full overflow-visible" viewBox="0 0 300 120"></svg>
           <div id="chartNoDataMsg" class="absolute inset-0 flex items-center justify-center text-xs text-slate-500 font-bold">
             測定記録がまだありません
           </div>
         </div>
       </div>
 
-      <!-- 過去履歴リスト -->
-      <div class="bg-slate-800/80 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2 flex-1">
+      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2 flex-1">
         <div class="flex items-center justify-between">
           <span class="text-xs font-black text-slate-300">📑 測定履歴リスト</span>
           <button id="btnClearHistory" class="text-[10px] text-red-400 hover:underline">
@@ -565,7 +569,6 @@
       <button id="btnBackToLobbyFromRecord" class="brawl-btn btn-purple text-xs py-3 w-full">
         ロビーへ戻る
       </button>
-
     </section>
 
     <!-- 新規選手登録モーダル -->
@@ -641,15 +644,15 @@
 
   <script>
     /**
-     * 身体図式・脳内GPSドック (完全統合型シングルファイル)
+     * 身体図式・脳内GPSドック v2.0
      */
 
-    // --- アプリケーション状態 ---
     const AppState = {
       currentScreen: 'screenLobby',
-      cameraFacing: 'user', // 'user' (自撮り) または 'environment' (外)
+      cameraFacing: 'user',
       isSoundEnabled: true,
       audioCtx: null,
+      audioUnlocked: false,
       stream: null,
       cameraHelper: null,
       poseDetector: null,
@@ -661,18 +664,20 @@
       // スキャン校正
       scanStableFrames: 0,
       scaleConfirmed: false,
-      pxPerCm: 2.5, // 初期値
+      pxPerCm: 2.5,
       baseHipWidthPx: 80,
       baseShoulderWidthPx: 120,
 
       // テストセッション
       activeTestId: null,
-      testState: 'idle', // 'idle' | 'prepping' | 'countdown' | 'running' | 'completed'
+      testState: 'idle',
       testTimerInterval: null,
       testMetronomeInterval: null,
+      testTickInterval: null,
       testRemainingSec: 0,
       testGracePeriod: true,
       stableDetectionFrames: 0,
+      lastNosePos: null,
       recentMetricsBuffer: [],
       initialPoseSnapshot: null,
       lastRecordedBlob: null,
@@ -686,7 +691,6 @@
       drillCompleted: false
     };
 
-    // --- DOM要素キャッシュ ---
     const DOM = {
       appContainer: document.getElementById('appContainer'),
       activePlayerBadge: document.getElementById('activePlayerBadge'),
@@ -698,7 +702,6 @@
       btnSoundToggle: document.getElementById('btnSoundToggle'),
       btnHome: document.getElementById('btnHome'),
       
-      // スクリーン
       screenLobby: document.getElementById('screenLobby'),
       screenScan: document.getElementById('screenScan'),
       screenTest: document.getElementById('screenTest'),
@@ -706,7 +709,6 @@
       screenDrill: document.getElementById('screenDrill'),
       screenRecord: document.getElementById('screenRecord'),
 
-      // スキャン
       videoScan: document.getElementById('videoScan'),
       canvasScan: document.getElementById('canvasScan'),
       scanProgressBar: document.getElementById('scanProgressBar'),
@@ -715,7 +717,6 @@
       btnGoScan: document.getElementById('btnGoScan'),
       btnCancelScan: document.getElementById('btnCancelScan'),
 
-      // テスト
       videoTest: document.getElementById('videoTest'),
       canvasTest: document.getElementById('canvasTest'),
       testBadgeTitle: document.getElementById('testBadgeTitle'),
@@ -734,7 +735,6 @@
       testPrepIndicator: document.getElementById('testPrepIndicator'),
       btnAbortTest: document.getElementById('btnAbortTest'),
 
-      // 結果＆リプレイ
       resTestName: document.getElementById('resTestName'),
       resAwakenScore: document.getElementById('resAwakenScore'),
       resNextGoalBadge: document.getElementById('resNextGoalBadge'),
@@ -754,7 +754,6 @@
       btnSaveToChart: document.getElementById('btnSaveToChart'),
       btnQuickDrillFromResult: document.getElementById('btnQuickDrillFromResult'),
 
-      // ドリル
       videoDrill: document.getElementById('videoDrill'),
       canvasDrill: document.getElementById('canvasDrill'),
       drillSuccessCount: document.getElementById('drillSuccessCount'),
@@ -765,7 +764,6 @@
       btnGoDrill: document.getElementById('btnGoDrill'),
       btnFinishDrill: document.getElementById('btnFinishDrill'),
 
-      // カルテ・記録
       chartSvg: document.getElementById('chartSvg'),
       chartNoDataMsg: document.getElementById('chartNoDataMsg'),
       historyListContainer: document.getElementById('historyListContainer'),
@@ -774,7 +772,6 @@
       btnExportCsv: document.getElementById('btnExportCsv'),
       btnClearHistory: document.getElementById('btnClearHistory'),
 
-      // モーダル・スリープ
       modalNewPlayer: document.getElementById('modalNewPlayer'),
       btnOpenNewPlayerModal: document.getElementById('btnOpenNewPlayerModal'),
       btnSaveNewPlayer: document.getElementById('btnSaveNewPlayer'),
@@ -803,79 +800,90 @@
         if (AppState.audioCtx && AppState.audioCtx.state === 'suspended') {
           AppState.audioCtx.resume();
         }
+        // iOS Safari向けの無音バッファ再生による強力アンロック
+        if (AppState.audioCtx && !AppState.audioUnlocked) {
+          try {
+            const buffer = AppState.audioCtx.createBuffer(1, 1, 22050);
+            const source = AppState.audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(AppState.audioCtx.destination);
+            source.start(0);
+            AppState.audioUnlocked = true;
+          } catch (e) {
+            console.warn('Audio unlock attempt failed:', e);
+          }
+        }
       }
 
-      static playTone(freq, duration = 0.1, type = 'sine', gainVal = 0.15) {
+      static playTone(freq, duration = 0.1, type = 'sine', gainVal = 0.35) {
         if (!AppState.isSoundEnabled) return;
         this.init();
         if (!AppState.audioCtx) return;
 
         try {
+          const now = AppState.audioCtx.currentTime;
           const osc = AppState.audioCtx.createOscillator();
           const gain = AppState.audioCtx.createGain();
           osc.type = type;
-          osc.frequency.setValueAtTime(freq, AppState.audioCtx.currentTime);
+          osc.frequency.setValueAtTime(freq, now);
 
-          gain.gain.setValueAtTime(gainVal, AppState.audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, AppState.audioCtx.currentTime + duration);
+          // iPhoneスピーカーでも確実に抜けるアタックと減衰
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(gainVal, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
           osc.connect(gain);
           gain.connect(AppState.audioCtx.destination);
 
-          osc.start();
-          osc.stop(AppState.audioCtx.currentTime + duration);
+          osc.start(now);
+          osc.stop(now + duration);
         } catch (e) {
           console.warn('Audio play failed', e);
         }
       }
 
-      // 開始前カウントダウン音（ピッ）
       static beepCountdown() {
-        this.playTone(440, 0.08, 'sine', 0.2);
+        // カウントダウン音（聞き取りやすい高音ポーン）
+        this.playTone(660, 0.15, 'triangle', 0.4);
       }
 
-      // 開始音（ポーン）
       static beepStart() {
-        this.playTone(880, 0.35, 'triangle', 0.25);
+        // 測定スタート合図（高音ピロリン）
+        this.playTone(880, 0.12, 'square', 0.4);
+        setTimeout(() => this.playTone(1320, 0.35, 'triangle', 0.45), 100);
       }
 
-      // 測定中：目隠し中でも時間が進んでいることを伝える毎秒パルス（チクタク音）
       static playTestTick(isAccent = false) {
-        if (!AppState.isSoundEnabled) return;
-        this.init();
+        // 測定中の毎秒チクタク音（目隠しでも測定中であることが明確に伝わる音）
         if (isAccent) {
-          this.playTone(880, 0.05, 'sine', 0.15); // アクセント秒
+          this.playTone(980, 0.08, 'triangle', 0.3);
         } else {
-          this.playTone(587.33, 0.035, 'triangle', 0.08); // 通常の秒パルス
+          this.playTone(600, 0.05, 'triangle', 0.22);
         }
       }
 
-      // 測定中：ラスト3秒カウントダウン（目隠し時の終了感知）
       static playLastSecondsWarning(count) {
-        if (!AppState.isSoundEnabled) return;
+        // ラスト3秒カウント（音階上昇：ド・ミ・ソ）
         const freqs = { 3: 523.25, 2: 659.25, 1: 783.99 };
         const f = freqs[count] || 600;
-        this.playTone(f, 0.12, 'square', 0.18);
+        this.playTone(f, 0.2, 'square', 0.35);
       }
 
-      // 足踏み用メトロノーム音（100BPM・ウッドブロック風）
       static beepMetronome() {
-        this.playTone(1050, 0.04, 'triangle', 0.18);
+        // 足踏み用メトロノーム（クラベス調のウッドブロック音）
+        this.playTone(1200, 0.04, 'triangle', 0.35);
       }
 
-      // 危険逸脱・突進ブザー
       static alertBuzzer() {
-        this.playTone(180, 0.45, 'sawtooth', 0.3);
+        this.playTone(180, 0.45, 'sawtooth', 0.4);
       }
 
-      // 終了ファンファーレ
       static fanFare() {
-        this.playTone(523.25, 0.15, 'triangle', 0.2);
-        setTimeout(() => this.playTone(659.25, 0.15, 'triangle', 0.2), 150);
-        setTimeout(() => this.playTone(783.99, 0.3, 'triangle', 0.25), 300);
+        this.playTone(523.25, 0.15, 'triangle', 0.3);
+        setTimeout(() => this.playTone(659.25, 0.15, 'triangle', 0.3), 150);
+        setTimeout(() => this.playTone(783.99, 0.35, 'triangle', 0.4), 300);
       }
 
-      // 音声ガイダンス（重複防止ハンドラ付き）
       static speak(text) {
         if (!AppState.isSoundEnabled || !window.speechSynthesis) return;
         try {
@@ -932,7 +940,6 @@
         players = players.filter(p => p.id !== id);
         this.savePlayers(players);
 
-        // 関連レコードも削除
         let records = this.getRecords();
         records = records.filter(r => r.playerId !== id);
         this.saveRecords(records);
@@ -964,10 +971,8 @@
     }
 
     async function switchScreen(targetScreenId) {
-      // 既存セッションの破棄
       cleanupTestSession();
 
-      // カメラ使用画面（Scan, Test, Drill）以外へ遷移する場合はカメラ停止
       const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
       const willNeedCamera = cameraScreens.includes(targetScreenId);
 
@@ -975,7 +980,6 @@
         stopCamera();
       }
 
-      // DOM切り替え
       const allScreens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
       allScreens.forEach(id => {
         if (id === targetScreenId) {
@@ -986,7 +990,6 @@
       });
       AppState.currentScreen = targetScreenId;
 
-      // 遷移先画面に応じた初期化
       if (willNeedCamera) {
         await startCameraForCurrentScreen();
       } else if (targetScreenId === 'screenLobby') {
@@ -1091,7 +1094,6 @@
       const video = getCurrentActiveVideo();
       if (!canvas || !video) return;
 
-      // 解像度同期（アスペクト比ズレ完全防止）
       if (video.videoWidth && video.videoHeight) {
         if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
           canvas.width = video.videoWidth;
@@ -1240,9 +1242,12 @@
       const cfg = TEST_CONFIGS[testId];
       if (!cfg) return;
 
+      SoundFX.init(); // iOSでのアンロックを確実に実行
+
       AppState.activeTestId = testId;
       AppState.testState = 'prepping';
       AppState.stableDetectionFrames = 0;
+      AppState.lastNosePos = null;
       AppState.recentMetricsBuffer = [];
       AppState.initialPoseSnapshot = null;
       AppState.testGracePeriod = true;
@@ -1251,12 +1256,12 @@
       DOM.testInstructionSubtitle.textContent = cfg.sub;
       DOM.metricDynamicLabel.textContent = cfg.dynamicLabel;
       DOM.testTimerText.textContent = cfg.duration;
-      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span>姿勢検知中</span>';
+      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span>静止姿勢を検出中...</span>';
       DOM.testDangerAlert.classList.add('hidden');
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
-      SoundFX.speak(`${cfg.title}。全身を映して静止してください。`);
+      SoundFX.speak(`${cfg.title}。全身を映し、まっすぐ静止してください。静止後3秒で開始します。`);
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1271,16 +1276,39 @@
       const hasFullBody = nose && leftShoulder && rightShoulder && leftHip && rightHip && leftAnkle && rightAnkle;
 
       if (!hasFullBody) {
-        if (AppState.testState === 'running' && !AppState.testGracePeriod) {
+        if (AppState.testState === 'prepping') {
+          AppState.stableDetectionFrames = 0;
+          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-300 font-bold">全身を枠内に収めてください</span>';
+        } else if (AppState.testState === 'running' && !AppState.testGracePeriod) {
           triggerDangerAbort('フレーム外への完全逸脱を検知しました');
         }
         return;
       }
 
-      // 準備検知（12フレーム安定でカウントダウンへ）
       if (AppState.testState === 'prepping') {
-        AppState.stableDetectionFrames++;
-        if (AppState.stableDetectionFrames >= 12) {
+        // 静止判定（頭部・腰の微小揺れが一定以下の状態を連続検知）
+        const curNoseX = nose.x * w;
+        const curNoseY = nose.y * h;
+        let isStill = false;
+
+        if (AppState.lastNosePos) {
+          const moveDist = Math.hypot(curNoseX - AppState.lastNosePos.x, curNoseY - AppState.lastNosePos.y);
+          if (moveDist < 12) { // 安定静止
+            isStill = true;
+          }
+        }
+        AppState.lastNosePos = { x: curNoseX, y: curNoseY };
+
+        if (isStill) {
+          AppState.stableDetectionFrames++;
+          DOM.testPrepIndicator.innerHTML = `<span class="text-emerald-400 font-bold">静止確認中 (${Math.min(100, Math.round((AppState.stableDetectionFrames / 18) * 100))}%)</span>`;
+        } else {
+          AppState.stableDetectionFrames = Math.max(0, AppState.stableDetectionFrames - 2);
+          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-400 font-bold">静止してください</span>';
+        }
+
+        // 約0.6秒間の安定静止が確認されたら、正確に「3秒前カウントダウン」へ移行
+        if (AppState.stableDetectionFrames >= 18) {
           AppState.initialPoseSnapshot = {
             hipCenterX: ((leftHip.x + rightHip.x) / 2) * w,
             hipCenterY: ((leftHip.y + rightHip.y) / 2) * h,
@@ -1304,11 +1332,9 @@
         return;
       }
 
-      // 測定本番
       if (AppState.testState === 'running') {
         const currentHipWidth = Math.abs(leftHip.x - rightHip.x) * w;
 
-        // 突進強制終了（腰幅1.7倍急拡大・画面端飛び出し）
         if (!AppState.testGracePeriod) {
           const expansionRatio = currentHipWidth / AppState.baseHipWidthPx;
           if (expansionRatio >= 1.7) {
@@ -1329,12 +1355,10 @@
           AppState.recentMetricsBuffer.shift();
         }
 
-        // リアルタイムUI表示
         DOM.metricXVal.textContent = `${frameMetric.xDisplacementCm.toFixed(1)} cm`;
         DOM.metricZVal.textContent = `${frameMetric.zDisplacementCm.toFixed(1)} cm`;
         DOM.metricDynamicVal.textContent = `${frameMetric.dynamicVal.toFixed(1)} ${frameMetric.dynamicUnit}`;
 
-        // 片足立ちの着地検知即時停止
         if (AppState.activeTestId === 'oneleg' && !AppState.testGracePeriod) {
           if (frameMetric.hasLanded) {
             SoundFX.alertBuzzer();
@@ -1420,23 +1444,27 @@
 
     function startTestCountdown() {
       AppState.testState = 'countdown';
-      DOM.testPrepIndicator.innerHTML = '<span class="text-emerald-400 font-bold">READY</span>';
+      DOM.testPrepIndicator.innerHTML = '<span class="text-emerald-400 font-bold">静止確認！</span>';
       DOM.testBigBanner.classList.remove('hidden');
 
       let count = 3;
       DOM.testBigBannerNumber.textContent = count;
-      DOM.testBigBannerSub.textContent = '目を閉じて準備してください';
+      DOM.testBigBannerSub.textContent = '3秒後に開始！目を閉じてください';
       SoundFX.beepCountdown();
+      pulseAudioIcon();
 
       const cdInterval = setInterval(() => {
         count--;
         if (count > 0) {
           DOM.testBigBannerNumber.textContent = count;
+          DOM.testBigBannerSub.textContent = '目を閉じて準備してください';
           SoundFX.beepCountdown();
+          pulseAudioIcon();
         } else if (count === 0) {
-          DOM.testBigBannerNumber.textContent = 'GO!';
-          DOM.testBigBannerSub.textContent = 'テスト中！そのまま継続';
+          DOM.testBigBannerNumber.textContent = 'START!';
+          DOM.testBigBannerSub.textContent = '測定開始！';
           SoundFX.beepStart();
+          pulseAudioIcon(true);
         } else {
           clearInterval(cdInterval);
           DOM.testBigBanner.classList.add('hidden');
@@ -1453,16 +1481,14 @@
       AppState.testRemainingSec = cfg.duration;
       DOM.testTimerText.textContent = AppState.testRemainingSec;
 
-      // 保護期間（1.5秒）
       AppState.testGracePeriod = true;
       setTimeout(() => {
         AppState.testGracePeriod = false;
       }, 1500);
 
-      // ローカル動画録画開始
       startLocalRecording();
 
-      // 足踏みテスト専用メトロノーム音（100BPM ≒ 600ms間隔）
+      // 足踏みテスト専用：100BPMメトロノーム音（600ms間隔）
       if (cfg.useMetronome) {
         AppState.testMetronomeInterval = setInterval(() => {
           if (AppState.testState === 'running') {
@@ -1472,21 +1498,18 @@
         }, 600);
       }
 
-      // 測定タイマー：毎秒のチック音 ＆ ラスト3秒警告音
+      // 毎秒チクタク音＆タイマー進行＆ラスト3秒警告音
       AppState.testTimerInterval = setInterval(() => {
         AppState.testRemainingSec--;
         DOM.testTimerText.textContent = AppState.testRemainingSec;
 
-        // 測定中サウンド演出（目隠し中の耳へのフィードバック）
         if (AppState.testRemainingSec > 3) {
-          // メトロノーム非使用種目の場合は毎秒チック音を発声
-          if (!cfg.useMetronome) {
-            const isHalf = (AppState.testRemainingSec % 5 === 0);
-            SoundFX.playTestTick(isHalf);
-            pulseAudioIcon();
-          }
+          // 残り時間4秒以上：毎秒チクタク音
+          const isAccent = (AppState.testRemainingSec % 5 === 0);
+          SoundFX.playTestTick(isAccent);
+          pulseAudioIcon();
         } else if (AppState.testRemainingSec >= 1 && AppState.testRemainingSec <= 3) {
-          // ラスト3秒カウントダウン（目隠し終了合図）
+          // ラスト3・2・1秒：段階上昇アラート音
           SoundFX.playLastSecondsWarning(AppState.testRemainingSec);
           pulseAudioIcon(true);
         }
@@ -1564,6 +1587,10 @@
       if (AppState.testMetronomeInterval) {
         clearInterval(AppState.testMetronomeInterval);
         AppState.testMetronomeInterval = null;
+      }
+      if (AppState.testTickInterval) {
+        clearInterval(AppState.testTickInterval);
+        AppState.testTickInterval = null;
       }
       stopLocalRecording();
       if (window.speechSynthesis) {
@@ -1753,7 +1780,7 @@
       DOM.historyListContainer.innerHTML = '';
       allRecords.forEach((rec, idx) => {
         const item = document.createElement('div');
-        item.className = 'bg-slate-900/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between text-xs';
+        item.className = 'bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs';
         item.innerHTML = `
           <div>
             <div class="font-black text-white">${rec.testTitle}</div>
@@ -1926,13 +1953,16 @@
     }
 
     function bindEventListeners() {
-      ['touchstart', 'mousedown', 'keydown', 'scroll'].forEach(evtName => {
-        window.addEventListener(evtName, () => resetSleepTimer(), { passive: true });
+      // ユーザーの初回操作でWeb Audioを確実にアンロック
+      ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evtName => {
+        window.addEventListener(evtName, () => {
+          SoundFX.init();
+          resetSleepTimer();
+        }, { passive: true });
       });
 
       DOM.sleepOverlay.addEventListener('click', () => wakeUpFromSleep());
 
-      // カメラ反転
       DOM.btnCameraFlip.addEventListener('click', async () => {
         SoundFX.init();
         AppState.cameraFacing = AppState.cameraFacing === 'user' ? 'environment' : 'user';
@@ -1943,26 +1973,22 @@
         }
       });
 
-      // サウンドON/OFF
       DOM.btnSoundToggle.addEventListener('click', () => {
         AppState.isSoundEnabled = !AppState.isSoundEnabled;
         DOM.btnSoundToggle.textContent = AppState.isSoundEnabled ? '🔊 ON' : '🔇 OFF';
         if (AppState.isSoundEnabled) SoundFX.beepStart();
       });
 
-      // ホームへ戻る
       DOM.btnHome.addEventListener('click', () => {
         switchScreen('screenLobby');
       });
 
-      // 選手切替
       DOM.playerSelect.addEventListener('change', (e) => {
         AppState.activePlayerId = e.target.value;
         AppState.scaleConfirmed = false;
         refreshLobbyUI();
       });
 
-      // 選手削除
       DOM.btnDeletePlayer.addEventListener('click', () => {
         const active = getActivePlayer();
         if (!active) return;
@@ -1970,7 +1996,6 @@
         refreshLobbyUI();
       });
 
-      // 新規選手モーダル
       DOM.btnOpenNewPlayerModal.addEventListener('click', () => {
         DOM.inputPlayerName.value = '';
         DOM.inputPlayerHeight.value = '';
@@ -2008,7 +2033,6 @@
         SoundFX.beepStart();
       });
 
-      // 身長スキャンへ進む
       DOM.btnGoScan.addEventListener('click', () => {
         SoundFX.init();
         AppState.scanStableFrames = 0;
@@ -2021,7 +2045,6 @@
         switchScreen('screenLobby');
       });
 
-      // 4大テスト選択
       document.querySelectorAll('.btnTestSelect').forEach(btn => {
         btn.addEventListener('click', (e) => {
           SoundFX.init();
@@ -2030,13 +2053,11 @@
         });
       });
 
-      // テスト中止
       DOM.btnAbortTest.addEventListener('click', () => {
         cleanupTestSession();
         switchScreen('screenLobby');
       });
 
-      // リプレイ倍速切替
       DOM.btnReplaySpeed05.addEventListener('click', () => {
         DOM.replayVideoPlayer.playbackRate = 0.5;
         DOM.btnReplaySpeed05.className = 'px-2 py-0.5 bg-sky-700 text-white rounded text-[10px] font-bold border border-sky-500';
@@ -2049,7 +2070,6 @@
         DOM.btnReplaySpeed05.className = 'px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[10px] font-bold border border-slate-600';
       });
 
-      // 結果をカルテに保存してロビーへ
       DOM.btnSaveToChart.addEventListener('click', () => {
         if (AppState.lastResultData) {
           const active = getActivePlayer();
@@ -2072,12 +2092,10 @@
         switchScreen('screenLobby');
       });
 
-      // 結果画面から直ぐドリルへ
       DOM.btnQuickDrillFromResult.addEventListener('click', () => {
         startDrillSession();
       });
 
-      // ドリル画面遷移
       DOM.btnGoDrill.addEventListener('click', () => {
         SoundFX.init();
         startDrillSession();
@@ -2087,7 +2105,6 @@
         switchScreen('screenLobby');
       });
 
-      // カルテ画面遷移
       DOM.btnGoRecord.addEventListener('click', () => {
         switchScreen('screenRecord');
       });
@@ -2096,7 +2113,6 @@
         switchScreen('screenLobby');
       });
 
-      // CSVエクスポート
       DOM.btnExportCsv.addEventListener('click', () => {
         const records = DB.getRecords();
         if (records.length === 0) {
@@ -2116,13 +2132,11 @@
         link.click();
       });
 
-      // 全履歴削除
       DOM.btnClearHistory.addEventListener('click', () => {
         DB.clearAllRecords();
         renderRecordScreen();
       });
 
-      // 履歴リプレイモーダル閉じる
       DOM.btnCloseHistReplay.addEventListener('click', () => {
         DOM.modalReplayVideo.pause();
         DOM.modalHistoryReplay.classList.add('hidden');
@@ -2131,7 +2145,10 @@
 
     window.addEventListener('load', () => {
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(err => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          // キャッシュ更新チェック
+          reg.update();
+        }).catch(err => {
           console.warn('SW registration failed:', err);
         });
       }
