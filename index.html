@@ -1242,13 +1242,13 @@
       DOM.testInstructionSubtitle.textContent = cfg.sub;
       DOM.metricDynamicLabel.textContent = cfg.dynamicLabel;
       DOM.testTimerText.textContent = cfg.duration;
-      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span>静止姿勢を検出中...</span>';
+      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span>全身（頭〜足首）を映してください</span>';
       DOM.testDangerAlert.classList.add('hidden');
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
       // 絵文字を読ませない安全アナウンス
-      SoundFX.speak(`${cfg.speechTitle}。全身を枠に収めて静止してください。静止後3秒で開始します。`);
+      SoundFX.speak(`${cfg.speechTitle}。全身をカメラに映し、静止してください。静止後3秒で開始します。`);
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1257,47 +1257,62 @@
       const rightShoulder = landmarks[12];
       const leftHip = landmarks[23];
       const rightHip = landmarks[24];
+      const leftKnee = landmarks[25];
+      const rightKnee = landmarks[26];
       const leftAnkle = landmarks[27];
       const rightAnkle = landmarks[28];
 
-      const hasFullBody = nose && leftShoulder && rightShoulder && leftHip && rightHip && leftAnkle && rightAnkle;
+      // 【厳格判定】頭・肩・腰・膝・足首がすべて十分な信頼度で検出されているか
+      const keypoints = [nose, leftShoulder, rightShoulder, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle];
+      const allDetected = keypoints.every(p => p && p.visibility > 0.55);
 
-      if (!hasFullBody) {
-        if (AppState.testState === 'prepping') {
-          AppState.stableDetectionFrames = 0;
-          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-300 font-bold">全身を枠内に収めてください</span>';
-        } else if (AppState.testState === 'running' && !AppState.testGracePeriod) {
-          triggerDangerAbort('フレーム外への完全逸脱を検知しました');
-        }
-        return;
-      }
+      // 【画面枠内判定】頭部が上部、両足首が下部に収まっているか
+      const isWithinBounds = allDetected &&
+        (nose.y > 0.02 && nose.y < 0.42) &&
+        (leftAnkle.y > 0.60 && leftAnkle.y < 0.98) &&
+        (rightAnkle.y > 0.60 && rightAnkle.y < 0.98) &&
+        (leftShoulder.x > 0.05 && leftShoulder.x < 0.95) &&
+        (rightShoulder.x > 0.05 && rightShoulder.x < 0.95);
 
+      const hasFullBody = allDetected && isWithinBounds;
+
+      // 準備段階（prepping）での全身チェック
       if (AppState.testState === 'prepping') {
+        if (!hasFullBody) {
+          AppState.stableDetectionFrames = 0;
+          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-300 font-bold">全身（頭〜足首）を枠内に収めてください</span>';
+          return;
+        }
+
         const curNoseX = nose.x * w;
         const curNoseY = nose.y * h;
+        const curHipX = ((leftHip.x + rightHip.x) / 2) * w;
+        const curHipY = ((leftHip.y + rightHip.y) / 2) * h;
         let isStill = false;
 
         if (AppState.lastNosePos) {
-          const moveDist = Math.hypot(curNoseX - AppState.lastNosePos.x, curNoseY - AppState.lastNosePos.y);
-          if (moveDist < 12) {
+          const noseMove = Math.hypot(curNoseX - AppState.lastNosePos.x, curNoseY - AppState.lastNosePos.y);
+          const hipMove = Math.hypot(curHipX - AppState.lastNosePos.hipX, curHipY - AppState.lastNosePos.hipY);
+          // 頭部と腰の両方が静止しているかを厳格監視
+          if (noseMove < 10 && hipMove < 10) {
             isStill = true;
           }
         }
-        AppState.lastNosePos = { x: curNoseX, y: curNoseY };
+        AppState.lastNosePos = { x: curNoseX, y: curNoseY, hipX: curHipX, hipY: curHipY };
 
         if (isStill) {
           AppState.stableDetectionFrames++;
-          DOM.testPrepIndicator.innerHTML = `<span class="text-emerald-400 font-bold">静止確認中 (${Math.min(100, Math.round((AppState.stableDetectionFrames / 18) * 100))}%)</span>`;
+          DOM.testPrepIndicator.innerHTML = `<span class="text-emerald-400 font-bold">静止確認中 (${Math.min(100, Math.round((AppState.stableDetectionFrames / 25) * 100))}%)</span>`;
         } else {
           AppState.stableDetectionFrames = Math.max(0, AppState.stableDetectionFrames - 2);
-          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-400 font-bold">静止してください</span>';
+          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-400 font-bold">そのまま静止してください</span>';
         }
 
-        // 静止が確認されたら正確に3秒前カウントダウンへ
-        if (AppState.stableDetectionFrames >= 18) {
+        // 全身が約1秒（25フレーム）安定して静止したら3秒カウントダウンを開始
+        if (AppState.stableDetectionFrames >= 25) {
           AppState.initialPoseSnapshot = {
-            hipCenterX: ((leftHip.x + rightHip.x) / 2) * w,
-            hipCenterY: ((leftHip.y + rightHip.y) / 2) * h,
+            hipCenterX: curHipX,
+            hipCenterY: curHipY,
             hipWidthPx: Math.abs(leftHip.x - rightHip.x) * w,
             shoulderWidthPx: Math.abs(leftShoulder.x - rightShoulder.x) * w,
             leftAnkleY: leftAnkle.y * h,
@@ -1314,11 +1329,28 @@
         return;
       }
 
+      // カウントダウン中（countdown）の逸脱防止ガード
       if (AppState.testState === 'countdown') {
+        if (!hasFullBody) {
+          // カウントダウン中に全身が外れた場合はリセットしてやり直し
+          if (AppState.testCountdownInterval) {
+            clearInterval(AppState.testCountdownInterval);
+            AppState.testCountdownInterval = null;
+          }
+          AppState.testState = 'prepping';
+          AppState.stableDetectionFrames = 0;
+          DOM.testBigBanner.classList.add('hidden');
+          DOM.testPrepIndicator.innerHTML = '<span class="text-red-400 font-bold">全身が外れました。もう一度静止してください</span>';
+        }
         return;
       }
 
       if (AppState.testState === 'running') {
+        if (!hasFullBody && !AppState.testGracePeriod) {
+          triggerDangerAbort('フレーム外への完全逸脱を検知しました');
+          return;
+        }
+
         const currentHipWidth = Math.abs(leftHip.x - rightHip.x) * w;
 
         if (!AppState.testGracePeriod) {
