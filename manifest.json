@@ -1,0 +1,25 @@
+{
+  "name": "身体図式・脳内GPSドック",
+  "short_name": "脳内GPS",
+  "description": "主観と客観のズレを目隠しテストと客観視リプレイで自覚し、1分間のドリルで脳内GPSを書き換えるバイオメカニクス測定アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0f1d",
+  "theme_color": "#0a0f1d",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8637/8637105.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/8637/8637105.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
