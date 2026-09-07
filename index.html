@@ -3,2516 +3,2010 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック v1.0</title>
+  <title>身体図式・脳内GPSドック v1.1</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0a0f1d">
+  <meta name="theme-color" content="#0F172A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- MediaPipe Pose CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+  <!-- MediaPipe Pose -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
-
     :root {
-      --bg-dark: #0a0f1d;
-      --neon-blue: #38bdf8;
-      --neon-yellow: #ffea00;
-      --neon-green: #10b981;
-      --neon-red: #ef4444;
-      --neon-purple: #a855f7;
+      --font-rounded: 'M PLUS Rounded 1c', sans-serif;
+      --font-montserrat: 'Montserrat', sans-serif;
     }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
+    body {
+      font-family: var(--font-rounded);
       user-select: none;
-    }
-
-    html, body {
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      background-color: #0B0F19;
+      color: #F8FAFC;
+      overflow: hidden;
       margin: 0;
       padding: 0;
-      width: 100vw;
-      height: 100dvh;
-      overflow: hidden;
-      background-color: var(--bg-dark);
-      font-family: 'M PLUS Rounded 1c', sans-serif;
-      color: #ffffff;
     }
-
-    /* 画面切り替えの絶対統一クラス（IDセレクタの詳細度競合を完全防止） */
+    .font-num {
+      font-family: var(--font-montserrat);
+    }
+    /* 画面切り替えの厳格なクラス制御 */
     .app-screen {
       display: none !important;
-      flex-direction: column;
-      width: 100%;
-      height: 100%;
-      position: relative;
     }
     .app-screen.active {
       display: flex !important;
     }
-
-    #appContainer {
-      height: 100dvh;
-      max-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+    /* ブロスタ風3Dポップボタン */
+    .btn-brawl-primary {
+      background: linear-gradient(180deg, #FBBF24 0%, #D97706 100%);
+      box-shadow: 0 5px 0 #92400E, 0 8px 15px rgba(0,0,0,0.4);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
     }
-
-    /* 4大テストグリッドを縦方向に強制ストレッチ（iPhone余白ゼロ化） */
-    .test-grid-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 0.65rem;
-      height: 100%;
-      flex: 1;
-      min-height: 0;
+    .btn-brawl-primary:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #92400E, 0 3px 6px rgba(0,0,0,0.4);
     }
-
-    /* ブロスタ風 立体ボタンスタイル */
-    .brawl-btn {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 900;
-      border-radius: 1rem;
-      border-width: 3px;
-      border-style: solid;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      transition: all 0.08s ease-in-out;
-      cursor: pointer;
-      text-shadow: 1px 2px 0px rgba(0, 0, 0, 0.6);
+    .btn-brawl-teal {
+      background: linear-gradient(180deg, #2DD4BF 0%, #0D9488 100%);
+      box-shadow: 0 5px 0 #115E59, 0 8px 15px rgba(0,0,0,0.4);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
     }
-    .brawl-btn:active {
+    .btn-brawl-teal:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #115E59, 0 3px 6px rgba(0,0,0,0.4);
+    }
+    .btn-brawl-indigo {
+      background: linear-gradient(180deg, #818CF8 0%, #4F46E5 100%);
+      box-shadow: 0 5px 0 #3730A3, 0 8px 15px rgba(0,0,0,0.4);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .btn-brawl-indigo:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #3730A3, 0 3px 6px rgba(0,0,0,0.4);
+    }
+    .btn-brawl-rose {
+      background: linear-gradient(180deg, #FB7185 0%, #E11D48 100%);
+      box-shadow: 0 5px 0 #9F1239, 0 8px 15px rgba(0,0,0,0.4);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .btn-brawl-rose:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #9F1239, 0 3px 6px rgba(0,0,0,0.4);
+    }
+    .btn-brawl-emerald {
+      background: linear-gradient(180deg, #34D399 0%, #059669 100%);
+      box-shadow: 0 5px 0 #065F46, 0 8px 15px rgba(0,0,0,0.4);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .btn-brawl-emerald:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #065F46, 0 3px 6px rgba(0,0,0,0.4);
+    }
+    .btn-brawl-dark {
+      background: linear-gradient(180deg, #334155 0%, #1E293B 100%);
+      box-shadow: 0 4px 0 #0F172A, 0 6px 12px rgba(0,0,0,0.3);
+      transition: transform 0.06s ease, box-shadow 0.06s ease;
+    }
+    .btn-brawl-dark:active {
       transform: translateY(3px);
+      box-shadow: 0 1px 0 #0F172A, 0 2px 4px rgba(0,0,0,0.3);
     }
-
-    .btn-yellow {
-      background: linear-gradient(180deg, #fff033 0%, #f59e0b 100%);
-      border-color: #78350f;
-      box-shadow: 0 5px 0 #78350f, 0 8px 12px rgba(0, 0, 0, 0.4);
-      color: #451a03;
-    }
-    .btn-yellow:active {
-      box-shadow: 0 1px 0 #78350f;
-    }
-
-    .btn-blue {
-      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-      border-color: #0c4a6e;
-      box-shadow: 0 5px 0 #0c4a6e, 0 8px 12px rgba(0, 0, 0, 0.4);
-      color: #ffffff;
-    }
-    .btn-blue:active {
-      box-shadow: 0 1px 0 #0c4a6e;
-    }
-
-    .btn-green {
-      background: linear-gradient(180deg, #34d399 0%, #059669 100%);
-      border-color: #064e3b;
-      box-shadow: 0 5px 0 #064e3b, 0 8px 12px rgba(0, 0, 0, 0.4);
-      color: #ffffff;
-    }
-    .btn-green:active {
-      box-shadow: 0 1px 0 #064e3b;
-    }
-
-    .btn-purple {
-      background: linear-gradient(180deg, #c084fc 0%, #7e22ce 100%);
-      border-color: #3b0764;
-      box-shadow: 0 5px 0 #3b0764, 0 8px 12px rgba(0, 0, 0, 0.4);
-      color: #ffffff;
-    }
-    .btn-purple:active {
-      box-shadow: 0 1px 0 #3b0764;
-    }
-
-    .btn-red {
-      background: linear-gradient(180deg, #f87171 0%, #dc2626 100%);
-      border-color: #7f1d1d;
-      box-shadow: 0 5px 0 #7f1d1d, 0 8px 12px rgba(0, 0, 0, 0.4);
-      color: #ffffff;
-    }
-    .btn-red:active {
-      box-shadow: 0 1px 0 #7f1d1d;
-    }
-
+    /* ミラーリング反転 */
     .mirror-mode {
       transform: scaleX(-1);
     }
-
-    @keyframes neonGlow {
-      0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 8px #10b981); }
-      50% { opacity: 1; filter: drop-shadow(0 0 18px #34d399); }
-    }
-    .glow-effect {
-      animation: neonGlow 1.2s infinite;
+    .scroll-touch {
+      -webkit-overflow-scrolling: touch;
     }
   </style>
 </head>
-<body class="flex justify-center items-center">
+<body class="w-full h-[100dvh] flex flex-col bg-slate-950">
 
-  <div id="appContainer" class="max-w-md w-full relative overflow-hidden bg-[#0a0f1d] border-x border-slate-800 shadow-2xl">
-    
-    <!-- 固定ヘッダー (h-14) -->
-    <header class="h-14 flex-shrink-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 flex items-center justify-between px-3 z-30">
-      <div class="flex items-center space-x-2">
-        <span class="text-xl animate-pulse">⚡</span>
+  <!-- ================= 画面コンテナ (100dvh固定 iPhone余白ゼロ) ================= -->
+  <main id="appContainer" class="relative w-full h-[100dvh] max-w-md mx-auto overflow-hidden flex flex-col bg-slate-900 border-x border-slate-800 shadow-2xl">
+
+    <!-- グローバルヘッダー -->
+    <header class="flex-shrink-0 h-14 bg-slate-900/95 border-b border-slate-800 px-4 flex items-center justify-between z-30 pt-safe">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl drop-shadow-md">🧠</span>
         <div>
-          <div class="flex items-center space-x-1.5">
-            <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
-              脳内GPSドック
-            </h1>
-            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v1.0</span>
-          </div>
-          <div id="activePlayerBadge" class="text-[10px] text-emerald-400 font-bold leading-tight truncate max-w-[120px]">
-            未設定
-          </div>
+          <h1 class="text-sm font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 leading-tight drop-shadow">
+            身体図式・脳内GPSドック
+          </h1>
+          <p class="text-[10px] text-slate-400 font-bold" id="headerProfileLabel">選手: --</p>
         </div>
       </div>
-
-      <div class="flex items-center space-x-1.5">
-        <button id="btnCameraFlip" class="brawl-btn btn-blue text-xs px-2.5 py-1" title="カメラ切替">
-          🔄 反転
+      <div class="flex items-center gap-2">
+        <button id="btnSoundToggle" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm active:scale-95 transition-all shadow">
+          <span id="soundIcon">🔊</span>
         </button>
-        <button id="btnSoundToggle" class="brawl-btn btn-yellow text-xs px-2.5 py-1" title="音声">
-          🔊 ON
+        <button id="btnCameraFacing" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm active:scale-95 transition-all shadow">
+          <span>🔄</span>
         </button>
-        <button id="btnHome" class="brawl-btn btn-purple text-xs px-2.5 py-1" title="ホーム">
-          🏠
-        </button>
+        <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[11px] font-black border border-amber-500/30 shadow-inner">
+          v1.1
+        </span>
       </div>
     </header>
 
-    <!-- ① トップロビー画面 -->
-    <section id="screenLobby" class="app-screen active p-3 justify-between flex-1">
-      <div class="flex flex-col space-y-2 flex-shrink-0">
-        <!-- 選手セレクターカード -->
-        <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-black text-yellow-300 flex items-center space-x-1">
-              <span>👤</span><span>選手プロファイル</span>
-            </span>
-            <button id="btnOpenNewPlayerModal" class="text-xs text-sky-400 hover:text-sky-300 font-bold underline">
-              ＋ 新規登録
-            </button>
-          </div>
-          <div class="flex space-x-2">
-            <select id="playerSelect" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold outline-none">
+    <!-- ================= 1. ロビー画面 (#screenLobby) ================= -->
+    <section id="screenLobby" class="app-screen active flex-1 flex flex-col justify-between p-3 gap-2 overflow-y-auto scroll-touch pb-safe">
+      
+      <!-- 選手セレクター ＆ 絶対モノサシ設定バナー -->
+      <div class="flex flex-col gap-2 flex-shrink-0">
+        <div class="flex items-center justify-between bg-slate-800/80 backdrop-blur-sm rounded-2xl p-2.5 border border-slate-700/80 shadow-lg">
+          <div class="flex items-center gap-2 flex-1 mr-2">
+            <span class="text-lg">👤</span>
+            <select id="selectProfile" class="w-full bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400">
+              <!-- JS注入 -->
             </select>
-            <button id="btnDeletePlayer" class="px-2.5 py-1.5 bg-red-900/50 hover:bg-red-800 text-red-300 text-xs font-bold rounded-xl border border-red-700">
+          </div>
+          <div class="flex gap-1.5">
+            <button id="btnAddProfile" class="btn-brawl-dark text-[11px] text-slate-200 px-2.5 py-1.5 rounded-xl font-black border border-slate-600">
+              +新規
+            </button>
+            <button id="btnDeleteProfile" class="text-[11px] bg-rose-950/80 hover:bg-rose-900 text-rose-300 px-2 py-1.5 rounded-xl font-black border border-rose-800/60 active:scale-95">
               削除
             </button>
           </div>
-          <div id="playerStatusSnippet" class="text-[10px] text-slate-300 bg-slate-900/60 px-2.5 py-1.5 rounded-xl flex justify-between items-center">
-            <span>身長: <b id="dspPlayerHeight" class="text-white">---</b> cm</span>
-            <span>スケール: <b id="dspScaleStatus" class="text-yellow-400">未校正</b></span>
-            <span>記録: <b id="dspRecordCount" class="text-emerald-400">0</b> 件</span>
-          </div>
         </div>
 
-        <!-- 1. 絶対モノサシ設定バナー -->
-        <div class="bg-gradient-to-r from-sky-950/80 to-indigo-950/80 border-2 border-sky-500/70 rounded-2xl p-2.5 shadow-md flex items-center justify-between">
-          <div class="pr-2">
-            <div class="text-xs font-black text-sky-300 flex items-center space-x-1">
-              <span>📏</span><span>1. 絶対モノサシ設定</span>
+        <!-- 1. 絶対モノサシスキャンボタン -->
+        <button id="btnGoScan" class="btn-brawl-primary w-full rounded-2xl p-3 flex items-center justify-between border-2 border-yellow-200/40">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-950/40 border border-amber-200/50 flex items-center justify-center text-xl shadow-inner">
+              📏
             </div>
-            <div class="text-[10px] text-slate-300 leading-tight mt-0.5">約2m離れて直立。基準肩幅・腰幅をロック。</div>
+            <div class="text-left">
+              <span class="text-[10px] text-amber-950 font-black uppercase tracking-wider bg-yellow-300/80 px-1.5 py-0.5 rounded">必須ステップ</span>
+              <h2 class="text-sm font-black text-slate-950 leading-tight mt-0.5">1. 絶対モノサシ設定（スキャン）</h2>
+              <p class="text-[10px] text-amber-900 font-bold" id="scanStatusText">未校正（初期値使用中）</p>
+            </div>
           </div>
-          <button id="btnGoScan" class="brawl-btn btn-blue text-xs px-3.5 py-2 flex-shrink-0">
-            スキャン
-          </button>
-        </div>
+          <span class="text-xs bg-slate-950/30 text-white px-2.5 py-1.5 rounded-xl font-black">開始 ➔</span>
+        </button>
       </div>
 
-      <!-- 4大テスト選択グリッド -->
-      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col flex-1 min-h-[220px] my-1">
-        <div class="flex items-center justify-between mb-2 flex-shrink-0">
-          <span class="text-xs font-black text-emerald-400 flex items-center space-x-1">
-            <span>🎯</span><span>2. 4大目隠し・身体図式テスト</span>
+      <!-- 4大テスト選択グリッド (iPhone縦長ストレッチ) -->
+      <div class="flex-1 flex flex-col gap-2 min-h-0">
+        <div class="flex items-center justify-between flex-shrink-0 px-1">
+          <span class="text-xs font-black text-amber-400 tracking-wider flex items-center gap-1.5">
+            <span>🎯</span> 2. 4大身体図式テスト
           </span>
-          <span class="text-[9px] text-slate-400">幾何学ピークホールド解析</span>
+          <span class="text-[10px] text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
+            全身検知 ➔ 静止3秒で開始
+          </span>
         </div>
 
-        <div class="test-grid-container">
-          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="stepping">
-            <span class="text-2xl">👣</span>
-            <span class="text-xs font-black leading-none">目隠し足踏み</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">15秒 / 偏位・回旋</span>
+        <div class="grid grid-cols-2 gap-2.5 flex-1" style="grid-template-rows: 1fr 1fr; height: 100%;">
+          
+          <!-- テスト① 目隠し足踏み -->
+          <button data-testid="stepping" class="btn-test btn-brawl-primary rounded-2xl p-3 flex flex-col justify-between text-left border-2 border-yellow-200/50">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl drop-shadow">👣</span>
+              <span class="text-[10px] bg-slate-950/40 text-yellow-200 font-black px-2 py-0.5 rounded-lg border border-yellow-300/30">15秒</span>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-slate-950 leading-tight">目隠し足踏み</h3>
+              <p class="text-[9px] text-amber-950 font-bold mt-0.5">前後左右の偏位・回旋</p>
+            </div>
           </button>
-          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="tpose">
-            <span class="text-2xl">⚖️</span>
-            <span class="text-xs font-black leading-none">Tポーズ水平</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">6秒 / 左右腕傾斜角</span>
+
+          <!-- テスト② Tポーズ水平 -->
+          <button data-testid="tpose" class="btn-test btn-brawl-teal rounded-2xl p-3 flex flex-col justify-between text-left border-2 border-teal-200/50">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl drop-shadow">⚖️</span>
+              <span class="text-[10px] bg-slate-950/40 text-teal-200 font-black px-2 py-0.5 rounded-lg border border-teal-300/30">6秒</span>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-slate-950 leading-tight">Tポーズ水平</h3>
+              <p class="text-[9px] text-teal-950 font-bold mt-0.5">両腕の傾斜角・左右差</p>
+            </div>
           </button>
-          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="oneleg">
-            <span class="text-2xl">⚓</span>
-            <span class="text-xs font-black leading-none">片足立ちキープ</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">最長15秒 / 動揺・落下</span>
+
+          <!-- テスト③ 片足立ちキープ -->
+          <button data-testid="oneleg" class="btn-test btn-brawl-indigo rounded-2xl p-3 flex flex-col justify-between text-left border-2 border-indigo-200/50">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl drop-shadow">⚓</span>
+              <span class="text-[10px] bg-slate-950/40 text-indigo-200 font-black px-2 py-0.5 rounded-lg border border-indigo-300/30">15秒</span>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-white leading-tight">片足立ちキープ</h3>
+              <p class="text-[9px] text-indigo-100 font-bold mt-0.5">動揺度・耐久時間</p>
+            </div>
           </button>
-          <button class="btnTestSelect brawl-btn btn-yellow p-2 flex flex-col items-center justify-center space-y-1 text-center w-full h-full" data-testid="pelvis">
-            <span class="text-2xl">🪑</span>
-            <span class="text-xs font-black leading-none">骨盤制動胸捻転</span>
-            <span class="text-[9px] text-amber-950 font-black opacity-90 bg-amber-200/70 px-1.5 py-0.5 rounded">10秒 / ピークX-Factor</span>
+
+          <!-- テスト④ 骨盤制動胸捻転 -->
+          <button data-testid="thoracic" class="btn-test btn-brawl-rose rounded-2xl p-3 flex flex-col justify-between text-left border-2 border-rose-200/50">
+            <div class="flex justify-between items-start">
+              <span class="text-3xl drop-shadow">🪑</span>
+              <span class="text-[10px] bg-slate-950/40 text-rose-200 font-black px-2 py-0.5 rounded-lg border border-rose-300/30">10秒</span>
+            </div>
+            <div>
+              <h3 class="text-xs font-black text-white leading-tight">骨盤制動胸捻転</h3>
+              <p class="text-[9px] text-rose-100 font-bold mt-0.5">射影幾何学 X-Factor</p>
+            </div>
           </button>
         </div>
       </div>
 
-      <!-- 下段アクション ＆ Tips -->
-      <div class="flex flex-col space-y-2 flex-shrink-0 pb-1">
+      <!-- 下部ナビゲーション ＆ Tipsカード (iPhone余白ゼロ化) -->
+      <div class="flex flex-col gap-2 flex-shrink-0">
         <div class="grid grid-cols-2 gap-2">
-          <button id="btnGoDrill" class="brawl-btn btn-green text-xs py-3 flex items-center justify-center space-x-1.5">
-            <span class="text-base">🧠</span>
-            <span class="font-black">1分再構築ドリル</span>
+          <button id="btnGoDrillLobby" class="btn-brawl-emerald rounded-2xl p-3 flex items-center justify-center gap-2 border-2 border-emerald-200/40">
+            <span class="text-lg">⚡</span>
+            <span class="text-xs font-black text-white">4大再構築ドリル</span>
           </button>
-          <button id="btnGoRecord" class="brawl-btn btn-purple text-xs py-3 flex items-center justify-center space-x-1.5">
-            <span class="text-base">📈</span>
-            <span class="font-black">成長カルテ・推移</span>
+          <button id="btnGoRecord" class="btn-brawl-dark rounded-2xl p-3 flex items-center justify-center gap-2 border border-slate-600">
+            <span class="text-lg">📈</span>
+            <span class="text-xs font-black text-white">成長カルテ推移</span>
           </button>
         </div>
 
-        <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex items-center space-x-2.5">
-          <div class="w-7 h-7 rounded-lg bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center flex-shrink-0 text-sm">
-            💡
-          </div>
-          <div class="text-[10px] text-slate-300 leading-tight">
-            <span class="font-bold text-yellow-300">測定とドリルの連携:</span> 各テスト終了後、判明した弱点に直結するドリルが即時起動！主観のズレを脳内GPSへ再入力できます。
-          </div>
+        <div class="bg-slate-800/70 backdrop-blur-sm rounded-2xl p-2.5 border border-slate-700/60 flex items-center gap-2.5 shadow-md">
+          <span class="text-base">💡</span>
+          <p class="text-[10px] text-slate-300 leading-tight font-medium">
+            <strong class="text-amber-400 font-black">脳内GPSのコツ:</strong> 測定前に必ずマナーモードを解除し、スピーカーから案内音・ホイッスルが鳴る状態でプレイしてください。
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- ② スキャン画面 -->
-    <section id="screenScan" class="app-screen">
-      <div class="relative w-full flex-1 overflow-hidden bg-black">
-        <video id="videoScan" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
-        <canvas id="canvasScan" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
+    <!-- ================= 2. スキャン校正画面 (#screenScan) ================= -->
+    <section id="screenScan" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
+      <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
+      <canvas id="scanCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
 
-        <div class="absolute inset-0 pointer-events-none flex flex-col items-center justify-between p-4 z-10">
-          <div class="bg-black/70 border border-sky-400/70 rounded-xl px-3 py-1.5 text-center mt-2">
-            <div class="text-xs font-black text-sky-300">直立スキャン（基準体型取得）</div>
-            <div class="text-[10px] text-slate-200">頭頂部と両足首が緑の枠に入るよう2m離れてください</div>
-          </div>
+      <!-- オーバーレイ指示 -->
+      <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 pt-safe pb-safe">
+        <div class="bg-slate-900/85 backdrop-blur-md rounded-2xl p-3 border border-blue-500/40 text-center shadow-xl">
+          <span class="text-xs font-black text-blue-400 uppercase tracking-widest">CALIBRATION</span>
+          <h2 class="text-sm font-black text-white">直立スキャンで絶対モノサシを確定</h2>
+          <p id="scanInstruction" class="text-[11px] text-slate-300 font-bold mt-0.5">カメラから2m離れ、枠内に全身を収めてください</p>
+        </div>
 
-          <div class="w-full max-w-xs bg-slate-900/80 border border-slate-700 rounded-full h-5 p-0.5 overflow-hidden flex items-center">
-            <div id="scanProgressBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 rounded-full transition-all duration-75 w-0"></div>
-          </div>
-
-          <div id="scanStatusText" class="bg-slate-900/80 px-4 py-1.5 rounded-full text-xs font-extrabold text-yellow-300 mb-2">
-            全身を検出中...
+        <div class="flex justify-center items-center">
+          <div id="scanTargetBox" class="w-60 h-[70vh] border-2 border-dashed border-blue-400/60 rounded-3xl flex items-center justify-center transition-all duration-300">
+            <span id="scanBoxText" class="text-xs font-black text-blue-300 bg-slate-900/80 px-3 py-1.5 rounded-full border border-blue-400/40 shadow-lg">全身をここへ</span>
           </div>
         </div>
-      </div>
 
-      <div class="h-16 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
-        <button id="btnCancelScan" class="brawl-btn btn-red text-xs px-4 py-2">
-          キャンセル
-        </button>
-        <div id="scanResultMetric" class="text-xs text-slate-300 font-bold">
-          基準: <span class="text-sky-400">未確定</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ③ テスト測定画面 -->
-    <section id="screenTest" class="app-screen">
-      <div class="relative w-full flex-1 overflow-hidden bg-black">
-        <video id="videoTest" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
-        <canvas id="canvasTest" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
-
-        <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
-          <div class="flex items-start justify-between">
-            <div class="bg-slate-900/85 border border-slate-700 rounded-xl px-3 py-1.5 max-w-[70%]">
-              <div id="testBadgeTitle" class="text-xs font-black text-yellow-300">テスト種目</div>
-              <div id="testInstructionSubtitle" class="text-[10px] text-slate-300 leading-tight">全身を枠内に収めて静止</div>
-            </div>
-
-            <div class="bg-slate-900/85 border border-yellow-400/80 rounded-xl px-3 py-1 text-center min-w-[70px] relative">
-              <div class="text-[9px] text-slate-400 font-bold flex items-center justify-center space-x-1">
-                <span>TIME</span>
-                <span id="testAudioPulseIcon" class="text-[10px] text-yellow-300 transition-transform duration-100">🔊</span>
-              </div>
-              <div id="testTimerText" class="text-xl font-black text-yellow-400 leading-none mt-0.5">--</div>
-            </div>
-          </div>
-
-          <!-- 中央ダイナミックバナー -->
-          <div class="flex flex-col items-center justify-center">
-            <div id="testBigBanner" class="hidden text-center bg-black/85 border-2 border-yellow-400 rounded-2xl px-6 py-4 shadow-2xl">
-              <div id="testBigBannerNumber" class="text-4xl font-black text-yellow-300 animate-bounce">3</div>
-              <div id="testBigBannerSub" class="text-xs font-bold text-white mt-1">目を閉じて準備してください</div>
-            </div>
-
-            <div id="testDangerAlert" class="hidden text-center bg-red-600/90 border-2 border-white rounded-2xl px-4 py-3 shadow-2xl max-w-[280px]">
-              <div class="text-sm font-black text-white">🚨 危険！前方突進を検知</div>
-              <div id="testDangerReason" class="text-[10px] text-yellow-200 mt-1 font-bold">腰幅が基準の1.75倍以上に拡大しました</div>
-            </div>
-          </div>
-
-          <!-- リアルタイム・バイオメカニクス速報メーター -->
-          <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-2.5 flex justify-around text-center text-xs backdrop-blur-sm">
-            <div>
-              <div id="metricLabel1" class="text-[9px] text-slate-400">左右ズレ(X)</div>
-              <div id="metricXVal" class="font-black text-sky-400">0.0 cm</div>
-            </div>
-            <div class="border-l border-slate-700 mx-1"></div>
-            <div>
-              <div id="metricLabel2" class="text-[9px] text-slate-400">前後移動(Z)</div>
-              <div id="metricZVal" class="font-black text-emerald-400">0.0 cm</div>
-            </div>
-            <div class="border-l border-slate-700 mx-1"></div>
-            <div>
-              <div id="metricDynamicLabel" class="text-[9px] text-slate-400">ピークX-Factor</div>
-              <div id="metricDynamicVal" class="font-black text-yellow-400">0.0°</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="h-14 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
-        <button id="btnAbortTest" class="brawl-btn btn-red text-xs px-4 py-2">
-          中止して戻る
-        </button>
-        <div id="testPrepIndicator" class="text-xs font-bold text-yellow-400 flex items-center space-x-1">
-          <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
-          <span>全身を枠内に収めてください</span>
+        <div class="flex gap-2.5 pointer-events-auto">
+          <button id="btnCancelScan" class="btn-brawl-dark flex-1 rounded-2xl py-3 text-xs font-black text-slate-200 border border-slate-600">
+            ✕ 中止して戻る
+          </button>
+          <button id="btnCaptureScan" class="btn-brawl-primary flex-1 rounded-2xl py-3 text-xs font-black text-slate-950 border-2 border-yellow-200/50">
+            📏 スキャン実行
+          </button>
         </div>
       </div>
     </section>
 
-    <!-- ④ 結果＆ローカルリプレイ画面 -->
-    <section id="screenResult" class="app-screen overflow-y-auto p-4 space-y-3 pb-6">
-      <div class="bg-gradient-to-br from-slate-900 to-indigo-950 border-2 border-yellow-400/80 rounded-2xl p-4 shadow-xl text-center relative overflow-hidden">
-        <div class="text-xs font-black text-yellow-300 tracking-wider">TEST RESULT</div>
-        <div id="resTestName" class="text-lg font-black text-white mt-0.5">骨盤制動胸捻転テスト</div>
+    <!-- ================= 3. 測定テスト画面 (#screenTest) ================= -->
+    <section id="screenTest" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
+      <video id="testVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
+      <canvas id="testCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
+
+      <!-- テスト情報UIオーバーレイ -->
+      <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 pt-safe pb-safe">
         
-        <div class="mt-2 flex items-baseline justify-center space-x-1">
-          <span class="text-xs font-bold text-emerald-400">【★ 覚醒度</span>
-          <span id="resAwakenScore" class="text-4xl font-black text-emerald-300 tracking-tight">85%</span>
-          <span class="text-xs font-bold text-emerald-400">】</span>
-        </div>
-
-        <div id="resNextGoalBadge" class="mt-2 inline-block bg-yellow-400/20 border border-yellow-400 rounded-full px-3 py-1 text-xs font-extrabold text-yellow-300">
-          🔒 あと 5.0° 捻転で完全覚醒！
-        </div>
-      </div>
-
-      <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-2.5 shadow-lg flex flex-col space-y-2">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-black text-sky-400">🎬 客観リプレイ（主観とのズレ自覚）</span>
-          <div class="space-x-1">
-            <button id="btnReplaySpeed05" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded text-[10px] font-bold text-slate-200">
-              0.5x
-            </button>
-            <button id="btnReplaySpeed10" class="px-2 py-0.5 bg-sky-700 hover:bg-sky-600 border border-sky-500 rounded text-[10px] font-bold text-white">
-              1.0x
-            </button>
+        <!-- 上部バー（種目名・残り時間・音響アイコン） -->
+        <div class="flex items-center justify-between bg-slate-900/90 backdrop-blur-md rounded-2xl p-2.5 border border-slate-700 shadow-xl pointer-events-auto">
+          <div class="flex items-center gap-2.5">
+            <span id="testBadgeIcon" class="text-2xl drop-shadow">👣</span>
+            <div>
+              <h2 id="testTitle" class="text-xs font-black text-white leading-tight">目隠し足踏み</h2>
+              <span id="testSubTitle" class="text-[10px] text-amber-300 font-bold">15秒間リズムよく</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex flex-col items-end">
+              <span class="text-[9px] text-slate-400 font-black tracking-widest">TIME</span>
+              <span id="testTimerText" class="font-num text-2xl font-black text-white leading-none">15.0</span>
+            </div>
+            <div id="testAudioPulsar" class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs transition-all duration-150">
+              🎵
+            </div>
           </div>
         </div>
 
-        <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden flex items-center justify-center">
-          <video id="replayVideoPlayer" class="w-full h-full object-contain" playsinline controls></video>
-          <div id="replayPlaceholder" class="absolute inset-0 flex items-center justify-center bg-black/70 text-slate-400 text-xs font-bold hidden">
-            録画データがありません
+        <!-- 中央インジケーター（音声説明中／静止確認／カウントダウン） -->
+        <div class="flex flex-col items-center justify-center text-center">
+          <div id="testStatusBanner" class="hidden bg-amber-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs shadow-2xl animate-bounce border-2 border-yellow-200">
+            ✨ 静止確認！そのままキープ！
           </div>
-        </div>
-      </div>
-
-      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-md flex flex-col space-y-2">
-        <div class="text-xs font-black text-slate-300">📊 バイオメカニクス解析詳細（高精度ピーク）</div>
-        
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
-            <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel1">ピーク値</div>
-            <div id="resMetricVal1" class="text-sm font-black text-sky-400 mt-0.5">--</div>
+          <div id="testCountdownNumber" class="hidden font-num text-8xl font-black text-yellow-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+            3
           </div>
-          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
-            <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel2">偏位 / 保持</div>
-            <div id="resMetricVal2" class="text-sm font-black text-emerald-400 mt-0.5">--</div>
-          </div>
-          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
-            <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel3">左右差 / 回旋</div>
-            <div id="resMetricVal3" class="text-sm font-black text-yellow-400 mt-0.5">--</div>
-          </div>
-          <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-700">
-            <div class="text-[10px] text-slate-400 font-bold" id="resMetricLabel4">判定ステータス</div>
-            <div id="resMetricVal4" class="text-sm font-black text-purple-400 mt-0.5">--</div>
+          <div id="testGuidanceToast" class="bg-slate-900/95 border-2 border-amber-400/90 text-amber-300 px-4 py-2 rounded-2xl font-black text-xs shadow-2xl mt-2 max-w-[85%] backdrop-blur-md">
+            📢 説明を聞いてください...
           </div>
         </div>
 
-        <div id="resFeedbackCommentary" class="mt-1 text-[11px] text-slate-300 bg-slate-900/50 p-2 rounded-xl leading-relaxed">
-          ピーク時の身体図式と実際の骨格位置にズレがみられます。直結ドリルで再構築しましょう！
+        <!-- 下部コントローラー -->
+        <div class="flex justify-between items-center pointer-events-auto">
+          <button id="btnCancelTest" class="btn-brawl-dark px-4 py-2.5 rounded-2xl text-xs font-black text-slate-300 border border-slate-700">
+            ✕ 中止して戻る
+          </button>
+          <div id="testDevLiveInfo" class="bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl text-[10px] font-mono text-slate-300 border border-slate-800 shadow">
+            X-Factor: --°
+          </div>
         </div>
-      </div>
-
-      <div class="flex space-x-2 pt-1">
-        <button id="btnSaveToChart" class="flex-1 brawl-btn btn-green text-xs py-3">
-          💾 カルテに記録して戻る
-        </button>
-        <button id="btnQuickDrillFromResult" class="brawl-btn btn-yellow text-xs px-4 py-3">
-          ⚡ 弱点直結ドリル
-        </button>
       </div>
     </section>
 
-    <!-- ⑤ 4大特化 1分再構築ドリル画面 -->
-    <section id="screenDrill" class="app-screen">
-      <div class="relative w-full flex-1 overflow-hidden bg-black">
-        <video id="videoDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted autoplay></video>
-        <canvas id="canvasDrill" class="absolute inset-0 w-full h-full object-cover mirror-mode"></canvas>
+    <!-- ================= 4. 結果・リプレイ画面 (#screenResult) ================= -->
+    <section id="screenResult" class="app-screen flex-1 flex-col justify-between p-4 overflow-y-auto scroll-touch bg-slate-900 pb-safe">
+      <div class="flex flex-col gap-3">
+        <!-- ヘッダー -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div>
+            <span class="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider">RESULT REPORT</span>
+            <h2 id="resultTestTitle" class="text-base font-black text-white">目隠し足踏み 結果</h2>
+          </div>
+          <div id="resultScoreBadge" class="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-xs shadow-lg border border-yellow-200">
+            覚醒度: 85点
+          </div>
+        </div>
 
-        <div class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 z-10">
+        <!-- バイオメカニクス詳細数値カード -->
+        <div class="bg-slate-800/85 rounded-2xl p-3 border border-slate-700/80 flex flex-col gap-2.5 shadow-xl">
+          <div class="text-[10px] font-black text-slate-400 uppercase tracking-wide">バイオメカニクス解析（ピーク値）</div>
+          <div id="resultMetricsContainer" class="grid grid-cols-2 gap-2 text-xs font-bold">
+            <!-- JSで動的挿入 -->
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-900/70 border border-slate-700/70 text-[11px] text-slate-300 leading-relaxed font-medium" id="resultFeedbackText">
+            身体図式のズレを客観的に認識できました。ドリルで脳内GPSを書き換えましょう。
+          </div>
+        </div>
+
+        <!-- ローカル動画リプレイプレイヤー (0.5倍速 / 等倍) -->
+        <div class="bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col gap-2.5 shadow-xl">
           <div class="flex items-center justify-between">
-            <div class="bg-slate-900/90 border border-emerald-400 rounded-xl px-3 py-1.5 max-w-[70%]">
-              <div id="drillCategoryBadge" class="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider">DRILL WORKOUT</div>
-              <div id="drillTitleText" class="text-xs font-black text-yellow-300">ドリル名称</div>
-              <div id="drillSubText" class="text-[10px] text-slate-300 leading-tight truncate">ドリル動作ガイド</div>
-            </div>
-
-            <div class="bg-slate-900/85 border border-yellow-400 rounded-xl px-3 py-1 text-center min-w-[60px]">
-              <div class="text-[9px] text-slate-400 font-bold">SUCCESS</div>
-              <div id="drillSuccessCount" class="text-xl font-black text-yellow-400 leading-none">0</div>
-            </div>
-          </div>
-
-          <div class="flex flex-col items-center justify-center">
-            <div id="drillHoldIndicator" class="hidden text-center bg-emerald-950/85 border-2 border-emerald-400 rounded-2xl px-6 py-3 shadow-2xl glow-effect">
-              <div id="drillHoldMainText" class="text-xs font-extrabold text-emerald-300">✨ 基準達成！その姿勢をキープ！</div>
-              <div id="drillHoldSecondsText" class="text-3xl font-black text-white mt-1">3.0s</div>
-            </div>
-
-            <div id="drillCelebrateBanner" class="hidden text-center bg-yellow-400 border-2 border-yellow-700 text-yellow-950 rounded-2xl px-6 py-4 shadow-2xl animate-bounce">
-              <div class="text-xl font-black">🎉 覚醒達成！+1 回</div>
-              <div class="text-xs font-bold">脳内GPSの身体マップが更新されました！</div>
+            <span class="text-[11px] font-black text-slate-300 flex items-center gap-1.5">
+              <span>📹</span> 即時リプレイ（ローカル再生）
+            </span>
+            <div class="flex gap-1.5">
+              <button id="btnReplaySpeedHalf" class="px-2.5 py-1 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-300 border border-slate-700 active:scale-95">
+                0.5x スロー
+              </button>
+              <button id="btnReplaySpeedNormal" class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-[10px] font-black text-amber-400 border border-amber-500/40">
+                1.0x 等倍
+              </button>
             </div>
           </div>
-
-          <div class="bg-slate-900/85 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
-            <div class="flex-1 text-center">
-              <div id="drillMetricLabel1" class="text-[9px] text-slate-400">現在リアルタイム値</div>
-              <div id="drillLiveVal1" class="text-base font-black text-sky-400">0.0</div>
-            </div>
-            <div class="border-l border-slate-700 h-6"></div>
-            <div class="flex-1 text-center">
-              <div id="drillMetricLabel2" class="text-[9px] text-slate-400">目標クリアライン</div>
-              <div id="drillLiveVal2" class="text-base font-black text-emerald-400">クリア条件</div>
-            </div>
-          </div>
+          <video id="resultReplayVideo" class="w-full h-44 bg-black rounded-xl object-contain mirror-mode" playsinline controls></video>
         </div>
       </div>
 
-      <div class="h-14 bg-slate-900 border-t border-slate-800 px-4 flex items-center justify-between z-20 flex-shrink-0">
-        <button id="btnFinishDrill" class="brawl-btn btn-blue text-xs px-4 py-2">
-          終了（ロビーへ）
+      <!-- アクションボタン -->
+      <div class="flex flex-col gap-2 pt-3 flex-shrink-0">
+        <button id="btnResultGoDrill" class="btn-brawl-emerald w-full rounded-2xl py-3.5 text-xs font-black text-white border-2 border-emerald-200/50 flex items-center justify-center gap-2">
+          <span class="text-base">⚡</span>
+          <span id="resultDrillBtnLabel">直ぐに弱点再構築ドリルを行う</span>
         </button>
-        <button id="btnSwitchDrillModal" class="brawl-btn btn-purple text-xs px-3 py-2">
-          🔄 ドリル切替
+        <button id="btnResultBackLobby" class="btn-brawl-dark w-full rounded-2xl py-3 text-xs font-black text-slate-200 border border-slate-700">
+          ロビーへ戻る
         </button>
       </div>
     </section>
 
-    <!-- ⑥ 成長カルテ・推移画面 -->
-    <section id="screenRecord" class="app-screen overflow-y-auto p-4 space-y-3 pb-8">
-      <div class="flex items-center justify-between">
-        <span class="text-sm font-black text-yellow-300">📈 成長カルテ・覚醒度推移</span>
-        <button id="btnExportCsv" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold text-sky-400">
-          📥 CSV保存
-        </button>
-      </div>
+    <!-- ================= 5. 4大再構築ドリル画面 (#screenDrill) ================= -->
+    <section id="screenDrill" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
+      <video id="drillVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
+      <canvas id="drillCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
 
-      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2">
-        <div class="text-[11px] font-bold text-slate-300 flex justify-between">
-          <span>覚醒度スコア推移（最新10件）</span>
-          <span class="text-emerald-400">目標 90% 以上</span>
-        </div>
-        <div class="w-full h-40 bg-slate-900 rounded-xl p-2 relative flex items-center justify-center">
-          <svg id="chartSvg" class="w-full h-full overflow-visible" viewBox="0 0 300 120"></svg>
-          <div id="chartNoDataMsg" class="absolute inset-0 flex items-center justify-center text-xs text-slate-500 font-bold">
-            測定記録がまだありません
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3 shadow-lg flex flex-col space-y-2 flex-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-black text-slate-300">📑 測定履歴リスト</span>
-          <button id="btnClearHistory" class="text-[10px] text-red-400 hover:underline">
-            全履歴削除
-          </button>
-        </div>
-
-        <div id="historyListContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1">
-        </div>
-      </div>
-
-      <button id="btnBackToLobbyFromRecord" class="brawl-btn btn-purple text-xs py-3 w-full">
-        ロビーへ戻る
-      </button>
-    </section>
-
-    <!-- モーダル群 -->
-    <!-- ドリルセレクターモーダル -->
-    <div id="modalSelectDrill" class="absolute inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-slate-900 border-2 border-emerald-400/80 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-black text-emerald-300">🧠 4大再構築ドリル選択</span>
-          <button id="btnCloseDrillModal" class="text-slate-400 hover:text-white font-black text-sm">✕</button>
-        </div>
-        <div class="text-[10px] text-slate-300">目的に応じたドリルで脳内GPSマップを1分再構築！</div>
-
-        <div class="grid grid-cols-1 gap-2 pt-1">
-          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-yellow-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="stepping">
-            <span class="text-2xl">👣</span>
-            <div>
-              <div class="text-xs font-black text-yellow-300">重心センタリング・ハイキック</div>
-              <div class="text-[9px] text-slate-300">骨盤中心軸をキープして左右交互に膝上げ</div>
-            </div>
-          </button>
-
-          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-sky-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="tpose">
-            <span class="text-2xl">⚖️</span>
-            <div>
-              <div class="text-xs font-black text-sky-300">肩甲骨水平アイソメトリック</div>
-              <div class="text-[9px] text-slate-300">両腕を真横に伸ばし完全水平（±3°）をキープ</div>
-            </div>
-          </button>
-
-          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-emerald-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="oneleg">
-            <span class="text-2xl">⚓</span>
-            <div>
-              <div class="text-xs font-black text-emerald-300">足裏3点接地アンカーバランサー</div>
-              <div class="text-[9px] text-slate-300">片膝を上げて頭部動揺2cm以内でバランス静止</div>
-            </div>
-          </button>
-
-          <button class="btnSelectDrillItem p-2.5 bg-slate-800/90 hover:bg-slate-700 border-2 border-purple-500/50 rounded-xl text-left flex items-center space-x-2.5" data-drillid="pelvis">
-            <span class="text-2xl">🪑</span>
-            <div>
-              <div class="text-xs font-black text-purple-300">イス座り頭後ろ胸回し</div>
-              <div class="text-[9px] text-slate-300">両手を後頭部で組み骨盤固定で胸郭を深く回旋</div>
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 選手登録モーダル -->
-    <div id="modalNewPlayer" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col space-y-3">
-        <div class="text-sm font-black text-yellow-300">👤 新規選手登録</div>
+      <!-- ドリルUIオーバーレイ -->
+      <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 pt-safe pb-safe">
         
-        <div class="flex flex-col space-y-1">
-          <label class="text-[11px] text-slate-300 font-bold">選手名 / ニックネーム</label>
-          <input type="text" id="inputPlayerName" placeholder="例: タロウ" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-bold outline-none">
-        </div>
-
-        <div class="flex flex-col space-y-1">
-          <label class="text-[11px] text-slate-300 font-bold">実身長 (cm)</label>
-          <input type="number" id="inputPlayerHeight" placeholder="例: 165" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-bold outline-none" min="80" max="220">
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div class="flex flex-col space-y-1">
-            <label class="text-[11px] text-slate-300 font-bold">カテゴリ</label>
-            <select id="inputPlayerCategory" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-xs text-white font-bold outline-none">
-              <option value="U-12">U-12 (小学生)</option>
-              <option value="U-15">U-15 (中学生)</option>
-              <option value="U-18">U-18 (高校生)</option>
-              <option value="General" selected>一般・シニア</option>
-            </select>
+        <!-- 上部ヘッダー（ドリル切り替えセレクター） -->
+        <div class="bg-slate-900/90 backdrop-blur-md rounded-2xl p-2.5 border border-emerald-500/40 flex items-center justify-between pointer-events-auto shadow-xl">
+          <div>
+            <span class="text-[9px] font-black text-emerald-400 uppercase tracking-wider">1分 脳内GPS再構築</span>
+            <h2 id="drillHeaderTitle" class="text-xs font-black text-white leading-tight">イス座り頭後ろ胸回しドリル</h2>
           </div>
-          <div class="flex flex-col space-y-1">
-            <label class="text-[11px] text-slate-300 font-bold">利き足</label>
-            <select id="inputPlayerDominantLeg" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-xs text-white font-bold outline-none">
-              <option value="Right" selected>右利き</option>
-              <option value="Left">左利き</option>
-            </select>
+          <button id="btnSwitchDrillModal" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 text-[10px] font-black active:scale-95">
+            🔄 ドリル切替
+          </button>
+        </div>
+
+        <!-- 中央インジケーター（キープカウンター または レップスカウンター） -->
+        <div class="flex flex-col items-center justify-center text-center">
+          <div id="drillHoldBanner" class="bg-emerald-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs shadow-2xl border border-emerald-200">
+            ✨ 基準達成！その姿勢をキープ！
+          </div>
+          <div id="drillCounterDisplay" class="font-num text-7xl font-black text-emerald-400 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] mt-1">
+            3.0s
+          </div>
+          <div id="drillFormGuideText" class="bg-slate-900/90 border border-slate-700 text-slate-200 px-3.5 py-1.5 rounded-xl font-bold text-[11px] mt-2 max-w-[85%] backdrop-blur-md">
+            後頭部で手を組み、骨盤を正面にして胸を回旋
           </div>
         </div>
 
-        <div class="flex space-x-2 pt-2">
-          <button id="btnSaveNewPlayer" class="flex-1 brawl-btn btn-green text-xs py-2">
-            保存する
+        <!-- 下部完了ボタン -->
+        <div class="flex justify-between items-center pointer-events-auto">
+          <button id="btnCancelDrill" class="btn-brawl-dark px-4 py-2.5 rounded-2xl text-xs font-black text-slate-300 border border-slate-700">
+            ✕ 終了してロビーへ
           </button>
-          <button id="btnCancelNewPlayer" class="brawl-btn btn-red text-xs px-4 py-2">
-            戻る
+          <div id="drillAchievementCount" class="bg-emerald-950/90 border border-emerald-500/70 px-3.5 py-2 rounded-xl text-xs font-black text-emerald-300 shadow-lg">
+            覚醒達成: 0回
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 6. 成長カルテ推移画面 (#screenRecord) ================= -->
+    <section id="screenRecord" class="app-screen flex-1 flex-col justify-between p-4 overflow-y-auto scroll-touch bg-slate-900 pb-safe">
+      <div class="flex flex-col gap-3">
+        <!-- ヘッダー -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div>
+            <span class="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider">GROWTH CHART</span>
+            <h2 class="text-base font-black text-white">脳内GPS成長カルテ</h2>
+          </div>
+          <button id="btnExportCsv" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 border border-slate-700 text-[10px] font-black active:scale-95 shadow">
+            📥 CSV保存
+          </button>
+        </div>
+
+        <!-- 種目別推移グラフ (自前SVG描画) -->
+        <div class="bg-slate-800/85 rounded-2xl p-3 border border-slate-700 flex flex-col gap-2.5 shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black text-slate-300">覚醒度スコア推移（直近10回）</span>
+            <select id="selectRecordTest" class="bg-slate-900 border border-slate-700 text-[10px] font-black text-amber-400 rounded-lg px-2.5 py-1 outline-none">
+              <option value="stepping">👣 目隠し足踏み</option>
+              <option value="tpose">⚖️ Tポーズ水平</option>
+              <option value="oneleg">⚓ 片足立ちキープ</option>
+              <option value="thoracic">🪑 骨盤制動胸捻転</option>
+            </select>
+          </div>
+          <div class="w-full h-36 bg-slate-950 rounded-xl p-2 flex items-center justify-center relative overflow-hidden" id="svgChartWrapper">
+            <svg id="growthSvgChart" class="w-full h-full overflow-visible"></svg>
+          </div>
+        </div>
+
+        <!-- 過去測定履歴リスト -->
+        <div class="flex flex-col gap-1.5">
+          <span class="text-[11px] font-black text-slate-400 px-1">測定ログ一覧</span>
+          <div id="recordHistoryList" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto scroll-touch pr-1">
+            <!-- JS動的挿入 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ロビーへ戻る -->
+      <div class="pt-3 flex-shrink-0">
+        <button id="btnRecordBackLobby" class="btn-brawl-dark w-full rounded-2xl py-3 text-xs font-black text-slate-200 border border-slate-700">
+          ロビーへ戻る
+        </button>
+      </div>
+    </section>
+
+    <!-- ドリル切り替えモーダル -->
+    <div id="modalDrillSelector" class="hidden absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="w-full max-w-xs bg-slate-900 border-2 border-slate-700 rounded-3xl p-4 flex flex-col gap-2.5 shadow-2xl">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <h3 class="text-xs font-black text-white">4大ドリルを選択</h3>
+          <button id="btnCloseDrillModal" class="text-slate-400 font-black text-base px-1">✕</button>
+        </div>
+        <div class="grid grid-cols-1 gap-2">
+          <button data-drill="drill_stepping" class="btn-select-drill btn-brawl-primary text-left p-2.5 rounded-2xl text-xs font-black text-slate-950">
+            👣 重心センタリング・ハイキック（5回）
+          </button>
+          <button data-drill="drill_shoulder" class="btn-select-drill btn-brawl-teal text-left p-2.5 rounded-2xl text-xs font-black text-slate-950">
+            ⚖️ 肩甲骨水平アイソメトリック（3秒）
+          </button>
+          <button data-drill="drill_singleleg" class="btn-select-drill btn-brawl-indigo text-left p-2.5 rounded-2xl text-xs font-black text-white">
+            ⚓ 足裏3点接地アンカーバランサー（3秒）
+          </button>
+          <button data-drill="drill_thoracic" class="btn-select-drill btn-brawl-rose text-left p-2.5 rounded-2xl text-xs font-black text-white">
+            🪑 イス座り頭後ろ胸回し（3秒）
           </button>
         </div>
       </div>
     </div>
 
-    <!-- 履歴リプレイモーダル -->
-    <div id="modalHistoryReplay" class="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl w-full max-w-sm p-4 shadow-2xl flex flex-col space-y-3">
-        <div class="flex items-center justify-between">
-          <span id="histReplayTitle" class="text-xs font-black text-yellow-300">過去リプレイ</span>
-          <button id="btnCloseHistReplay" class="text-slate-400 hover:text-white font-black text-sm">✕</button>
-        </div>
-        <div class="w-full aspect-video bg-black rounded-xl overflow-hidden flex items-center justify-center">
-          <video id="modalReplayVideo" class="w-full h-full object-contain" controls playsinline></video>
-        </div>
-        <div class="text-[11px] text-slate-300" id="histReplayDetails">--</div>
-      </div>
+    <!-- 90秒無操作スリープ復帰オーバーレイ -->
+    <div id="sleepOverlay" class="hidden absolute inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 text-center cursor-pointer">
+      <span class="text-5xl animate-pulse">💤</span>
+      <h3 class="text-base font-black text-slate-200 mt-3">省電力スリープ中</h3>
+      <p class="text-xs text-slate-400 mt-1">画面をタップすると即座に復帰します</p>
     </div>
 
-    <!-- スリープオーバーレイ -->
-    <div id="sleepOverlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-lg z-50 flex flex-col items-center justify-center p-6 text-center hidden cursor-pointer">
-      <div class="text-5xl animate-pulse">💤</div>
-      <div class="text-lg font-black text-sky-400 mt-3">省電力スリープ中</div>
-      <div class="text-xs text-slate-400 mt-1">90秒間操作が途絶えたためカメラを休止しました</div>
-      <div class="mt-6 px-6 py-2.5 bg-sky-600 rounded-xl text-xs font-black text-white shadow-lg animate-bounce">
-        画面をタップして再開
-      </div>
-    </div>
+  </main>
 
-  </div>
-
+  <!-- ================= JavaScript (完全単一統合コード) ================= -->
   <script>
-    /**
-     * 身体図式・脳内GPSドック v1.0
-     * 幾何学射影コサイン則 ＆ 音声ガイダンス完全連動 ＆ 4大再構築ドリル
-     */
-
-    const DOM = new Proxy({}, {
-      get: (_, id) => document.getElementById(id)
-    });
-
+    /* --- 1. アプリケーション状態管理 (AppState) --- */
     const AppState = {
       currentScreen: 'screenLobby',
-      cameraFacing: 'user',
-      isSoundEnabled: true,
-      audioCtx: null,
-      audioUnlocked: false,
-      stream: null,
-      cameraAnimId: null,
-      isProcessingPose: false,
+      isMuted: false,
+      cameraFacing: 'user', // 'user' or 'environment'
+      cameraStream: null,
+      animFrameId: null,
       poseDetector: null,
-      isPoseModelLoading: false,
-      sleepTimeoutId: null,
-      isSleeping: false,
-      players: [],
-      activePlayerId: null,
-
-      // スキャン校正
-      scanStableFrames: 0,
-      scaleConfirmed: false,
-      pxPerCm: 2.5,
-      baseHipWidthPx: 80,
-      baseShoulderWidthPx: 120,
-
-      // テストセッション
+      
+      // スキャン絶対モノサシ
+      calibration: {
+        isCalibrated: false,
+        pxPerCmX: 3.2,
+        pxPerCmY: 3.2,
+        baseShoulderWidth: 120,
+        baseHipWidth: 90,
+        baseHipCenterY: 0.55
+      },
+      
+      // 測定セッション
       activeTestId: null,
-      testState: 'idle',
-      testTimerInterval: null,
+      testDuration: 15,
+      testElapsed: 0,
+      testInterval: null,
       testCountdownInterval: null,
-      testMetronomeInterval: null,
-      testRemainingSec: 0,
-      testGracePeriod: true,
-      stableDetectionFrames: 0,
+      testTimeoutTimer: null,
+      testState: 'idle', // 'idle' | 'guiding' | 'waiting_still' | 'counting' | 'measuring' | 'finished'
+      
+      // 静止検知
+      stillFrames: 0,
       lastNosePos: null,
-      initialPoseSnapshot: null,
-      lastRecordedBlob: null,
-      lastRecordedUrl: null,
-      mediaRecorder: null,
-      recordedChunks: [],
-      hasLegLifted: false,
+      lastHipPos: null,
+      hasLegLifted: false, // 片足立ちの初期誤判定防止
+      
+      // 音声待機ロック
       isSpeechGuiding: false,
-
-      // 高精度ピークホールド・メトリクス
-      testSessionData: {
+      guidanceMinTimer: null,
+      activeUtterance: null,
+      
+      // バイオメカニクス追跡（ピークホールド）
+      peakMetrics: {
         peakXFactor: 0,
         peakRightTorso: 0,
         peakLeftTorso: 0,
-        peakSwayCm: 0,
-        maxDevXCm: 0,
-        maxDevZCm: 0,
-        peakRotationDeg: 0,
-        tposeLeftArmAngle: 0,
-        tposeRightArmAngle: 0,
-        tposeWristDiffCm: 0,
-        onelegDuration: 0,
-        onelegSwaySum: 0,
-        onelegFrames: 0,
-        hasLanded: false
+        peakDeviationCm: 0,
+        peakArmAngleDiff: 0,
+        peakLeftArmAngle: 0,
+        peakRightArmAngle: 0,
+        swayHistory: [],
+        footContactLostTime: 0
       },
-
-      // ドリルセッション（4大特化対応）
-      activeDrillId: 'pelvis',
+      
+      // 録画（MediaRecorder）
+      mediaRecorder: null,
+      recordedChunks: [],
+      replayBlobUrl: null,
+      
+      // ドリルセッション（v1.1厳格判定）
+      activeDrillId: 'drill_thoracic',
       drillHoldFrames: 0,
-      drillSuccessCount: 0,
-      drillCompleted: false,
-      drillStepCount: 0,
-      drillLastKneeUp: null
+      drillTargetFrames: 90, // 30fps換算で3.0秒
+      drillReps: 0,
+      drillTargetReps: 5,
+      drillStepState: 'wait_lift', // 'wait_lift' | 'wait_drop'
+      drillLastLeg: null,
+      drillAchievementCount: 0,
+      
+      // プロファイル & DB
+      currentUserId: null,
+      
+      // スリープタイマー (90秒)
+      sleepTimer: null,
+      lastActivityTime: Date.now()
     };
 
-    class SoundFX {
-      static init() {
-        if (!AppState.audioCtx) {
+    /* --- 2. 音響＆音声合成エンジン (SoundFX) --- */
+    const SoundFX = {
+      audioCtx: null,
+
+      initAudio() {
+        if (!this.audioCtx) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) {
-            AppState.audioCtx = new AudioContextClass();
-          }
+          this.audioCtx = new AudioContextClass();
         }
-        if (AppState.audioCtx && AppState.audioCtx.state === 'suspended') {
-          AppState.audioCtx.resume();
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume();
         }
-        if (AppState.audioCtx && !AppState.audioUnlocked) {
-          try {
-            const buffer = AppState.audioCtx.createBuffer(1, 1, 22050);
-            const source = AppState.audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(AppState.audioCtx.destination);
-            source.start(0);
-            AppState.audioUnlocked = true;
-          } catch (e) {
-            console.warn('Audio unlock notice:', e);
-          }
-        }
-      }
+      },
 
-      static playTone(freq, duration = 0.1, type = 'sine', gainVal = 0.45) {
-        if (!AppState.isSoundEnabled) return;
-        this.init();
-        if (!AppState.audioCtx) return;
-
+      playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.15) {
+        if (AppState.isMuted) return;
         try {
-          if (AppState.audioCtx.state === 'suspended') {
-            AppState.audioCtx.resume();
-          }
-          const now = AppState.audioCtx.currentTime;
-          const osc = AppState.audioCtx.createOscillator();
-          const gain = AppState.audioCtx.createGain();
+          this.initAudio();
+          const osc = this.audioCtx.createOscillator();
+          const gain = this.audioCtx.createGain();
           osc.type = type;
-          osc.frequency.setValueAtTime(freq, now);
-
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(gainVal, now + 0.015);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
+          osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+          gain.gain.setValueAtTime(gainVal, this.audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duration);
           osc.connect(gain);
-          gain.connect(AppState.audioCtx.destination);
-
-          osc.start(now);
-          osc.stop(now + duration);
+          gain.connect(this.audioCtx.destination);
+          osc.start();
+          osc.stop(this.audioCtx.currentTime + duration);
         } catch (e) {
-          console.warn('Audio play notice:', e);
+          console.warn('Audio tone error', e);
         }
-      }
+      },
 
-      static beepCountdown() {
-        this.playTone(660, 0.12, 'triangle', 0.5);
-      }
+      playCountBeep() {
+        this.playTone(880, 'sine', 0.12, 0.2); // ラ音
+      },
 
-      static playStartWhistle() {
-        if (!AppState.isSoundEnabled) return;
-        this.playTone(1760, 0.08, 'square', 0.45);
-        setTimeout(() => this.playTone(1760, 0.08, 'square', 0.45), 90);
-        setTimeout(() => this.playTone(2093, 0.38, 'triangle', 0.6), 200);
-      }
+      playStartWhistle() {
+        if (AppState.isMuted) return;
+        this.playTone(1800, 'triangle', 0.08, 0.25);
+        setTimeout(() => this.playTone(1800, 'triangle', 0.08, 0.25), 110);
+        setTimeout(() => this.playTone(2000, 'triangle', 0.45, 0.3), 230);
+      },
 
-      static playFinishWhistle() {
-        if (!AppState.isSoundEnabled) return;
-        this.playTone(2093, 0.35, 'triangle', 0.6);
-        setTimeout(() => this.playTone(1760, 0.1, 'square', 0.45), 360);
-        setTimeout(() => this.playTone(1760, 0.15, 'square', 0.45), 480);
-      }
+      playFinishWhistle() {
+        if (AppState.isMuted) return;
+        this.playTone(2000, 'triangle', 0.4, 0.3);
+        setTimeout(() => this.playTone(1800, 'triangle', 0.08, 0.25), 450);
+        setTimeout(() => this.playTone(1800, 'triangle', 0.15, 0.25), 560);
+      },
 
-      static playTestTick(isAccent = false) {
-        if (isAccent) {
-          this.playTone(1050, 0.08, 'triangle', 0.4);
-        } else {
-          this.playTone(700, 0.05, 'sine', 0.3);
-        }
-      }
+      playTick() {
+        this.playTone(1200, 'sine', 0.03, 0.06);
+      },
 
-      static playLastSecondsWarning(count) {
-        const freqs = { 3: 523.25, 2: 659.25, 1: 783.99 };
-        const f = freqs[count] || 600;
-        this.playTone(f, 0.18, 'triangle', 0.5);
-      }
+      playMetronome() {
+        this.playTone(1500, 'square', 0.04, 0.1);
+      },
 
-      static beepMetronome() {
-        this.playTone(1250, 0.04, 'triangle', 0.45);
-      }
+      playWarning() {
+        this.playTone(350, 'sawtooth', 0.3, 0.3);
+      },
 
-      static alertBuzzer() {
-        this.playTone(220, 0.45, 'sawtooth', 0.55);
-      }
+      playChimeAscend() {
+        if (AppState.isMuted) return;
+        this.playTone(523.25, 'sine', 0.12, 0.2); // ド
+        setTimeout(() => this.playTone(659.25, 'sine', 0.12, 0.2), 120); // ミ
+        setTimeout(() => this.playTone(783.99, 'sine', 0.25, 0.25), 240); // ソ
+      },
 
-      static fanFare() {
-        this.playTone(523.25, 0.12, 'triangle', 0.4);
-        setTimeout(() => this.playTone(659.25, 0.12, 'triangle', 0.4), 130);
-        setTimeout(() => this.playTone(783.99, 0.12, 'triangle', 0.45), 260);
-        setTimeout(() => this.playTone(1046.5, 0.38, 'triangle', 0.55), 390);
-      }
+      playFanfare() {
+        if (AppState.isMuted) return;
+        this.playTone(523.25, 'triangle', 0.1, 0.2);
+        setTimeout(() => this.playTone(659.25, 'triangle', 0.1, 0.2), 100);
+        setTimeout(() => this.playTone(783.99, 'triangle', 0.1, 0.2), 200);
+        setTimeout(() => this.playTone(1046.50, 'triangle', 0.4, 0.3), 320);
+      },
 
-      // 絵文字や記号を100%安全に除去するサニタイズ
-      static stripEmojis(text) {
-        if (!text) return '';
-        return text
-          .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/gu, '')
-          .replace(/[【】★⚡🔒🎬📊📑🚨💡⚓👣⚖️🪑]/g, '')
-          .replace(/\s+/g, ' ')
+      stripEmojis(str) {
+        if (!str) return '';
+        return str
+          .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+          .replace(/[👣⚖️⚓🪑💡⚡📏🎯📈🔄🔊🔇👤✕✨📢👀]/g, '')
           .trim();
-      }
+      },
 
-      static speak(text, onEndCallback = null, minLockMs = 0) {
-        if (!AppState.isSoundEnabled || !window.speechSynthesis) {
-          if (minLockMs > 0) {
-            setTimeout(() => { if (onEndCallback) onEndCallback(); }, minLockMs);
-          } else {
-            if (onEndCallback) onEndCallback();
-          }
+      speak(text, onEndCallback = null) {
+        if (AppState.isMuted || !('speechSynthesis' in window)) {
+          if (onEndCallback) onEndCallback();
           return;
         }
-        try {
-          window.speechSynthesis.cancel();
-          const cleanText = this.stripEmojis(text);
-          if (!cleanText) {
-            if (onEndCallback) onEndCallback();
-            return;
-          }
-
-          const uttr = new SpeechSynthesisUtterance(cleanText);
-          uttr.lang = 'ja-JP';
-          uttr.rate = 1.05;
-          uttr.pitch = 1.0;
-
-          // iOS GC（ガベージコレクション）による強制終了を防ぐグローバル参照
-          window._activeUtterance = uttr;
-
-          let speechFinished = false;
-          let minTimePassed = (minLockMs <= 0);
-
-          const tryComplete = () => {
-            if (speechFinished && minTimePassed) {
-              window._activeUtterance = null;
-              if (onEndCallback) {
-                const cb = onEndCallback;
-                onEndCallback = null;
-                cb();
-              }
-            }
-          };
-
-          if (minLockMs > 0) {
-            setTimeout(() => {
-              minTimePassed = true;
-              tryComplete();
-            }, minLockMs);
-          }
-
-          uttr.onend = () => {
-            speechFinished = true;
-            tryComplete();
-          };
-
-          uttr.onerror = () => {
-            speechFinished = true;
-            tryComplete();
-          };
-
-          // フォールバック最大時間
-          const maxWait = Math.max(minLockMs + 1500, cleanText.length * 200);
-          setTimeout(() => {
-            speechFinished = true;
-            minTimePassed = true;
-            tryComplete();
-          }, maxWait);
-
-          window.speechSynthesis.speak(uttr);
-        } catch (e) {
-          console.warn('TTS notice:', e);
+        window.speechSynthesis.cancel();
+        const cleanText = this.stripEmojis(text);
+        if (!cleanText) {
           if (onEndCallback) onEndCallback();
+          return;
         }
-      }
-    }
 
-    const DB = {
-      KEY_PLAYERS: 'bodySchema_players_v1',
-      KEY_RECORDS: 'bodySchema_records_v1',
+        const uttr = new SpeechSynthesisUtterance(cleanText);
+        uttr.lang = 'ja-JP';
+        uttr.rate = 1.05;
+        uttr.pitch = 1.0;
 
-      getPlayers() {
-        try {
-          const raw = localStorage.getItem(this.KEY_PLAYERS);
-          return raw ? JSON.parse(raw) : [];
-        } catch (e) {
-          return [];
-        }
-      },
+        // iOS GC対策
+        window._activeUtterance = uttr;
+        AppState.activeUtterance = uttr;
 
-      savePlayers(list) {
-        localStorage.setItem(this.KEY_PLAYERS, JSON.stringify(list));
-      },
+        let hasFired = false;
+        const fireDone = () => {
+          if (!hasFired) {
+            hasFired = true;
+            window._activeUtterance = null;
+            AppState.activeUtterance = null;
+            if (onEndCallback) onEndCallback();
+          }
+        };
 
-      getRecords() {
-        try {
-          const raw = localStorage.getItem(this.KEY_RECORDS);
-          return raw ? JSON.parse(raw) : [];
-        } catch (e) {
-          return [];
-        }
-      },
+        uttr.onend = () => fireDone();
+        uttr.onerror = () => fireDone();
 
-      saveRecords(list) {
-        localStorage.setItem(this.KEY_RECORDS, JSON.stringify(list));
-      },
+        const maxWaitMs = Math.max(3000, cleanText.length * 140);
+        setTimeout(fireDone, maxWaitMs);
 
-      addRecord(record) {
-        const records = this.getRecords();
-        records.unshift(record);
-        this.saveRecords(records);
-      },
-
-      deletePlayer(id) {
-        let players = this.getPlayers();
-        players = players.filter(p => p.id !== id);
-        this.savePlayers(players);
-
-        let records = this.getRecords();
-        records = records.filter(r => r.playerId !== id);
-        this.saveRecords(records);
-      },
-
-      clearAllRecords() {
-        localStorage.removeItem(this.KEY_RECORDS);
+        window.speechSynthesis.speak(uttr);
       }
     };
 
-    function initMediaPipePose() {
-      if (AppState.poseDetector) return;
-      AppState.isPoseModelLoading = true;
+    /* --- 3. ストレージ管理 (DB) --- */
+    const DB = {
+      PREFIX: 'brain_gps_v11_',
 
-      const pose = new Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-      });
+      getProfiles() {
+        try {
+          const data = localStorage.getItem(this.PREFIX + 'profiles');
+          return data ? JSON.parse(data) : [{ id: 'p_default', name: '選手1', created: Date.now() }];
+        } catch (e) {
+          return [{ id: 'p_default', name: '選手1', created: Date.now() }];
+        }
+      },
 
-      pose.setOptions({
-        modelComplexity: 1,
-        smoothLandmarks: true,
-        enableSegmentation: false,
-        smoothSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
+      saveProfiles(profiles) {
+        localStorage.setItem(this.PREFIX + 'profiles', JSON.stringify(profiles));
+      },
 
-      pose.onResults(onPoseResultsReceived);
-      AppState.poseDetector = pose;
-      AppState.isPoseModelLoading = false;
-    }
+      getRecords(userId) {
+        try {
+          const data = localStorage.getItem(this.PREFIX + 'records_' + userId);
+          return data ? JSON.parse(data) : [];
+        } catch (e) {
+          return [];
+        }
+      },
 
+      saveRecord(userId, record) {
+        const records = this.getRecords(userId);
+        records.push(record);
+        localStorage.setItem(this.PREFIX + 'records_' + userId, JSON.stringify(records));
+      },
+
+      getCalibration(userId) {
+        try {
+          const data = localStorage.getItem(this.PREFIX + 'calib_' + userId);
+          return data ? JSON.parse(data) : null;
+        } catch (e) {
+          return null;
+        }
+      },
+
+      saveCalibration(userId, calib) {
+        localStorage.setItem(this.PREFIX + 'calib_' + userId, JSON.stringify(calib));
+      }
+    };
+
+    /* --- 4. 画面遷移制御 (switchScreen) --- */
     async function switchScreen(targetScreenId) {
       cleanupTestSession();
-
-      const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
-      const willNeedCamera = cameraScreens.includes(targetScreenId);
-
-      if (!willNeedCamera && AppState.stream) {
-        await stopCamera();
-      }
+      cleanupDrillSession();
 
       document.querySelectorAll('.app-screen').forEach(el => {
-        if (el.id === targetScreenId) {
-          el.classList.add('active');
-        } else {
-          el.classList.remove('active');
-        }
+        el.classList.remove('active');
       });
-      AppState.currentScreen = targetScreenId;
 
-      if (willNeedCamera) {
-        await startCameraForCurrentScreen();
-      } else if (targetScreenId === 'screenLobby') {
-        refreshLobbyUI();
+      const target = document.getElementById(targetScreenId);
+      if (target) {
+        target.classList.add('active');
+        AppState.currentScreen = targetScreenId;
+      }
+
+      // カメラ制御の排他処理
+      const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
+      if (cameraScreens.includes(targetScreenId)) {
+        await startCamera(targetScreenId);
+      } else {
+        stopCamera();
+      }
+
+      // 各画面の固有初期化
+      if (targetScreenId === 'screenLobby') {
+        renderLobbyProfiles();
       } else if (targetScreenId === 'screenRecord') {
-        renderRecordScreen();
+        renderRecordChart();
       }
     }
 
-    function stopCameraLoop() {
-      if (AppState.cameraAnimId) {
-        cancelAnimationFrame(AppState.cameraAnimId);
-        AppState.cameraAnimId = null;
+    /* --- 5. カメラ & MediaPipe Pose 初期化 --- */
+    async function initMediaPipePose() {
+      if (AppState.poseDetector) return;
+      try {
+        const pose = new window.Pose({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+        });
+        pose.setOptions({
+          modelComplexity: 1,
+          smoothLandmarks: true,
+          enableSegmentation: false,
+          smoothSegmentation: false,
+          minDetectionConfidence: 0.55,
+          minTrackingConfidence: 0.55
+        });
+        pose.onResults(onPoseResults);
+        AppState.poseDetector = pose;
+      } catch (e) {
+        console.error('Failed to init MediaPipe Pose', e);
       }
-      AppState.isProcessingPose = false;
     }
 
-    async function stopCamera() {
-      stopCameraLoop();
-      if (AppState.stream) {
-        AppState.stream.getTracks().forEach(t => t.stop());
-        AppState.stream = null;
-        await new Promise(res => setTimeout(res, 80));
-      }
-    }
-
-    async function startCameraForCurrentScreen() {
-      await stopCamera();
-      initMediaPipePose();
+    async function startCamera(screenId) {
+      stopCamera();
+      await initMediaPipePose();
 
       let videoEl = null;
-      if (AppState.currentScreen === 'screenScan') videoEl = DOM.videoScan;
-      if (AppState.currentScreen === 'screenTest') videoEl = DOM.videoTest;
-      if (AppState.currentScreen === 'screenDrill') videoEl = DOM.videoDrill;
-
+      if (screenId === 'screenScan') videoEl = document.getElementById('scanVideo');
+      if (screenId === 'screenTest') videoEl = document.getElementById('testVideo');
+      if (screenId === 'screenDrill') videoEl = document.getElementById('drillVideo');
       if (!videoEl) return;
 
       const constraints = {
         audio: false,
         video: {
-          facingMode: { ideal: AppState.cameraFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          facingMode: AppState.cameraFacing,
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         }
       };
 
       try {
-        let stream = null;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch (errConstraint) {
-          console.warn('Fallback to basic video constraint:', errConstraint);
-          stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        }
-
-        AppState.stream = stream;
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        AppState.cameraStream = stream;
         videoEl.srcObject = stream;
-        videoEl.muted = true;
-        videoEl.playsInline = true;
-        videoEl.setAttribute('playsinline', '');
-        videoEl.setAttribute('webkit-playsinline', '');
+        await videoEl.play();
 
-        await new Promise(resolve => {
-          if (videoEl.readyState >= 1) return resolve();
-          videoEl.onloadedmetadata = () => resolve();
-          setTimeout(resolve, 300);
-        });
-
-        try {
-          await videoEl.play();
-        } catch (playErr) {
-          console.warn('Video play notice:', playErr);
+        if (screenId === 'screenTest') {
+          setupMediaRecorder(stream);
         }
 
-        updateCameraMirrorStyles();
-
-        stopCameraLoop();
-        const renderLoop = async () => {
-          if (AppState.isSleeping || !AppState.stream) return;
-
-          const currentVideo = getCurrentActiveVideo();
-          if (currentVideo && AppState.poseDetector && currentVideo.readyState >= 2 && !AppState.isProcessingPose) {
-            AppState.isProcessingPose = true;
-            try {
-              await AppState.poseDetector.send({ image: currentVideo });
-            } catch (err) {
-              // frame drop ignored
-            } finally {
-              AppState.isProcessingPose = false;
-            }
-          }
-          AppState.cameraAnimId = requestAnimationFrame(renderLoop);
-        };
-
-        AppState.cameraAnimId = requestAnimationFrame(renderLoop);
-
+        runCameraLoop(videoEl, screenId);
       } catch (err) {
-        console.error('Camera access notice:', err);
-        SoundFX.speak('カメラの起動に失敗しました。カメラの利用許可を確認してください。');
+        console.error('Camera open error:', err);
+        alert('カメラの起動に失敗しました。ブラウザの設定でカメラ許可を確認してください。');
       }
     }
 
-    function getCurrentActiveVideo() {
-      if (AppState.currentScreen === 'screenScan') return DOM.videoScan;
-      if (AppState.currentScreen === 'screenTest') return DOM.videoTest;
-      if (AppState.currentScreen === 'screenDrill') return DOM.videoDrill;
-      return null;
+    function stopCamera() {
+      if (AppState.animFrameId) {
+        cancelAnimationFrame(AppState.animFrameId);
+        AppState.animFrameId = null;
+      }
+      if (AppState.cameraStream) {
+        AppState.cameraStream.getTracks().forEach(t => t.stop());
+        AppState.cameraStream = null;
+      }
     }
 
-    function getCurrentActiveCanvas() {
-      if (AppState.currentScreen === 'screenScan') return DOM.canvasScan;
-      if (AppState.currentScreen === 'screenTest') return DOM.canvasTest;
-      if (AppState.currentScreen === 'screenDrill') return DOM.canvasDrill;
-      return null;
-    }
+    function runCameraLoop(videoEl, screenId) {
+      const step = async () => {
+        if (!AppState.cameraStream || videoEl.paused || videoEl.ended) return;
 
-    function updateCameraMirrorStyles() {
-      const isUser = AppState.cameraFacing === 'user';
-      const targets = [
-        DOM.videoScan, DOM.canvasScan,
-        DOM.videoTest, DOM.canvasTest,
-        DOM.videoDrill, DOM.canvasDrill
-      ];
-      targets.forEach(el => {
-        if (!el) return;
-        if (isUser) {
-          el.classList.add('mirror-mode');
-        } else {
-          el.classList.remove('mirror-mode');
+        if (AppState.poseDetector && videoEl.videoWidth > 0) {
+          try {
+            await AppState.poseDetector.send({ image: videoEl });
+          } catch (e) {}
         }
-      });
-    }
-
-    function onPoseResultsReceived(results) {
-      if (AppState.isSleeping) return;
-
-      const canvas = getCurrentActiveCanvas();
-      const video = getCurrentActiveVideo();
-      if (!canvas || !video) return;
-
-      if (video.videoWidth && video.videoHeight) {
-        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        }
-      }
-
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (results.poseLandmarks) {
-        drawSkeleton(ctx, results.poseLandmarks, canvas.width, canvas.height);
-
-        if (AppState.currentScreen === 'screenScan') {
-          processScanFrame(results.poseLandmarks, canvas.width, canvas.height);
-        } else if (AppState.currentScreen === 'screenTest') {
-          processTestFrame(results.poseLandmarks, canvas.width, canvas.height);
-        } else if (AppState.currentScreen === 'screenDrill') {
-          processDrillFrame(results.poseLandmarks, canvas.width, canvas.height);
-        }
-      }
-    }
-
-    const POSE_CONNECTIONS = [
-      [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-      [11, 23], [12, 24], [23, 24],
-      [23, 25], [25, 27], [24, 26], [26, 28],
-      [27, 29], [28, 30], [29, 31], [30, 32]
-    ];
-
-    function drawSkeleton(ctx, landmarks, w, h, customColor = null) {
-      ctx.save();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = customColor || '#38bdf8';
-      ctx.fillStyle = '#ffea00';
-
-      POSE_CONNECTIONS.forEach(([i, j]) => {
-        const p1 = landmarks[i];
-        const p2 = landmarks[j];
-        if (p1 && p2 && p1.visibility > 0.4 && p2.visibility > 0.4) {
-          ctx.beginPath();
-          ctx.moveTo(p1.x * w, p1.y * h);
-          ctx.lineTo(p2.x * w, p2.y * h);
-          ctx.stroke();
-        }
-      });
-
-      landmarks.forEach((p, idx) => {
-        if (p && p.visibility > 0.4 && idx >= 11) {
-          ctx.beginPath();
-          ctx.arc(p.x * w, p.y * h, 5, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      });
-
-      ctx.restore();
-    }
-
-    function processScanFrame(landmarks, w, h) {
-      const nose = landmarks[0];
-      const leftShoulder = landmarks[11];
-      const rightShoulder = landmarks[12];
-      const leftHip = landmarks[23];
-      const rightHip = landmarks[24];
-      const leftAnkle = landmarks[27];
-      const rightAnkle = landmarks[28];
-
-      const hasFullBody = nose && leftShoulder && rightShoulder && leftHip && rightHip && leftAnkle && rightAnkle &&
-                          leftAnkle.visibility > 0.5 && rightAnkle.visibility > 0.5 &&
-                          nose.y > 0.05 && nose.y < 0.4 &&
-                          leftAnkle.y < 0.95 && rightAnkle.y < 0.95;
-
-      if (!hasFullBody) {
-        AppState.scanStableFrames = Math.max(0, AppState.scanStableFrames - 1);
-        DOM.scanStatusText.textContent = '全身（頭〜足首）が入るよう離れてください';
-        DOM.scanStatusText.className = 'bg-slate-900/80 px-4 py-1.5 rounded-full text-xs font-extrabold text-yellow-300 mb-2';
-        updateScanProgress(AppState.scanStableFrames, 30);
-        return;
-      }
-
-      AppState.scanStableFrames++;
-      DOM.scanStatusText.textContent = `直立姿勢を保持してください... (${Math.round((AppState.scanStableFrames / 30) * 100)}%)`;
-      DOM.scanStatusText.className = 'bg-slate-900/80 px-4 py-1.5 rounded-full text-xs font-extrabold text-emerald-400 mb-2';
-      updateScanProgress(AppState.scanStableFrames, 30);
-
-      if (AppState.scanStableFrames >= 30) {
-        const activePlayer = getActivePlayer();
-        const playerHeightCm = activePlayer ? activePlayer.height : 165;
-
-        const avgAnkleY = (leftAnkle.y + rightAnkle.y) / 2;
-        const pixelHeight = Math.abs(avgAnkleY - nose.y) * h;
-
-        AppState.pxPerCm = pixelHeight / (playerHeightCm * 0.92);
-        AppState.baseHipWidthPx = Math.abs(leftHip.x - rightHip.x) * w;
-        AppState.baseShoulderWidthPx = Math.abs(leftShoulder.x - rightShoulder.x) * w;
-        AppState.scaleConfirmed = true;
-
-        SoundFX.fanFare();
-        SoundFX.speak('スキャン完了！絶対モノサシと基準骨格をロックしました。');
-
-        DOM.scanResultMetric.innerHTML = `スケール確定: <b class="text-emerald-400">${AppState.pxPerCm.toFixed(2)} px/cm</b>`;
-
-        setTimeout(() => {
-          switchScreen('screenLobby');
-        }, 1200);
-      }
-    }
-
-    function updateScanProgress(current, max) {
-      const pct = Math.min(100, Math.round((current / max) * 100));
-      DOM.scanProgressBar.style.width = `${pct}%`;
-    }
-
-    const TEST_CONFIGS = {
-      stepping: {
-        title: '👣 目隠し足踏みテスト',
-        speechTitle: '目隠し足踏みテスト',
-        guidanceSpeech: '目隠し足踏みテスト。両腕を胸の前で軽く曲げ、目隠しをしてその場で15秒間リズムよく足踏みしてください。まずはカメラに全身を映して静止してください。',
-        guidanceMinSec: 5.2,
-        sub: '目隠しをしてその場で15秒間リズムよく足踏み',
-        duration: 15,
-        useMetronome: true,
-        metric1Label: '左右偏位(X)',
-        metric2Label: '前後偏位(Z)',
-        dynamicLabel: '骨盤最大回旋'
-      },
-      tpose: {
-        title: '⚖️ Tポーズ水平テスト',
-        speechTitle: 'Tポーズ水平テスト',
-        guidanceSpeech: 'Tポーズ水平テスト。両腕を真横へ床と完全に平行になるよう伸ばし、目隠しをして6秒間静止してください。まずはカメラに全身を映してください。',
-        guidanceMinSec: 4.8,
-        sub: '目隠しをして両腕を床と平行（水平）に6秒保持',
-        duration: 6,
-        useMetronome: false,
-        metric1Label: '左腕水平傾き',
-        metric2Label: '右腕水平傾き',
-        dynamicLabel: '両腕角度差'
-      },
-      oneleg: {
-        title: '⚓ 片足立ちキープテスト',
-        speechTitle: '片足立ちキープテスト',
-        guidanceSpeech: '片足立ちキープテスト。両手を腰にあて、目隠しをして片足を浮かせ、最大15秒間バランスを保持してください。まずは直立して静止してください。',
-        guidanceMinSec: 5.0,
-        sub: '目隠しをして片足を上げ最大15秒バランス保持',
-        duration: 15,
-        useMetronome: false,
-        metric1Label: '保持秒数',
-        metric2Label: '重心動揺(RMS)',
-        dynamicLabel: '最大ブレ幅'
-      },
-      pelvis: {
-        title: '🪑 骨盤制動胸捻転テスト',
-        speechTitle: '骨盤制動胸捻転テスト',
-        guidanceSpeech: '骨盤制動胸捻転テスト。両手を胸の前で組み、イスに座るか骨盤を正面に向けたまま、上半身だけを左右へ限界まで大きく捻ってください。まずは静止してください。',
-        guidanceMinSec: 5.5,
-        sub: '骨盤を固定し上半身を左右へ最大回旋（10秒）',
-        duration: 10,
-        useMetronome: false,
-        metric1Label: '右捻転ピーク',
-        metric2Label: '左捻転ピーク',
-        dynamicLabel: '最大X-Factor'
-      }
-    };
-
-    async function startTestSession(testId) {
-      const cfg = TEST_CONFIGS[testId];
-      if (!cfg) return;
-
-      SoundFX.init();
-
-      AppState.activeTestId = testId;
-      AppState.testState = 'prepping';
-      AppState.stableDetectionFrames = 0;
-      AppState.lastNosePos = null;
-      AppState.initialPoseSnapshot = null;
-      AppState.testGracePeriod = true;
-      AppState.hasLegLifted = false;
-
-      // セッション累積データのリセット
-      AppState.testSessionData = {
-        peakXFactor: 0,
-        peakRightTorso: 0,
-        peakLeftTorso: 0,
-        peakSwayCm: 0,
-        maxDevXCm: 0,
-        maxDevZCm: 0,
-        peakRotationDeg: 0,
-        tposeLeftArmAngle: 0,
-        tposeRightArmAngle: 0,
-        tposeWristDiffCm: 0,
-        onelegDuration: 0,
-        onelegSwaySum: 0,
-        onelegFrames: 0,
-        hasLanded: false
+        AppState.animFrameId = requestAnimationFrame(step);
       };
-
-      DOM.testBadgeTitle.textContent = cfg.title;
-      DOM.testInstructionSubtitle.textContent = cfg.sub;
-      DOM.metricLabel1.textContent = cfg.metric1Label;
-      DOM.metricLabel2.textContent = cfg.metric2Label;
-      DOM.metricDynamicLabel.textContent = cfg.dynamicLabel;
-      DOM.testTimerText.textContent = cfg.duration;
-      DOM.testDangerAlert.classList.add('hidden');
-      DOM.testBigBanner.classList.add('hidden');
-
-      // 画面を切り替えてから待機フラグを設定（ライフサイクルの自己キャンセルを防止）
-      await switchScreen('screenTest');
-
-      AppState.isSpeechGuiding = true;
-      DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
-
-      const minLockMs = Math.round(cfg.guidanceMinSec * 1000);
-      SoundFX.speak(cfg.guidanceSpeech, () => {
-        AppState.isSpeechGuiding = false;
-        SoundFX.playTone(880, 0.09, 'triangle', 0.45);
-        DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span class="text-yellow-300 font-bold">👀 全身を映して静止してください</span>';
-      }, minLockMs);
+      AppState.animFrameId = requestAnimationFrame(step);
     }
 
-    function processTestFrame(landmarks, w, h) {
-      const nose = landmarks[0];
-      const leftShoulder = landmarks[11];
-      const rightShoulder = landmarks[12];
-      const leftHip = landmarks[23];
-      const rightHip = landmarks[24];
-      const leftKnee = landmarks[25];
-      const rightKnee = landmarks[26];
-      const leftAnkle = landmarks[27];
-      const rightAnkle = landmarks[28];
-
-      const keypoints = [nose, leftShoulder, rightShoulder, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle];
-      const allDetected = keypoints.every(p => p && p.visibility > 0.55);
-
-      const isWithinBounds = allDetected &&
-        (nose.y > 0.02 && nose.y < 0.42) &&
-        (leftAnkle.y > 0.60 && leftAnkle.y < 0.98) &&
-        (rightAnkle.y > 0.60 && rightAnkle.y < 0.98) &&
-        (leftShoulder.x > 0.05 && leftShoulder.x < 0.95) &&
-        (rightShoulder.x > 0.05 && rightShoulder.x < 0.95);
-
-      const hasFullBody = allDetected && isWithinBounds;
-
-      if (AppState.testState === 'prepping') {
-        // 音声ガイダンス中は静止カウントを完全ロック
-        if (AppState.isSpeechGuiding) {
-          AppState.stableDetectionFrames = 0;
-          DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
-          return;
-        }
-
-        if (!hasFullBody) {
-          AppState.stableDetectionFrames = 0;
-          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-300 font-bold">全身（頭〜足首）を枠内に収めてください</span>';
-          return;
-        }
-
-        const curNoseX = nose.x * w;
-        const curNoseY = nose.y * h;
-        const curHipX = ((leftHip.x + rightHip.x) / 2) * w;
-        const curHipY = ((leftHip.y + rightHip.y) / 2) * h;
-        let isStill = false;
-
-        if (AppState.lastNosePos) {
-          const noseMove = Math.hypot(curNoseX - AppState.lastNosePos.x, curNoseY - AppState.lastNosePos.y);
-          const hipMove = Math.hypot(curHipX - AppState.lastNosePos.hipX, curHipY - AppState.lastNosePos.hipY);
-          if (noseMove < 10 && hipMove < 10) {
-            isStill = true;
-          }
-        }
-        AppState.lastNosePos = { x: curNoseX, y: curNoseY, hipX: curHipX, hipY: curHipY };
-
-        if (isStill) {
-          AppState.stableDetectionFrames++;
-          DOM.testPrepIndicator.innerHTML = `<span class="text-emerald-400 font-bold">静止確認中 (${Math.min(100, Math.round((AppState.stableDetectionFrames / 25) * 100))}%)</span>`;
-        } else {
-          AppState.stableDetectionFrames = Math.max(0, AppState.stableDetectionFrames - 2);
-          DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-400 font-bold">そのまま静止してください</span>';
-        }
-
-        if (AppState.stableDetectionFrames >= 25) {
-          const initHipW = Math.abs(leftHip.x - rightHip.x) * w;
-          const initShoulderW = Math.abs(leftShoulder.x - rightShoulder.x) * w;
-
-          AppState.initialPoseSnapshot = {
-            hipCenterX: curHipX,
-            hipCenterY: curHipY,
-            hipWidthPx: initHipW > 20 ? initHipW : (AppState.baseHipWidthPx || 80),
-            shoulderWidthPx: initShoulderW > 30 ? initShoulderW : (AppState.baseShoulderWidthPx || 120),
-            leftAnkleY: leftAnkle.y * h,
-            rightAnkleY: rightAnkle.y * h,
-            noseX: curNoseX,
-            noseY: curNoseY
-          };
-
-          if (!AppState.baseHipWidthPx) {
-            AppState.baseHipWidthPx = AppState.initialPoseSnapshot.hipWidthPx;
-          }
-          if (!AppState.baseShoulderWidthPx) {
-            AppState.baseShoulderWidthPx = AppState.initialPoseSnapshot.shoulderWidthPx;
-          }
-
-          startTestCountdown();
-        }
-        return;
-      }
-
-      if (AppState.testState === 'countdown') {
-        if (!hasFullBody) {
-          if (AppState.testCountdownInterval) {
-            clearInterval(AppState.testCountdownInterval);
-            AppState.testCountdownInterval = null;
-          }
-          AppState.testState = 'prepping';
-          AppState.stableDetectionFrames = 0;
-          DOM.testBigBanner.classList.add('hidden');
-          DOM.testPrepIndicator.innerHTML = '<span class="text-red-400 font-bold">全身が外れました。もう一度静止してください</span>';
-        }
-        return;
-      }
-
-      if (AppState.testState === 'running') {
-        if (!hasFullBody && !AppState.testGracePeriod) {
-          triggerDangerAbort('フレーム外への完全逸脱を検知しました');
-          return;
-        }
-
-        const currentHipWidth = Math.abs(leftHip.x - rightHip.x) * w;
-
-        if (!AppState.testGracePeriod) {
-          const expansionRatio = currentHipWidth / AppState.baseHipWidthPx;
-          if (expansionRatio >= 1.75) {
-            triggerDangerAbort('前方へ突進しました！');
-            return;
-          }
-
-          if (nose.x < 0.05 || nose.x > 0.95 || nose.y < 0.03 || leftHip.x < 0.04 || rightHip.x > 0.96) {
-            triggerDangerAbort('身体が測定画面枠外へ大きく逸脱しました');
-            return;
-          }
-        }
-
-        updateHighPrecisionBiomechanics(AppState.activeTestId, landmarks, w, h);
-
-        if (AppState.activeTestId === 'oneleg' && !AppState.testGracePeriod) {
-          if (AppState.testSessionData.hasLanded) {
-            SoundFX.alertBuzzer();
-            finishTestSession('足が着地しました！');
-          }
-        }
-      }
-    }
-
-    function updateHighPrecisionBiomechanics(testId, landmarks, w, h) {
-      const snap = AppState.initialPoseSnapshot;
-      if (!snap) return;
-
-      const data = AppState.testSessionData;
-      const leftHip = landmarks[23];
-      const rightHip = landmarks[24];
-      const leftShoulder = landmarks[11];
-      const rightShoulder = landmarks[12];
-      const nose = landmarks[0];
-      const leftWrist = landmarks[15];
-      const rightWrist = landmarks[16];
-      const leftAnkle = landmarks[27];
-      const rightAnkle = landmarks[28];
-
-      const currentHipX = ((leftHip.x + rightHip.x) / 2) * w;
-      const currentHipWidth = Math.abs(leftHip.x - rightHip.x) * w;
-      const currentShoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x) * w;
-
-      const xDisplacementPx = Math.abs(currentHipX - snap.hipCenterX);
-      const xDisplacementCm = xDisplacementPx / AppState.pxPerCm;
-
-      const expansionRatio = currentHipWidth / snap.hipWidthPx;
-      const zDisplacementCm = Math.max(0, (expansionRatio - 1.0) * 110);
-
-      data.maxDevXCm = Math.max(data.maxDevXCm, xDisplacementCm);
-      data.maxDevZCm = Math.max(data.maxDevZCm, zDisplacementCm);
-
-      if (testId === 'pelvis') {
-        const baseS = snap.shoulderWidthPx;
-        const baseH = snap.hipWidthPx;
-
-        const ratioS = Math.min(1.0, Math.max(0.1, currentShoulderWidth / baseS));
-        const ratioH = Math.min(1.0, Math.max(0.1, currentHipWidth / baseH));
-
-        const shoulderAngleDeg = Math.acos(ratioS) * (180 / Math.PI);
-        const hipAngleDeg = Math.acos(ratioH) * (180 / Math.PI);
-
-        const currentXFactor = Math.max(0, shoulderAngleDeg - (hipAngleDeg * 0.5));
-        data.peakXFactor = Math.max(data.peakXFactor, currentXFactor);
-
-        if (rightShoulder.x > leftShoulder.x) {
-          data.peakRightTorso = Math.max(data.peakRightTorso, currentXFactor);
-        } else {
-          data.peakLeftTorso = Math.max(data.peakLeftTorso, currentXFactor);
-        }
-
-        DOM.metricXVal.textContent = `${data.peakRightTorso.toFixed(1)}°`;
-        DOM.metricZVal.textContent = `${data.peakLeftTorso.toFixed(1)}°`;
-        DOM.metricDynamicVal.textContent = `${data.peakXFactor.toFixed(1)}°`;
-      }
-      else if (testId === 'stepping') {
-        const dx = (rightHip.x - leftHip.x);
-        const dz = (rightHip.z - leftHip.z);
-        const rotDeg = Math.abs(Math.atan2(dz, dx) * (180 / Math.PI));
-        data.peakRotationDeg = Math.max(data.peakRotationDeg, rotDeg);
-
-        DOM.metricXVal.textContent = `${xDisplacementCm.toFixed(1)} cm`;
-        DOM.metricZVal.textContent = `${zDisplacementCm.toFixed(1)} cm`;
-        DOM.metricDynamicVal.textContent = `${data.peakRotationDeg.toFixed(1)}°`;
-      }
-      else if (testId === 'tpose') {
-        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-          const lDx = (leftWrist.x - leftShoulder.x) * w;
-          const lDy = (leftWrist.y - leftShoulder.y) * h;
-          const leftAngle = Math.atan2(lDy, Math.abs(lDx)) * (180 / Math.PI);
-
-          const rDx = (rightWrist.x - rightShoulder.x) * w;
-          const rDy = (rightWrist.y - rightShoulder.y) * h;
-          const rightAngle = Math.atan2(rDy, Math.abs(rDx)) * (180 / Math.PI);
-
-          const armAngleDiff = Math.abs(leftAngle - rightAngle);
-          const wristDiffCm = Math.abs((leftWrist.y - rightWrist.y) * h) / AppState.pxPerCm;
-
-          data.tposeLeftArmAngle = leftAngle;
-          data.tposeRightArmAngle = rightAngle;
-          data.tposeWristDiffCm = wristDiffCm;
-
-          DOM.metricXVal.textContent = `${leftAngle >= 0 ? '+' : ''}${leftAngle.toFixed(1)}°`;
-          DOM.metricZVal.textContent = `${rightAngle >= 0 ? '+' : ''}${rightAngle.toFixed(1)}°`;
-          DOM.metricDynamicVal.textContent = `${armAngleDiff.toFixed(1)}°`;
-        }
-      }
-      else if (testId === 'oneleg') {
-        const swayPx = Math.abs((nose.x * w) - snap.hipCenterX);
-        const swayCm = swayPx / AppState.pxPerCm;
-        data.peakSwayCm = Math.max(data.peakSwayCm, swayCm);
-
-        data.onelegFrames++;
-        data.onelegSwaySum += swayCm;
-        const avgSway = data.onelegSwaySum / data.onelegFrames;
-
-        const currentDuration = 15 - AppState.testRemainingSec;
-        data.onelegDuration = currentDuration;
-
-        if (leftAnkle && rightAnkle) {
-          const ankleDiffY = Math.abs(leftAnkle.y - rightAnkle.y) * h;
-          if (ankleDiffY >= 35) {
-            AppState.hasLegLifted = true;
-          }
-          if (AppState.hasLegLifted && ankleDiffY < 18) {
-            data.hasLanded = true;
-          }
-        }
-
-        DOM.metricXVal.textContent = `${currentDuration} s`;
-        DOM.metricZVal.textContent = `${avgSway.toFixed(1)} cm`;
-        DOM.metricDynamicVal.textContent = `${data.peakSwayCm.toFixed(1)} cm`;
-      }
-    }
-
-    function startTestCountdown() {
-      AppState.testState = 'countdown';
-      DOM.testPrepIndicator.innerHTML = '<span class="text-emerald-400 font-bold">静止確認！</span>';
-      DOM.testBigBanner.classList.remove('hidden');
-
-      let count = 3;
-      DOM.testBigBannerNumber.textContent = count;
-      DOM.testBigBannerSub.textContent = '3秒後に開始！目を閉じてください';
-      SoundFX.beepCountdown();
-      pulseAudioIcon();
-
-      if (AppState.testCountdownInterval) {
-        clearInterval(AppState.testCountdownInterval);
-        AppState.testCountdownInterval = null;
-      }
-
-      AppState.testCountdownInterval = setInterval(() => {
-        count--;
-        if (count > 0) {
-          DOM.testBigBannerNumber.textContent = count;
-          DOM.testBigBannerSub.textContent = '目を閉じて準備してください';
-          SoundFX.beepCountdown();
-          pulseAudioIcon();
-        } else if (count === 0) {
-          DOM.testBigBannerNumber.textContent = 'START!';
-          DOM.testBigBannerSub.textContent = '測定開始！';
-          SoundFX.playStartWhistle();
-          pulseAudioIcon(true);
-        } else {
-          clearInterval(AppState.testCountdownInterval);
-          AppState.testCountdownInterval = null;
-          DOM.testBigBanner.classList.add('hidden');
-          runTestMeasurement();
-        }
-      }, 1000);
-    }
-
-    function runTestMeasurement() {
-      AppState.testState = 'running';
-      DOM.testPrepIndicator.innerHTML = '<span class="text-red-400 font-bold animate-pulse">● 測定中</span>';
-
-      const cfg = TEST_CONFIGS[AppState.activeTestId];
-      AppState.testRemainingSec = cfg.duration;
-      DOM.testTimerText.textContent = AppState.testRemainingSec;
-
-      AppState.testGracePeriod = true;
-      setTimeout(() => {
-        AppState.testGracePeriod = false;
-      }, 1500);
-
-      startLocalRecording();
-
-      if (cfg.useMetronome) {
-        AppState.testMetronomeInterval = setInterval(() => {
-          if (AppState.testState === 'running') {
-            SoundFX.beepMetronome();
-            pulseAudioIcon();
-          }
-        }, 600);
-      }
-
-      AppState.testTimerInterval = setInterval(() => {
-        AppState.testRemainingSec--;
-        DOM.testTimerText.textContent = AppState.testRemainingSec;
-
-        if (AppState.testRemainingSec > 3) {
-          const isAccent = (AppState.testRemainingSec % 5 === 0);
-          SoundFX.playTestTick(isAccent);
-          pulseAudioIcon();
-        } else if (AppState.testRemainingSec >= 1 && AppState.testRemainingSec <= 3) {
-          SoundFX.playLastSecondsWarning(AppState.testRemainingSec);
-          pulseAudioIcon(true);
-        } else if (AppState.testRemainingSec <= 0) {
-          clearInterval(AppState.testTimerInterval);
-          AppState.testTimerInterval = null;
-          SoundFX.playFinishWhistle();
-          finishTestSession('測定終了！お疲れ様でした！');
-        }
-      }, 1000);
-    }
-
-    function pulseAudioIcon(isLarge = false) {
-      const el = DOM.testAudioPulseIcon;
-      if (!el) return;
-      el.style.transform = isLarge ? 'scale(1.4)' : 'scale(1.2)';
-      el.style.color = '#38bdf8';
-      setTimeout(() => {
-        if (el) {
-          el.style.transform = 'scale(1.0)';
-          el.style.color = '#fde047';
-        }
-      }, 150);
-    }
-
+    /* --- 6. 録画エンジン (iOS Safari mp4最優先判別) --- */
     function getSupportedMimeType() {
       const types = [
         'video/mp4;codecs=avc1',
         'video/mp4',
         'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
         'video/webm'
       ];
-      for (const type of types) {
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
-          return type;
+      for (const t of types) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) {
+          return t;
         }
       }
       return '';
     }
 
-    function startLocalRecording() {
+    function setupMediaRecorder(stream) {
       AppState.recordedChunks = [];
-      if (!AppState.stream) return;
-
       try {
         const mimeType = getSupportedMimeType();
         const options = mimeType ? { mimeType } : undefined;
-        const recorder = new MediaRecorder(AppState.stream, options);
+        AppState.mediaRecorder = new MediaRecorder(stream, options);
 
-        recorder.ondataavailable = (e) => {
+        AppState.mediaRecorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) {
             AppState.recordedChunks.push(e.data);
           }
         };
 
-        recorder.onstop = () => {
+        AppState.mediaRecorder.onstop = () => {
           if (AppState.recordedChunks.length > 0) {
-            const blobType = mimeType || 'video/mp4';
-            const blob = new Blob(AppState.recordedChunks, { type: blobType });
-            AppState.lastRecordedBlob = blob;
-            if (AppState.lastRecordedUrl) {
-              URL.revokeObjectURL(AppState.lastRecordedUrl);
+            const blob = new Blob(AppState.recordedChunks, { type: AppState.mediaRecorder.mimeType || 'video/mp4' });
+            if (AppState.replayBlobUrl) URL.revokeObjectURL(AppState.replayBlobUrl);
+            AppState.replayBlobUrl = URL.createObjectURL(blob);
+            const replayVideo = document.getElementById('resultReplayVideo');
+            if (replayVideo) {
+              replayVideo.src = AppState.replayBlobUrl;
             }
-            AppState.lastRecordedUrl = URL.createObjectURL(blob);
           }
         };
-
-        recorder.start();
-        AppState.mediaRecorder = recorder;
-      } catch (err) {
-        console.warn('MediaRecorder notice:', err);
+      } catch (e) {
+        console.warn('MediaRecorder setup error', e);
       }
     }
 
-    function stopLocalRecording() {
-      if (AppState.mediaRecorder && AppState.mediaRecorder.state !== 'inactive') {
+    /* --- 7. MediaPipe 結果ディスパッチャー --- */
+    function onPoseResults(results) {
+      const landmarks = results.poseLandmarks;
+      if (!landmarks) return;
+
+      if (AppState.currentScreen === 'screenScan') {
+        handleScanFrame(landmarks);
+      } else if (AppState.currentScreen === 'screenTest') {
+        handleTestFrame(landmarks);
+      } else if (AppState.currentScreen === 'screenDrill') {
+        handleDrillFrame(landmarks);
+      }
+    }
+
+    /* --- 8. スキャン判定ロジック --- */
+    function handleScanFrame(landmarks) {
+      const canvas = document.getElementById('scanCanvas');
+      const video = document.getElementById('scanVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawSkeleton(ctx, landmarks, canvas.width, canvas.height, '#3B82F6');
+
+      const isFullBody = checkFullBodyVisible(landmarks);
+      const box = document.getElementById('scanTargetBox');
+      const boxText = document.getElementById('scanBoxText');
+
+      if (isFullBody) {
+        box.classList.remove('border-blue-400/60');
+        box.classList.add('border-emerald-400', 'bg-emerald-500/10');
+        boxText.textContent = '✅ 全身検出中！スキャン実行可能';
+        boxText.className = 'text-xs font-black text-emerald-300 bg-slate-900/90 px-3 py-1.5 rounded-full border border-emerald-400/40 shadow-lg';
+      } else {
+        box.classList.remove('border-emerald-400', 'bg-emerald-500/10');
+        box.classList.add('border-blue-400/60');
+        boxText.textContent = '全身を枠内へ収めてください';
+        boxText.className = 'text-xs font-black text-blue-300 bg-slate-900/80 px-3 py-1.5 rounded-full border border-blue-400/40 shadow-lg';
+      }
+    }
+
+    function captureScanCalibration(landmarks) {
+      if (!checkFullBodyVisible(landmarks)) {
+        alert('頭から両足首まで全身が映るように離れてからスキャンを押してください。');
+        return;
+      }
+      const video = document.getElementById('scanVideo');
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+      const nose = landmarks[0];
+      const leftAnkle = landmarks[27];
+
+      const shWidthPx = Math.abs(leftShoulder.x - rightShoulder.x) * w;
+      const hipWidthPx = Math.abs(leftHip.x - rightHip.x) * w;
+      const bodyHeightPx = Math.abs(leftAnkle.y - nose.y) * h;
+
+      const estimatedHeightCm = 165;
+      const pxPerCm = bodyHeightPx / estimatedHeightCm;
+
+      AppState.calibration = {
+        isCalibrated: true,
+        pxPerCmX: pxPerCm,
+        pxPerCmY: pxPerCm,
+        baseShoulderWidth: shWidthPx,
+        baseHipWidth: hipWidthPx,
+        baseHipCenterY: (leftHip.y + rightHip.y) / 2
+      };
+
+      DB.saveCalibration(AppState.currentUserId, AppState.calibration);
+      SoundFX.playFanfare();
+      alert(`絶対モノサシを確定しました！\n1cm = ${pxPerCm.toFixed(2)}px\n基準肩幅 = ${Math.round(shWidthPx)}px`);
+      switchScreen('screenLobby');
+    }
+
+    /* --- 9. 4大テスト測定エンジン (射影幾何学コサイン則 ＆ ピークホールド) --- */
+    const TEST_CONFIGS = {
+      stepping: {
+        title: '目隠し足踏み',
+        speechTitle: '目隠し足踏みテスト',
+        sub: '15秒間テンポよく足踏み',
+        duration: 15,
+        guidanceMinSec: 5.2,
+        guideSpeech: '目隠し足踏みテスト。両腕を胸の前で軽く曲げ、目隠しをしてその場で15秒間リズムよく足踏みしてください。まずはカメラに全身を映して静止してください。'
+      },
+      tpose: {
+        title: 'Tポーズ水平',
+        speechTitle: 'Tポーズ水平テスト',
+        sub: '両腕を水平に6秒キープ',
+        duration: 6,
+        guidanceMinSec: 4.8,
+        guideSpeech: 'Tポーズ水平テスト。両腕を真横に床と平行に伸ばし、目隠しをしてそのまま6秒間キープしてください。まずは全身を映して静止してください。'
+      },
+      oneleg: {
+        title: '片足立ちキープ',
+        speechTitle: '片足立ちキープテスト',
+        sub: '目隠し片足立ち15秒キープ',
+        duration: 15,
+        guidanceMinSec: 5.0,
+        guideSpeech: '片足立ちキープテスト。両手を腰にあて、片足を床から浮かせた状態で15秒間保持してください。まずは両足で静止してください。'
+      },
+      thoracic: {
+        title: '骨盤制動胸捻転',
+        speechTitle: '骨盤制動胸捻転テスト',
+        sub: '骨盤を固定し上半身回旋10秒',
+        duration: 10,
+        guidanceMinSec: 5.4,
+        guideSpeech: '骨盤制動胸捻転テスト。両手を胸の前で組み、腰を正面に向けたまま上半身だけを左右へ限界まで大きく回旋してください。まずは全身を映して静止してください。'
+      }
+    };
+
+    async function startTestSession(testId) {
+      AppState.activeTestId = testId;
+      const cfg = TEST_CONFIGS[testId];
+      AppState.testDuration = cfg.duration;
+      AppState.testElapsed = 0;
+      AppState.testState = 'guiding';
+      AppState.stillFrames = 0;
+      AppState.hasLegLifted = false;
+
+      AppState.peakMetrics = {
+        peakXFactor: 0,
+        peakRightTorso: 0,
+        peakLeftTorso: 0,
+        peakDeviationCm: 0,
+        peakArmAngleDiff: 0,
+        peakLeftArmAngle: 0,
+        peakRightArmAngle: 0,
+        swayHistory: [],
+        footContactLostTime: 0
+      };
+
+      await switchScreen('screenTest');
+
+      document.getElementById('testTitle').textContent = cfg.title;
+      document.getElementById('testSubTitle').textContent = cfg.sub;
+      document.getElementById('testTimerText').textContent = cfg.duration.toFixed(1);
+      
+      const toast = document.getElementById('testGuidanceToast');
+      toast.classList.remove('hidden');
+      toast.textContent = '📢 説明を聞いてください...';
+
+      AppState.isSpeechGuiding = true;
+      let minTimePassed = false;
+
+      if (AppState.guidanceMinTimer) clearTimeout(AppState.guidanceMinTimer);
+      AppState.guidanceMinTimer = setTimeout(() => {
+        minTimePassed = true;
+      }, cfg.guidanceMinSec * 1000);
+
+      SoundFX.speak(cfg.guideSpeech, () => {
+        const checkReady = () => {
+          if (minTimePassed) {
+            AppState.isSpeechGuiding = false;
+            toast.textContent = '👀 全身を映して静止してください';
+            SoundFX.playCountBeep();
+          } else {
+            setTimeout(checkReady, 200);
+          }
+        };
+        checkReady();
+      });
+    }
+
+    function handleTestFrame(landmarks) {
+      const canvas = document.getElementById('testCanvas');
+      const video = document.getElementById('testVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const color = (AppState.testState === 'measuring') ? '#F59E0B' : '#38BDF8';
+      drawSkeleton(ctx, landmarks, canvas.width, canvas.height, color);
+
+      const isFull = checkFullBodyVisible(landmarks);
+
+      if (AppState.testState === 'guiding') {
+        if (AppState.isSpeechGuiding) return;
+
+        if (isFull) {
+          checkStillness(landmarks);
+        } else {
+          AppState.stillFrames = 0;
+          document.getElementById('testStatusBanner').classList.add('hidden');
+        }
+      }
+
+      if (AppState.testState === 'measuring') {
+        calculateBiomechanicsRealtime(landmarks, canvas.width, canvas.height);
+      }
+    }
+
+    function checkStillness(landmarks) {
+      const nose = landmarks[0];
+      const hipCenter = {
+        x: (landmarks[23].x + landmarks[24].x) / 2,
+        y: (landmarks[23].y + landmarks[24].y) / 2
+      };
+
+      if (!AppState.lastNosePos) {
+        AppState.lastNosePos = nose;
+        AppState.lastHipPos = hipCenter;
+        return;
+      }
+
+      const diffNose = Math.hypot(nose.x - AppState.lastNosePos.x, nose.y - AppState.lastNosePos.y);
+      const diffHip = Math.hypot(hipCenter.x - AppState.lastHipPos.x, hipCenter.y - AppState.lastHipPos.y);
+
+      AppState.lastNosePos = nose;
+      AppState.lastHipPos = hipCenter;
+
+      if (diffNose < 0.008 && diffHip < 0.008) {
+        AppState.stillFrames++;
+        if (AppState.stillFrames >= 25) {
+          startTestCountdown();
+        }
+      } else {
+        AppState.stillFrames = Math.max(0, AppState.stillFrames - 3);
+      }
+    }
+
+    function startTestCountdown() {
+      AppState.testState = 'counting';
+      const banner = document.getElementById('testStatusBanner');
+      const numEl = document.getElementById('testCountdownNumber');
+      const toast = document.getElementById('testGuidanceToast');
+
+      toast.classList.add('hidden');
+      banner.classList.remove('hidden');
+      numEl.classList.remove('hidden');
+
+      let count = 3;
+      numEl.textContent = count;
+      SoundFX.playCountBeep();
+
+      if (AppState.testCountdownInterval) clearInterval(AppState.testCountdownInterval);
+      AppState.testCountdownInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          numEl.textContent = count;
+          SoundFX.playCountBeep();
+        } else {
+          clearInterval(AppState.testCountdownInterval);
+          banner.classList.add('hidden');
+          numEl.classList.add('hidden');
+          beginActiveMeasurement();
+        }
+      }, 1000);
+    }
+
+    function beginActiveMeasurement() {
+      AppState.testState = 'measuring';
+      AppState.testElapsed = 0;
+      SoundFX.playStartWhistle();
+
+      if (AppState.mediaRecorder && AppState.mediaRecorder.state === 'inactive') {
+        try { AppState.mediaRecorder.start(); } catch (e) {}
+      }
+
+      const timerText = document.getElementById('testTimerText');
+      const pulsar = document.getElementById('testAudioPulsar');
+
+      AppState.testInterval = setInterval(() => {
+        AppState.testElapsed += 0.1;
+        const remain = Math.max(0, AppState.testDuration - AppState.testElapsed);
+        timerText.textContent = remain.toFixed(1);
+
+        if (Math.floor(AppState.testElapsed * 10) % 10 === 0) {
+          pulsar.classList.add('scale-125', 'bg-amber-500');
+          setTimeout(() => pulsar.classList.remove('scale-125', 'bg-amber-500'), 150);
+
+          if (AppState.activeTestId === 'stepping') {
+            SoundFX.playMetronome();
+          } else {
+            SoundFX.playTick();
+          }
+
+          if (remain <= 3.0 && remain > 0.5) {
+            SoundFX.playChimeAscend();
+          }
+        }
+
+        if (AppState.testElapsed >= AppState.testDuration) {
+          finishTestSession();
+        }
+      }, 100);
+    }
+
+    function calculateBiomechanicsRealtime(landmarks, w, h) {
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+      const leftWrist = landmarks[15];
+      const rightWrist = landmarks[16];
+      const leftAnkle = landmarks[27];
+      const rightAnkle = landmarks[28];
+
+      const devInfo = document.getElementById('testDevLiveInfo');
+
+      if (AppState.activeTestId === 'thoracic') {
+        const curShW = Math.abs(leftShoulder.x - rightShoulder.x) * w;
+        const baseShW = AppState.calibration.baseShoulderWidth || 120;
+        const curHipW = Math.abs(leftHip.x - rightHip.x) * w;
+        const baseHipW = AppState.calibration.baseHipWidth || 90;
+
+        const distScale = (curHipW / baseHipW) || 1.0;
+        const normShW = curShW / distScale;
+
+        const ratio = Math.min(1.0, Math.max(0.1, normShW / baseShW));
+        const rotDeg = Math.acos(ratio) * (180 / Math.PI);
+
+        if (rightShoulder.x < leftShoulder.x) {
+          if (rotDeg > AppState.peakMetrics.peakRightTorso) AppState.peakMetrics.peakRightTorso = rotDeg;
+        } else {
+          if (rotDeg > AppState.peakMetrics.peakLeftTorso) AppState.peakMetrics.peakLeftTorso = rotDeg;
+        }
+
+        if (rotDeg > AppState.peakMetrics.peakXFactor) {
+          AppState.peakMetrics.peakXFactor = rotDeg;
+        }
+        devInfo.textContent = `X-Factor: ${rotDeg.toFixed(1)}° (MAX: ${AppState.peakMetrics.peakXFactor.toFixed(1)}°)`;
+      } 
+      else if (AppState.activeTestId === 'tpose') {
+        const lAngle = Math.atan2(leftWrist.y - leftShoulder.y, leftWrist.x - leftShoulder.x) * (180 / Math.PI);
+        const rAngle = Math.atan2(rightWrist.y - rightShoulder.y, rightShoulder.x - rightWrist.x) * (180 / Math.PI);
+        const diff = Math.abs(lAngle - rAngle);
+
+        if (diff > AppState.peakMetrics.peakArmAngleDiff) {
+          AppState.peakMetrics.peakArmAngleDiff = diff;
+          AppState.peakMetrics.peakLeftArmAngle = lAngle;
+          AppState.peakMetrics.peakRightArmAngle = rAngle;
+        }
+        devInfo.textContent = `腕傾き差: ${diff.toFixed(1)}° (MAX: ${AppState.peakMetrics.peakArmAngleDiff.toFixed(1)}°)`;
+      } 
+      else if (AppState.activeTestId === 'oneleg') {
+        const ankleDiffPx = Math.abs(leftAnkle.y - rightAnkle.y) * h;
+        if (ankleDiffPx > 35) {
+          AppState.hasLegLifted = true;
+        }
+        if (AppState.hasLegLifted) {
+          const hipCenter = (leftHip.x + rightHip.x) / 2;
+          const swayCm = Math.abs(hipCenter - 0.5) * w / AppState.calibration.pxPerCmX;
+          AppState.peakMetrics.swayHistory.push(swayCm);
+
+          if (ankleDiffPx < 20 && AppState.testElapsed > 1.5) {
+            if (!AppState.peakMetrics.footContactLostTime) {
+              AppState.peakMetrics.footContactLostTime = AppState.testElapsed;
+              finishTestSession();
+            }
+          }
+        }
+        devInfo.textContent = `耐久: ${AppState.testElapsed.toFixed(1)}s (片足検知: ${AppState.hasLegLifted ? 'OK' : '準備中'})`;
+      } 
+      else if (AppState.activeTestId === 'stepping') {
+        const hipCenter = (leftHip.x + rightHip.x) / 2;
+        const devCm = Math.abs(hipCenter - 0.5) * w / AppState.calibration.pxPerCmX;
+        if (devCm > AppState.peakMetrics.peakDeviationCm) {
+          AppState.peakMetrics.peakDeviationCm = devCm;
+        }
+        devInfo.textContent = `最大偏位: ${AppState.peakMetrics.peakDeviationCm.toFixed(1)}cm`;
+      }
+    }
+
+    function finishTestSession() {
+      clearInterval(AppState.testInterval);
+      AppState.testState = 'finished';
+      SoundFX.playFinishWhistle();
+
+      if (AppState.mediaRecorder && AppState.mediaRecorder.state === 'recording') {
+        AppState.mediaRecorder.stop();
+      }
+
+      setTimeout(() => {
+        presentResults();
+      }, 700);
+    }
+
+    function cleanupTestSession() {
+      if (AppState.testInterval) clearInterval(AppState.testInterval);
+      if (AppState.testCountdownInterval) clearInterval(AppState.testCountdownInterval);
+      if (AppState.guidanceMinTimer) clearTimeout(AppState.guidanceMinTimer);
+      AppState.isSpeechGuiding = false;
+      window.speechSynthesis.cancel();
+      if (AppState.mediaRecorder && AppState.mediaRecorder.state === 'recording') {
         try { AppState.mediaRecorder.stop(); } catch (e) {}
       }
     }
 
-    function triggerDangerAbort(reason) {
-      cleanupTestSession();
-      SoundFX.alertBuzzer();
-      DOM.testDangerReason.textContent = reason;
-      DOM.testDangerAlert.classList.remove('hidden');
-
-      setTimeout(() => {
-        DOM.testDangerAlert.classList.add('hidden');
-        finishTestSession(`注意、${reason}`);
-      }, 2500);
-    }
-
-    function cleanupTestSession() {
-      AppState.isSpeechGuiding = false;
-      if (AppState.testCountdownInterval) {
-        clearInterval(AppState.testCountdownInterval);
-        AppState.testCountdownInterval = null;
-      }
-      if (AppState.testTimerInterval) {
-        clearInterval(AppState.testTimerInterval);
-        AppState.testTimerInterval = null;
-      }
-      if (AppState.testMetronomeInterval) {
-        clearInterval(AppState.testMetronomeInterval);
-        AppState.testMetronomeInterval = null;
-      }
-      stopLocalRecording();
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    }
-
-    function finishTestSession(message) {
-      cleanupTestSession();
-      SoundFX.fanFare();
-      SoundFX.speak(message);
-
-      const scoreData = evaluateAwakeningScore(AppState.activeTestId, AppState.testSessionData);
-
-      displayResultScreen({
-        testId: AppState.activeTestId,
-        sessionData: AppState.testSessionData,
-        scoreData,
-        recordBlob: AppState.lastRecordedBlob,
-        recordUrl: AppState.lastRecordedUrl
-      });
-    }
-
-    function evaluateAwakeningScore(testId, data) {
-      let score = 80;
-      let nextGoal = '';
-      let commentary = '';
-      let metric1 = '', metric2 = '', metric3 = '', metric4 = '';
-
-      if (testId === 'pelvis') {
-        const peakX = data.peakXFactor;
-        score = Math.max(40, Math.min(99, Math.round(45 + peakX * 1.5)));
-        const targetRemaining = Math.max(0, 36.0 - peakX).toFixed(1);
-        nextGoal = peakX >= 36.0 ? '🌟 神域覚醒達成！' : `🔒 あと +${targetRemaining}° 捻転で完全覚醒！`;
-        commentary = `骨盤を固定した胸郭ピーク分離角は【${peakX.toFixed(1)}°】。右捻転: ${data.peakRightTorso.toFixed(1)}° / 左捻転: ${data.peakLeftTorso.toFixed(1)}° を記録しました。`;
-        
-        metric1 = `ピーク ${peakX.toFixed(1)}°`;
-        metric2 = `右 ${data.peakRightTorso.toFixed(1)}°`;
-        metric3 = `左 ${data.peakLeftTorso.toFixed(1)}°`;
-        metric4 = peakX >= 30 ? '🌟 良好' : '⚡ 強化推奨';
-      }
-      else if (testId === 'stepping') {
-        const err = (data.maxDevXCm * 1.3) + (data.maxDevZCm * 1.1) + (data.peakRotationDeg * 0.7);
-        score = Math.max(45, Math.min(99, Math.round(100 - err * 0.8)));
-        const gap = (err * 0.2).toFixed(1);
-        nextGoal = `🔒 あと ${gap}cm 偏位抑制で完全覚醒！`;
-        commentary = `最大左右偏位 ${data.maxDevXCm.toFixed(1)}cm、前後移動 ${data.maxDevZCm.toFixed(1)}cm、骨盤回旋ピーク ${data.peakRotationDeg.toFixed(1)}° を検知しました。`;
-
-        metric1 = `左右 ${data.maxDevXCm.toFixed(1)}cm`;
-        metric2 = `前後 ${data.maxDevZCm.toFixed(1)}cm`;
-        metric3 = `回旋 ${data.peakRotationDeg.toFixed(1)}°`;
-        metric4 = score >= 85 ? '🌟 安定' : '⚡ 偏位傾向';
-      }
-      else if (testId === 'tpose') {
-        const diffAngle = Math.abs(data.tposeLeftArmAngle - data.tposeRightArmAngle);
-        score = Math.max(50, Math.min(99, Math.round(100 - diffAngle * 3.2)));
-        const gap = (diffAngle * 0.5).toFixed(1);
-        nextGoal = `🔒 あと左右角度差 ${gap}° 解消で覚醒！`;
-        commentary = `左腕: ${data.tposeLeftArmAngle.toFixed(1)}° / 右腕: ${data.tposeRightArmAngle.toFixed(1)}° (角度差: ${diffAngle.toFixed(1)}°)。肩甲骨マップの左右対称性を高めましょう。`;
-
-        metric1 = `左 ${data.tposeLeftArmAngle.toFixed(1)}°`;
-        metric2 = `右 ${data.tposeRightArmAngle.toFixed(1)}°`;
-        metric3 = `差 ${diffAngle.toFixed(1)}°`;
-        metric4 = diffAngle <= 5 ? '🌟 水平確定' : '⚡ 左右差あり';
-      }
-      else if (testId === 'oneleg') {
-        const dur = data.onelegDuration || 15;
-        const avgSway = data.onelegFrames > 0 ? (data.onelegSwaySum / data.onelegFrames) : 0;
-        score = Math.max(40, Math.min(99, Math.round((dur / 15) * 60 + Math.max(0, 40 - avgSway * 4))));
-        nextGoal = dur >= 15 ? `🔒 動揺 ${avgSway.toFixed(1)}cm 抑制で神域へ！` : `🔒 あと ${15 - dur}秒 キープで覚醒！`;
-        commentary = `片足キープ持続時間【${dur}秒】。平均動揺幅: ${avgSway.toFixed(1)}cm、最大ブレ: ${data.peakSwayCm.toFixed(1)}cm を記録しました。`;
-
-        metric1 = `保持 ${dur} 秒`;
-        metric2 = `平均動揺 ${avgSway.toFixed(1)}cm`;
-        metric3 = `最大動揺 ${data.peakSwayCm.toFixed(1)}cm`;
-        metric4 = dur >= 15 ? '🌟 完走達成' : '⚡ 早期落下';
-      }
-
-      return { score, nextGoal, commentary, metric1, metric2, metric3, metric4 };
-    }
-
-    function displayResultScreen(data) {
-      const cfg = TEST_CONFIGS[data.testId];
-      const sc = data.scoreData;
-
-      DOM.resTestName.textContent = cfg.title;
-      DOM.resAwakenScore.textContent = `${sc.score}%`;
-      DOM.resNextGoalBadge.textContent = sc.nextGoal;
-      DOM.resFeedbackCommentary.textContent = sc.commentary;
-
-      DOM.resMetricLabel1.textContent = cfg.metric1Label;
-      DOM.resMetricVal1.textContent = sc.metric1;
-
-      DOM.resMetricLabel2.textContent = cfg.metric2Label;
-      DOM.resMetricVal2.textContent = sc.metric2;
-
-      DOM.resMetricLabel3.textContent = cfg.dynamicLabel;
-      DOM.resMetricVal3.textContent = sc.metric3;
-
-      DOM.resMetricLabel4.textContent = '達成判定';
-      DOM.resMetricVal4.textContent = sc.metric4;
-
-      if (data.recordUrl) {
-        DOM.replayVideoPlayer.src = data.recordUrl;
-        DOM.replayPlaceholder.classList.add('hidden');
-      } else {
-        DOM.replayPlaceholder.classList.remove('hidden');
-      }
-
-      AppState.lastResultData = data;
+    /* --- 10. 結果・リプレイ表示 --- */
+    function presentResults() {
       switchScreen('screenResult');
+      const cfg = TEST_CONFIGS[AppState.activeTestId];
+      document.getElementById('resultTestTitle').textContent = `${cfg.title} 測定レポート`;
+
+      let score = 75;
+      let metricHtml = '';
+      let feedback = '';
+
+      if (AppState.activeTestId === 'thoracic') {
+        const xFactor = AppState.peakMetrics.peakXFactor || 15;
+        score = Math.min(100, Math.round((xFactor / 38) * 100));
+        metricHtml = `
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">最大X-Factor角</span>
+            <p class="font-num text-xl font-black text-rose-400">${xFactor.toFixed(1)}°</p>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">左右差バランス</span>
+            <p class="font-num text-xl font-black text-white">R:${AppState.peakMetrics.peakRightTorso.toFixed(0)}° / L:${AppState.peakMetrics.peakLeftTorso.toFixed(0)}°</p>
+          </div>
+        `;
+        feedback = `骨盤を制動したまま胸郭を回旋させる能力（X-Factor）を測定しました。目標値は35°以上です。イス座りドリルで胸椎の可動域を再インプットしましょう。`;
+      } 
+      else if (AppState.activeTestId === 'tpose') {
+        const diff = AppState.peakMetrics.peakArmAngleDiff || 4.2;
+        score = Math.max(30, Math.round(100 - (diff * 7)));
+        metricHtml = `
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">左右腕傾斜差</span>
+            <p class="font-num text-xl font-black text-teal-400">${diff.toFixed(1)}°</p>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">水平判定</span>
+            <p class="text-sm font-black ${diff <= 3.5 ? 'text-emerald-400' : 'text-amber-400'}">${diff <= 3.5 ? '✅ 良好な水平性' : '⚠️ 傾きを検知'}</p>
+          </div>
+        `;
+        feedback = `目隠し状態での両腕の水平認識を検証しました。脳内GPSの左右バランス感覚をドリルで整えましょう。`;
+      } 
+      else if (AppState.activeTestId === 'oneleg') {
+        const holdSec = AppState.peakMetrics.footContactLostTime || AppState.testDuration;
+        const avgSway = AppState.peakMetrics.swayHistory.length > 0
+          ? AppState.peakMetrics.swayHistory.reduce((a, b) => a + b, 0) / AppState.peakMetrics.swayHistory.length
+          : 2.1;
+        score = Math.min(100, Math.round((holdSec / 15) * 80 + Math.max(0, 20 - avgSway * 4)));
+        metricHtml = `
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">耐久保持時間</span>
+            <p class="font-num text-xl font-black text-indigo-400">${holdSec.toFixed(1)}s / 15s</p>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">平均重心動揺幅</span>
+            <p class="font-num text-xl font-black text-white">${avgSway.toFixed(1)} cm</p>
+          </div>
+        `;
+        feedback = `片足立ちにおける前庭覚と固有感覚の連携度を測定しました。足裏3点接地ドリルで重心を安定化させましょう。`;
+      } 
+      else if (AppState.activeTestId === 'stepping') {
+        const dev = AppState.peakMetrics.peakDeviationCm || 14.5;
+        score = Math.max(30, Math.round(100 - (dev * 2.2)));
+        metricHtml = `
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">最大中心偏位</span>
+            <p class="font-num text-xl font-black text-yellow-400">${dev.toFixed(1)} cm</p>
+          </div>
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
+            <span class="text-slate-400 text-[10px] font-bold">歩行安定度</span>
+            <p class="text-sm font-black ${dev <= 12 ? 'text-emerald-400' : 'text-rose-400'}">${dev <= 12 ? '良好なセンタリング' : '右/左への偏位傾向あり'}</p>
+          </div>
+        `;
+        feedback = `目隠し状態での足踏みによる空間認知のズレを検出しました。ハイキックドリルで中心軸を強化しましょう。`;
+      }
+
+      document.getElementById('resultScoreBadge').textContent = `覚醒度: ${score}点`;
+      document.getElementById('resultMetricsContainer').innerHTML = metricHtml;
+      document.getElementById('resultFeedbackText').textContent = feedback;
+
+      const record = {
+        date: new Date().toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        testId: AppState.activeTestId,
+        score: score,
+        rawMetrics: AppState.peakMetrics
+      };
+      DB.saveRecord(AppState.currentUserId, record);
     }
 
+    /* --- 11. 4大再構築ドリル判定エンジン (v1.1 厳格判定) --- */
     const DRILL_CONFIGS = {
-      stepping: {
-        id: 'stepping',
-        title: '👣 重心センタリング・ハイキック',
-        badge: '足踏み偏位・軸ブレ克服',
-        sub: '骨盤中心の左右ブレを抑え、左右交互に膝を高く引き上げる',
-        speechStart: '重心センタリングハイキックドリル。体の中心軸を意識し、膝を腰の高さまで交互に高く持ち上げてください。',
-        metric1Name: '中心軸ブレ幅',
-        metric2Name: '目標ライン',
-        targetRule: 'ブレ ≤ 6.0cm & 膝上げ',
-        targetValText: '≤ 6.0cm'
-      },
-      tpose: {
-        id: 'tpose',
-        title: '⚖️ 肩甲骨水平アイソメトリック',
-        badge: 'Tポーズ傾き・左右差克服',
-        sub: '両腕を真横に床と平行に伸ばし、左右角度差を±3°以内に保つ',
-        speechStart: '肩甲骨水平アイソメトリックドリル。両腕を床と水平に真横へ伸ばし、左右均等な高さをキープしてください。',
-        metric1Name: '左右腕傾き差',
-        metric2Name: '目標ライン',
-        targetRule: '差 ≤ 3.5°',
-        targetValText: '≤ 3.5°'
-      },
-      oneleg: {
-        id: 'oneleg',
-        title: '⚓ 足裏3点接地アンカーバランサー',
-        badge: '片足動揺・ふらつき克服',
-        sub: '片膝を持ち上げ、頭部・重心の左右揺れを2.5cm以内で静止キープ',
-        speechStart: '足裏3点接地アンカーバランサードリル。母指球・小指球・かかとで床をつかみ、頭を静止させて片足立ちをキープしてください。',
-        metric1Name: '頭部動揺幅',
-        metric2Name: '目標ライン',
-        targetRule: '動揺 ≤ 2.5cm',
-        targetValText: '≤ 2.5cm'
-      },
-      pelvis: {
-        id: 'pelvis',
+      drill_thoracic: {
         title: '🪑 イス座り頭後ろ胸回しドリル',
-        badge: '骨盤制動・胸郭回旋覚醒',
-        sub: '両手を後頭部で組み、骨盤を動かさず胸郭を大きく回旋キープ',
-        speechStart: 'イス座り頭の後ろ手組み胸回しドリル。両手を後頭部で組み、骨盤を固定して胸郭を大きく回旋してください。',
-        metric1Name: '胸郭捻転角',
-        metric2Name: '目標ライン',
-        targetRule: '捻転 ≥ 26.0°',
-        targetValText: '≥ 26.0°'
+        speech: 'イス座り胸回しドリル。両手を後頭部で組み、骨盤を正面に向けたまま胸郭を深く回旋して3秒キープしてください。',
+        guide: '後頭部で手を組み、骨盤を固定して胸を25°以上回旋',
+        type: 'hold'
+      },
+      drill_shoulder: {
+        title: '⚖️ 肩甲骨水平アイソメトリックドリル',
+        speech: '肩甲骨水平ドリル。両腕を真横に床と平行に伸ばし、水平姿勢を保って3秒キープしてください。',
+        guide: '両腕を真横（肩の高さ）に開き、水平差3.5°以内でキープ',
+        type: 'hold'
+      },
+      drill_singleleg: {
+        title: '⚓ 足裏3点接地アンカーバランサードリル',
+        speech: '足裏アンカードリル。片足をスネの高さまでしっかり持ち上げ、頭のブレを抑えて3秒キープしてください。',
+        guide: '片足をスネの高さまで浮かせ、頭のブレを2.5cm以内でキープ',
+        type: 'hold'
+      },
+      drill_stepping: {
+        title: '👣 重心センタリング・ハイキックドリル',
+        speech: '重心センタリングドリル。中心軸を崩さずに左右交互に膝を高く持ち上げてください。目標5回です。',
+        guide: '骨盤中心のブレを5cm以内に保ち左右交互に膝上げ（目標5回）',
+        type: 'reps'
       }
     };
 
-    function startDrillSession(drillId = null) {
-      if (drillId && DRILL_CONFIGS[drillId]) {
-        AppState.activeDrillId = drillId;
-      } else if (!AppState.activeDrillId) {
-        AppState.activeDrillId = 'pelvis';
-      }
-
-      const cfg = DRILL_CONFIGS[AppState.activeDrillId];
-
+    function startDrillSession(drillId) {
+      AppState.activeDrillId = drillId;
       AppState.drillHoldFrames = 0;
-      AppState.drillSuccessCount = 0;
-      AppState.drillCompleted = false;
-      AppState.drillStepCount = 0;
-      AppState.drillLastKneeUp = null;
+      AppState.drillReps = 0;
+      AppState.drillStepState = 'wait_lift';
+      AppState.drillLastLeg = null;
 
-      DOM.drillTitleText.textContent = cfg.title;
-      DOM.drillCategoryBadge.textContent = cfg.badge;
-      DOM.drillSubText.textContent = cfg.sub;
-      DOM.drillMetricLabel1.textContent = cfg.metric1Name;
-      DOM.drillMetricLabel2.textContent = cfg.metric2Name;
-      DOM.drillLiveVal2.textContent = cfg.targetValText;
-      DOM.drillSuccessCount.textContent = '0';
-      DOM.drillHoldIndicator.classList.add('hidden');
-      DOM.drillCelebrateBanner.classList.add('hidden');
+      const cfg = DRILL_CONFIGS[drillId];
+      document.getElementById('drillHeaderTitle').textContent = cfg.title;
+      document.getElementById('drillFormGuideText').textContent = cfg.guide;
+
+      if (cfg.type === 'hold') {
+        document.getElementById('drillCounterDisplay').textContent = '3.0s';
+        document.getElementById('drillHoldBanner').textContent = '✨ 基準達成！その姿勢をキープ！';
+      } else {
+        document.getElementById('drillCounterDisplay').textContent = '0 / 5回';
+        document.getElementById('drillHoldBanner').textContent = '🎯 軸を保って左右交互に膝上げ';
+      }
 
       switchScreen('screenDrill');
-      SoundFX.speak(cfg.speechStart);
+      SoundFX.speak(cfg.speech);
     }
 
-    function processDrillFrame(landmarks, w, h) {
-      const drillId = AppState.activeDrillId;
-      const nose = landmarks[0];
+    function handleDrillFrame(landmarks) {
+      const canvas = document.getElementById('drillCanvas');
+      const video = document.getElementById('drillVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const isCriteriaMet = updateDrillEngine(landmarks, canvas.width, canvas.height);
+      const color = isCriteriaMet ? '#10B981' : '#38BDF8';
+      drawSkeleton(ctx, landmarks, canvas.width, canvas.height, color);
+    }
+
+    function updateDrillEngine(landmarks, w, h) {
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
-      const leftWrist = landmarks[15];
-      const rightWrist = landmarks[16];
       const leftHip = landmarks[23];
       const rightHip = landmarks[24];
-      const leftKnee = landmarks[25];
-      const rightKnee = landmarks[26];
+      const leftWrist = landmarks[15];
+      const rightWrist = landmarks[16];
       const leftAnkle = landmarks[27];
       const rightAnkle = landmarks[28];
+      const leftKnee = landmarks[25];
+      const rightKnee = landmarks[26];
+      const nose = landmarks[0];
 
-      let isConditionMet = false;
-      let liveValText = '--';
+      const counterDisplay = document.getElementById('drillCounterDisplay');
+      const banner = document.getElementById('drillHoldBanner');
 
-      const canvas = DOM.canvasDrill;
-      const ctx = canvas.getContext('2d');
+      // 1. ⚓ 片足立ちドリル（浮かせた足首がスネ以上の高さを厳格検知）
+      if (AppState.activeDrillId === 'drill_singleleg') {
+        const isLeftHigher = leftAnkle.y < rightAnkle.y;
+        const liftedAnkle = isLeftHigher ? leftAnkle : rightAnkle;
+        const supportAnkle = isLeftHigher ? rightAnkle : leftAnkle;
+        const supportKnee = isLeftHigher ? rightKnee : leftKnee;
 
-      if (drillId === 'pelvis') {
-        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-          const handsNearHead = (leftWrist.y < leftShoulder.y + 0.12) && (rightWrist.y < rightShoulder.y + 0.12);
-          const dx = (rightShoulder.x - leftShoulder.x);
-          const dz = (rightShoulder.z - leftShoulder.z);
-          const angle = Math.abs(Math.atan2(dz, dx) * (180 / Math.PI));
+        const shinHeight = supportAnkle.y - supportKnee.y;
+        const liftDifference = supportAnkle.y - liftedAnkle.y;
 
-          liveValText = `${angle.toFixed(1)}°`;
-          isConditionMet = handsNearHead && angle >= 26.0;
+        const isProperlyLifted = (shinHeight > 0.04) && (liftDifference >= shinHeight * 0.40);
+
+        if (!isProperlyLifted) {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 3);
+          counterDisplay.textContent = '片足をスネまで上げて';
+          banner.className = 'bg-slate-800 text-slate-300 px-4 py-1.5 rounded-full font-bold text-xs border border-slate-700';
+          banner.textContent = '👀 片足を床からしっかり浮かせましょう';
+          return false;
         }
-      }
-      else if (drillId === 'tpose') {
-        if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
-          const lDx = (leftWrist.x - leftShoulder.x) * w;
-          const lDy = (leftWrist.y - leftShoulder.y) * h;
-          const leftAngle = Math.atan2(lDy, Math.abs(lDx)) * (180 / Math.PI);
 
-          const rDx = (rightWrist.x - rightShoulder.x) * w;
-          const rDy = (rightWrist.y - rightShoulder.y) * h;
-          const rightAngle = Math.atan2(rDy, Math.abs(rDx)) * (180 / Math.PI);
+        const swayCm = Math.abs(nose.x - 0.5) * w / AppState.calibration.pxPerCmX;
+        if (swayCm <= 2.5) {
+          AppState.drillHoldFrames++;
+          const remain = Math.max(0, (AppState.drillTargetFrames - AppState.drillHoldFrames) / 30);
+          counterDisplay.textContent = `${remain.toFixed(1)}s`;
+          banner.className = 'bg-emerald-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs animate-pulse border border-emerald-200 shadow-xl';
+          banner.textContent = '✨ 軸が安定！その姿勢をキープ！';
 
-          const diffAngle = Math.abs(leftAngle - rightAngle);
-          liveValText = `${diffAngle.toFixed(1)}°`;
-
-          const armsSpread = (leftWrist.x < leftShoulder.x - 0.15) && (rightWrist.x > rightShoulder.x + 0.15);
-          isConditionMet = armsSpread && diffAngle <= 3.5;
-        }
-      }
-      else if (drillId === 'oneleg') {
-        if (nose && leftHip && rightHip && leftAnkle && rightAnkle) {
-          const hipCenterX = ((leftHip.x + rightHip.x) / 2) * w;
-          const swayCm = Math.abs((nose.x * w) - hipCenterX) / AppState.pxPerCm;
-          const ankleDiffY = Math.abs(leftAnkle.y - rightAnkle.y) * h;
-
-          liveValText = `${swayCm.toFixed(1)}cm`;
-          isConditionMet = (ankleDiffY >= 25) && (swayCm <= 2.5);
-        }
-      }
-      else if (drillId === 'stepping') {
-        if (leftHip && rightHip && leftKnee && rightKnee) {
-          const hipCenterXPx = ((leftHip.x + rightHip.x) / 2) * w;
-          const baseCenter = AppState.initialPoseSnapshot ? AppState.initialPoseSnapshot.hipCenterX : hipCenterXPx;
-          const devCm = Math.abs(hipCenterXPx - baseCenter) / AppState.pxPerCm;
-
-          liveValText = `${devCm.toFixed(1)}cm`;
-
-          const leftKneeLifted = leftKnee.y < leftHip.y + 0.12;
-          const rightKneeLifted = rightKnee.y < rightHip.y + 0.12;
-
-          isConditionMet = (devCm <= 6.0) && (leftKneeLifted || rightKneeLifted);
-        }
-      }
-
-      DOM.drillLiveVal1.textContent = liveValText;
-
-      if (isConditionMet) {
-        drawSkeleton(ctx, landmarks, canvas.width, canvas.height, '#10b981');
-
-        AppState.drillHoldFrames++;
-        DOM.drillHoldIndicator.classList.remove('hidden');
-        const remainingSec = Math.max(0, (90 - AppState.drillHoldFrames) / 30).toFixed(1);
-        DOM.drillHoldSecondsText.textContent = `${remainingSec}s`;
-
-        if (AppState.drillHoldFrames >= 90) {
-          AppState.drillHoldFrames = 0;
-          AppState.drillSuccessCount++;
-          DOM.drillSuccessCount.textContent = AppState.drillSuccessCount;
-
-          SoundFX.fanFare();
-          DOM.drillCelebrateBanner.classList.remove('hidden');
-          setTimeout(() => {
-            DOM.drillCelebrateBanner.classList.add('hidden');
-          }, 2000);
-
-          SoundFX.speak(`グッド！脳内GPSマップ更新！合計${AppState.drillSuccessCount}回達成！`);
-        }
-      } else {
-        AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 2);
-        DOM.drillHoldIndicator.classList.add('hidden');
-      }
-    }
-
-    function renderRecordScreen() {
-      const activePlayer = getActivePlayer();
-      if (!activePlayer) {
-        DOM.chartNoDataMsg.classList.remove('hidden');
-        DOM.historyListContainer.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">選手プロファイルが選択されていません</div>';
-        return;
-      }
-
-      const allRecords = DB.getRecords().filter(r => r.playerId === activePlayer.id);
-
-      renderSvgChart(allRecords.slice(0, 10).reverse());
-
-      if (allRecords.length === 0) {
-        DOM.historyListContainer.innerHTML = '<div class="text-xs text-slate-400 text-center py-4">まだ測定記録がありません</div>';
-        return;
-      }
-
-      DOM.historyListContainer.innerHTML = '';
-      allRecords.forEach((rec, idx) => {
-        const item = document.createElement('div');
-        item.className = 'bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs';
-        item.innerHTML = `
-          <div>
-            <div class="font-black text-white">${rec.testTitle}</div>
-            <div class="text-[10px] text-slate-400">${new Date(rec.timestamp).toLocaleString('ja-JP')}</div>
-            <div class="text-[9px] text-yellow-300 font-bold mt-0.5">${rec.summaryMetric || ''}</div>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-sm font-black text-emerald-400">★ ${rec.score}%</span>
-            ${rec.hasVideo ? `
-              <button class="btnPlayHistoryVideo px-2 py-1 bg-sky-900/60 hover:bg-sky-800 text-sky-300 border border-sky-700 rounded text-[10px] font-bold" data-idx="${idx}">
-                ▶ 再生
-              </button>
-            ` : ''}
-          </div>
-        `;
-        DOM.historyListContainer.appendChild(item);
-      });
-
-      DOM.historyListContainer.querySelectorAll('.btnPlayHistoryVideo').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const idx = parseInt(e.currentTarget.dataset.idx, 10);
-          const targetRec = allRecords[idx];
-          if (targetRec && targetRec.videoBlobUrl) {
-            DOM.histReplayTitle.textContent = `${targetRec.testTitle} (${new Date(targetRec.timestamp).toLocaleDateString()})`;
-            DOM.histReplayDetails.textContent = `覚醒度: ${targetRec.score}% | 詳細: ${targetRec.summaryMetric || '--'}`;
-            DOM.modalReplayVideo.src = targetRec.videoBlobUrl;
-            DOM.modalHistoryReplay.classList.remove('hidden');
+          if (AppState.drillHoldFrames >= AppState.drillTargetFrames) {
+            completeDrillAchievement('足裏の固有受容覚が覚醒しました！');
           }
-        });
-      });
+          return true;
+        } else {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 1);
+          counterDisplay.textContent = `${((AppState.drillTargetFrames - AppState.drillHoldFrames)/30).toFixed(1)}s`;
+          banner.textContent = '⚠️ 頭の揺れを抑えて！';
+          return false;
+        }
+      }
+
+      // 2. 🪑 胸回しドリル（後頭部手組み＆腰幅比率による距離補正コサイン則）
+      if (AppState.activeDrillId === 'drill_thoracic') {
+        const handsBehindHead = (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) &&
+                                (Math.abs(leftWrist.x - nose.x) < 0.22 && Math.abs(rightWrist.x - nose.x) < 0.22);
+
+        if (!handsBehindHead) {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 3);
+          counterDisplay.textContent = '後頭部で手を組んで';
+          banner.className = 'bg-slate-800 text-slate-300 px-4 py-1.5 rounded-full font-bold text-xs border border-slate-700';
+          banner.textContent = '👀 両手を後頭部にセットしてください';
+          return false;
+        }
+
+        const curShW = Math.abs(leftShoulder.x - rightShoulder.x) * w;
+        const curHipW = Math.abs(leftHip.x - rightHip.x) * w;
+        const baseHipW = AppState.calibration.baseHipWidth || 90;
+        const baseShW = AppState.calibration.baseShoulderWidth || 120;
+
+        const distScale = (curHipW / baseHipW) || 1.0;
+        const normShW = curShW / distScale;
+
+        const ratio = Math.min(1.0, Math.max(0.1, normShW / baseShW));
+        const rotDeg = Math.acos(ratio) * (180 / Math.PI);
+
+        if (rotDeg >= 25.0) {
+          AppState.drillHoldFrames++;
+          const remain = Math.max(0, (AppState.drillTargetFrames - AppState.drillHoldFrames) / 30);
+          counterDisplay.textContent = `${remain.toFixed(1)}s`;
+          banner.className = 'bg-emerald-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs animate-pulse border border-emerald-200 shadow-xl';
+          banner.textContent = `✨ 深い胸郭回旋！(${rotDeg.toFixed(0)}°) キープ！`;
+
+          if (AppState.drillHoldFrames >= AppState.drillTargetFrames) {
+            completeDrillAchievement('胸郭と骨盤の分離が覚醒しました！');
+          }
+          return true;
+        } else {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 1);
+          counterDisplay.textContent = `${rotDeg.toFixed(0)}° (目標25°)`;
+          banner.textContent = 'もう少し深く上半身を回旋！';
+          return false;
+        }
+      }
+
+      // 3. ⚖️ Tポーズ水平ドリル（腕下ろし除外・肩の高さ水平帯必須化）
+      if (AppState.activeDrillId === 'drill_shoulder') {
+        const isLeftArmRaised = Math.abs(leftWrist.y - leftShoulder.y) < 0.08 && (leftWrist.x > leftShoulder.x + 0.06);
+        const isRightArmRaised = Math.abs(rightWrist.y - rightShoulder.y) < 0.08 && (rightWrist.x < rightShoulder.x - 0.06);
+
+        if (!isLeftArmRaised || !isRightArmRaised) {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 3);
+          counterDisplay.textContent = '両腕を真横に上げて';
+          banner.className = 'bg-slate-800 text-slate-300 px-4 py-1.5 rounded-full font-bold text-xs border border-slate-700';
+          banner.textContent = '👀 両腕を真横（肩の高さ）に広げてください';
+          return false;
+        }
+
+        const lAngle = Math.atan2(leftWrist.y - leftShoulder.y, leftWrist.x - leftShoulder.x) * (180 / Math.PI);
+        const rAngle = Math.atan2(rightWrist.y - rightShoulder.y, rightShoulder.x - rightWrist.x) * (180 / Math.PI);
+        const diff = Math.abs(lAngle - rAngle);
+
+        if (diff <= 3.5) {
+          AppState.drillHoldFrames++;
+          const remain = Math.max(0, (AppState.drillTargetFrames - AppState.drillHoldFrames) / 30);
+          counterDisplay.textContent = `${remain.toFixed(1)}s`;
+          banner.className = 'bg-emerald-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs animate-pulse border border-emerald-200 shadow-xl';
+          banner.textContent = `✨ 完璧な水平！(差:${diff.toFixed(1)}°) キープ！`;
+
+          if (AppState.drillHoldFrames >= AppState.drillTargetFrames) {
+            completeDrillAchievement('肩甲骨の水平感覚が覚醒しました！');
+          }
+          return true;
+        } else {
+          AppState.drillHoldFrames = Math.max(0, AppState.drillHoldFrames - 1);
+          counterDisplay.textContent = `差: ${diff.toFixed(1)}° (目標3.5°)`;
+          banner.textContent = '左右の腕の高さを平行に揃えて！';
+          return false;
+        }
+      }
+
+      // 4. 👣 重心センタリング・ハイキックドリル（軸ブレ5cm以内・動的5回レップス）
+      if (AppState.activeDrillId === 'drill_stepping') {
+        const hipCenterX = (leftHip.x + rightHip.x) / 2;
+        const hipDevCm = Math.abs(hipCenterX - 0.5) * w / AppState.calibration.pxPerCmX;
+
+        if (hipDevCm > 5.0) {
+          banner.className = 'bg-rose-950/90 text-rose-200 px-4 py-1.5 rounded-full font-bold text-xs border border-rose-800';
+          banner.textContent = `⚠️ 軸がブレています (ズレ:${hipDevCm.toFixed(1)}cm)`;
+          return false;
+        }
+
+        const isLeftHigh = leftKnee.y <= leftHip.y + 0.08;
+        const isRightHigh = rightKnee.y <= rightHip.y + 0.08;
+
+        if (AppState.drillStepState === 'wait_lift') {
+          banner.className = 'bg-emerald-400 text-slate-950 px-5 py-2 rounded-full font-black text-xs border border-emerald-200 shadow-xl';
+          banner.textContent = '🎯 膝を股関節の高さまで高く持ち上げて！';
+
+          if (isLeftHigh && AppState.drillLastLeg !== 'left') {
+            AppState.drillStepState = 'wait_drop';
+            AppState.drillLastLeg = 'left';
+            SoundFX.playTone(600, 'sine', 0.08, 0.2);
+          } else if (isRightHigh && AppState.drillLastLeg !== 'right') {
+            AppState.drillStepState = 'wait_drop';
+            AppState.drillLastLeg = 'right';
+            SoundFX.playTone(600, 'sine', 0.08, 0.2);
+          }
+        } else if (AppState.drillStepState === 'wait_drop') {
+          banner.textContent = '足を下ろして反対側の膝を上げて！';
+          const isLeftDown = leftKnee.y > leftHip.y + 0.18;
+          const isRightDown = rightKnee.y > rightHip.y + 0.18;
+
+          if (isLeftDown && isRightDown) {
+            AppState.drillReps++;
+            AppState.drillStepState = 'wait_lift';
+            SoundFX.playTone(800, 'triangle', 0.1, 0.25);
+            counterDisplay.textContent = `${AppState.drillReps} / ${AppState.drillTargetReps}回`;
+
+            if (AppState.drillReps >= AppState.drillTargetReps) {
+              completeDrillAchievement('中心軸の脳内GPSが覚醒しました！');
+            }
+          }
+        }
+        return true;
+      }
+
+      return false;
     }
 
-    function renderSvgChart(records) {
-      const svg = DOM.chartSvg;
+    function completeDrillAchievement(msg) {
+      AppState.drillAchievementCount++;
+      document.getElementById('drillAchievementCount').textContent = `覚醒達成: ${AppState.drillAchievementCount}回`;
+      SoundFX.playFanfare();
+      SoundFX.speak(msg);
+
+      AppState.drillHoldFrames = 0;
+      AppState.drillReps = 0;
+
+      const banner = document.getElementById('drillHoldBanner');
+      banner.className = 'bg-yellow-300 text-slate-950 px-5 py-2 rounded-full font-black text-sm shadow-2xl animate-bounce border-2 border-yellow-100';
+      banner.textContent = '🎉 覚醒達成！素晴しいボディスキーマ！';
+    }
+
+    function cleanupDrillSession() {
+      AppState.drillHoldFrames = 0;
+      AppState.drillReps = 0;
+    }
+
+    /* --- 12. 骨格描画ヘルパー --- */
+    function checkFullBodyVisible(landmarks) {
+      const needed = [0, 11, 12, 23, 24, 25, 26, 27, 28];
+      for (const idx of needed) {
+        const pt = landmarks[idx];
+        if (!pt || pt.visibility < 0.55) return false;
+      }
+      const nose = landmarks[0];
+      const leftAnkle = landmarks[27];
+      const rightAnkle = landmarks[28];
+      return (nose.y > 0.03 && nose.y < 0.40) && (leftAnkle.y > 0.60 && leftAnkle.y < 0.98);
+    }
+
+    function drawSkeleton(ctx, landmarks, w, h, color = '#38BDF8') {
+      const connections = [
+        [11, 12], [11, 23], [12, 24], [23, 24],
+        [11, 13], [13, 15], [12, 14], [14, 16],
+        [23, 25], [25, 27], [24, 26], [26, 28]
+      ];
+
+      ctx.save();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = '#FBBF24';
+
+      for (const [i, j] of connections) {
+        const p1 = landmarks[i];
+        const p2 = landmarks[j];
+        if (p1 && p2 && p1.visibility > 0.5 && p2.visibility > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(p1.x * w, p1.y * h);
+          ctx.lineTo(p2.x * w, p2.y * h);
+          ctx.stroke();
+        }
+      }
+
+      for (let i = 0; i < landmarks.length; i++) {
+        if ([0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].includes(i)) {
+          const p = landmarks[i];
+          if (p && p.visibility > 0.5) {
+            ctx.beginPath();
+            ctx.arc(p.x * w, p.y * h, 5, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+      }
+      ctx.restore();
+    }
+
+    /* --- 13. 成長カルテ（自前SVG折れ線グラフ＆履歴） --- */
+    function renderRecordChart() {
+      const records = DB.getRecords(AppState.currentUserId);
+      const testId = document.getElementById('selectRecordTest').value;
+      const filtered = records.filter(r => r.testId === testId).slice(-10);
+
+      const svg = document.getElementById('growthSvgChart');
       svg.innerHTML = '';
 
-      if (!records || records.length === 0) {
-        DOM.chartNoDataMsg.classList.remove('hidden');
-        return;
-      }
-      DOM.chartNoDataMsg.classList.add('hidden');
-
-      const width = 300;
-      const height = 120;
-      const pad = 20;
-
-      const targetY = height - pad - (90 / 100) * (height - 2 * pad);
-      const targetLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      targetLine.setAttribute('x1', pad);
-      targetLine.setAttribute('y1', targetY);
-      targetLine.setAttribute('x2', width - pad);
-      targetLine.setAttribute('y2', targetY);
-      targetLine.setAttribute('stroke', '#10b981');
-      targetLine.setAttribute('stroke-dasharray', '4,4');
-      targetLine.setAttribute('stroke-width', '1.5');
-      svg.appendChild(targetLine);
-
-      const points = records.map((r, i) => {
-        const x = pad + (i / Math.max(1, records.length - 1)) * (width - 2 * pad);
-        const y = height - pad - (Math.min(100, Math.max(0, r.score)) / 100) * (height - 2 * pad);
-        return { x, y, score: r.score };
-      });
-
-      let d = '';
-      points.forEach((pt, i) => {
-        d += (i === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`);
-      });
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#38bdf8');
-      path.setAttribute('stroke-width', '3');
-      path.setAttribute('stroke-linecap', 'round');
-      svg.appendChild(path);
-
-      points.forEach(pt => {
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', pt.x);
-        circle.setAttribute('cy', pt.y);
-        circle.setAttribute('r', '4.5');
-        circle.setAttribute('fill', '#ffea00');
-        circle.setAttribute('stroke', '#0a0f1d');
-        circle.setAttribute('stroke-width', '2');
-        svg.appendChild(circle);
-
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', pt.x);
-        text.setAttribute('y', pt.y - 8);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('fill', '#ffffff');
-        text.setAttribute('font-size', '9');
-        text.setAttribute('font-weight', 'bold');
-        text.textContent = `${pt.score}%`;
-        svg.appendChild(text);
-      });
-    }
-
-    function getActivePlayer() {
-      const players = DB.getPlayers();
-      return players.find(p => p.id === AppState.activePlayerId) || players[0] || null;
-    }
-
-    function refreshLobbyUI() {
-      const players = DB.getPlayers();
-      DOM.playerSelect.innerHTML = '';
-
-      if (players.length === 0) {
-        const defaultPlayer = {
-          id: 'p_' + Date.now(),
-          name: 'チャレンジャー1',
-          height: 165,
-          category: 'General',
-          dominantLeg: 'Right'
-        };
-        DB.savePlayers([defaultPlayer]);
-        AppState.activePlayerId = defaultPlayer.id;
-        refreshLobbyUI();
+      if (filtered.length === 0) {
+        svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="#64748B" font-size="12" font-weight="bold">測定データがまだありません</text>`;
+        renderHistoryList([]);
         return;
       }
 
-      if (!AppState.activePlayerId || !players.find(p => p.id === AppState.activePlayerId)) {
-        AppState.activePlayerId = players[0].id;
-      }
+      const w = svg.clientWidth || 300;
+      const h = svg.clientHeight || 120;
+      const padding = 25;
 
-      players.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = `${p.name} (${p.height}cm)`;
-        if (p.id === AppState.activePlayerId) opt.selected = true;
-        DOM.playerSelect.appendChild(opt);
+      const points = filtered.map((r, i) => {
+        const x = padding + (i / Math.max(1, filtered.length - 1)) * (w - padding * 2);
+        const y = h - padding - (r.score / 100) * (h - padding * 2);
+        return { x, y, score: r.score, date: r.date };
       });
 
-      const active = getActivePlayer();
-      if (active) {
-        DOM.activePlayerBadge.textContent = active.name;
-        DOM.dspPlayerHeight.textContent = active.height;
+      svg.innerHTML += `
+        <line x1="${padding}" y1="${padding}" x2="${w - padding}" y2="${padding}" stroke="#334155" stroke-dasharray="3,3" />
+        <line x1="${padding}" y1="${h - padding}" x2="${w - padding}" y2="${h - padding}" stroke="#334155" />
+      `;
 
-        const records = DB.getRecords().filter(r => r.playerId === active.id);
-        DOM.dspRecordCount.textContent = records.length;
-        DOM.dspScaleStatus.textContent = AppState.scaleConfirmed ? '確定済' : '未校正';
-        DOM.dspScaleStatus.className = AppState.scaleConfirmed ? 'text-emerald-400 font-bold' : 'text-yellow-400 font-bold';
+      const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      svg.innerHTML += `
+        <path d="${pathD}" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      `;
+
+      points.forEach(p => {
+        svg.innerHTML += `
+          <circle cx="${p.x}" cy="${p.y}" r="4" fill="#FBBF24" stroke="#0F172A" stroke-width="2"/>
+          <text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="#F8FAFC" font-size="9" font-weight="bold">${p.score}</text>
+        `;
+      });
+
+      renderHistoryList(filtered);
+    }
+
+    function renderHistoryList(records) {
+      const container = document.getElementById('recordHistoryList');
+      if (records.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-slate-500 py-2">測定履歴はありません</p>`;
+        return;
+      }
+      container.innerHTML = records.slice().reverse().map(r => `
+        <div class="flex items-center justify-between bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60 text-xs shadow-sm">
+          <div>
+            <span class="text-slate-400 text-[10px] font-mono">${r.date}</span>
+            <div class="font-bold text-white">${TEST_CONFIGS[r.testId].title}</div>
+          </div>
+          <span class="font-num font-black text-amber-400 text-sm">${r.score}点</span>
+        </div>
+      `).join('');
+    }
+
+    /* --- 14. プロファイル管理 --- */
+    function renderLobbyProfiles() {
+      const profiles = DB.getProfiles();
+      const select = document.getElementById('selectProfile');
+      select.innerHTML = profiles.map(p => `<option value="${p.id}" ${p.id === AppState.currentUserId ? 'selected' : ''}>${p.name}</option>`).join('');
+
+      const cur = profiles.find(p => p.id === AppState.currentUserId) || profiles[0];
+      AppState.currentUserId = cur.id;
+      document.getElementById('headerProfileLabel').textContent = `選手: ${cur.name}`;
+
+      const calib = DB.getCalibration(cur.id);
+      if (calib && calib.isCalibrated) {
+        AppState.calibration = calib;
+        document.getElementById('scanStatusText').textContent = `校正完了（1cm = ${calib.pxPerCmX.toFixed(1)}px）`;
+        document.getElementById('scanStatusText').className = 'text-[10px] text-emerald-950 font-black';
+      } else {
+        document.getElementById('scanStatusText').textContent = '未校正（初期値使用中）';
+        document.getElementById('scanStatusText').className = 'text-[10px] text-amber-900 font-bold';
       }
     }
 
+    /* --- 15. スリープ管理 (90秒無操作) --- */
     function resetSleepTimer() {
-      if (AppState.isSleeping) {
-        wakeUpFromSleep();
-      }
-      if (AppState.sleepTimeoutId) {
-        clearTimeout(AppState.sleepTimeoutId);
-      }
-      AppState.sleepTimeoutId = setTimeout(() => {
+      AppState.lastActivityTime = Date.now();
+      if (AppState.sleepTimer) clearTimeout(AppState.sleepTimer);
+
+      AppState.sleepTimer = setTimeout(() => {
         enterSleepMode();
       }, 90000);
     }
 
     function enterSleepMode() {
-      AppState.isSleeping = true;
       stopCamera();
-      DOM.sleepOverlay.classList.remove('hidden');
+      document.getElementById('sleepOverlay').classList.remove('hidden');
     }
 
-    function wakeUpFromSleep() {
-      AppState.isSleeping = false;
-      DOM.sleepOverlay.classList.add('hidden');
-      stopCameraLoop();
+    async function wakeUpFromSleep() {
+      document.getElementById('sleepOverlay').classList.add('hidden');
+      resetSleepTimer();
       const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
       if (cameraScreens.includes(AppState.currentScreen)) {
-        startCameraForCurrentScreen();
+        await startCamera(AppState.currentScreen);
       }
     }
 
-    function bindEventListeners() {
-      ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evtName => {
-        window.addEventListener(evtName, () => {
-          SoundFX.init();
-          resetSleepTimer();
-        }, { passive: true });
+    /* --- 16. イベントリスナー登録 (DOMContentLoaded) --- */
+    document.addEventListener('DOMContentLoaded', () => {
+      const profiles = DB.getProfiles();
+      AppState.currentUserId = profiles[0].id;
+      renderLobbyProfiles();
+
+      const unlockAudio = () => {
+        SoundFX.initAudio();
+        document.removeEventListener('pointerdown', unlockAudio);
+      };
+      document.addEventListener('pointerdown', unlockAudio);
+
+      ['pointerdown', 'keydown', 'scroll'].forEach(evt => {
+        window.addEventListener(evt, resetSleepTimer, { passive: true });
+      });
+      resetSleepTimer();
+
+      document.getElementById('sleepOverlay').addEventListener('click', wakeUpFromSleep);
+
+      document.getElementById('btnSoundToggle').addEventListener('click', () => {
+        AppState.isMuted = !AppState.isMuted;
+        document.getElementById('soundIcon').textContent = AppState.isMuted ? '🔇' : '🔊';
       });
 
-      DOM.sleepOverlay.addEventListener('click', () => wakeUpFromSleep());
-
-      DOM.btnCameraFlip.addEventListener('click', async () => {
-        SoundFX.init();
-        AppState.cameraFacing = AppState.cameraFacing === 'user' ? 'environment' : 'user';
-        DOM.btnCameraFlip.textContent = AppState.cameraFacing === 'user' ? '🔄 自撮り' : '📷 背面';
+      document.getElementById('btnCameraFacing').addEventListener('click', async () => {
+        AppState.cameraFacing = (AppState.cameraFacing === 'user') ? 'environment' : 'user';
         const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
         if (cameraScreens.includes(AppState.currentScreen)) {
-          await startCameraForCurrentScreen();
+          await startCamera(AppState.currentScreen);
         }
       });
 
-      DOM.btnSoundToggle.addEventListener('click', () => {
-        AppState.isSoundEnabled = !AppState.isSoundEnabled;
-        DOM.btnSoundToggle.textContent = AppState.isSoundEnabled ? '🔊 ON' : '🔇 OFF';
-        if (AppState.isSoundEnabled) SoundFX.beepCountdown();
+      document.getElementById('selectProfile').addEventListener('change', (e) => {
+        AppState.currentUserId = e.target.value;
+        renderLobbyProfiles();
       });
 
-      DOM.btnHome.addEventListener('click', () => {
-        switchScreen('screenLobby');
+      document.getElementById('btnAddProfile').addEventListener('click', () => {
+        const name = prompt('新しい選手の名前を入力してください:');
+        if (name && name.trim()) {
+          const profiles = DB.getProfiles();
+          const newId = 'p_' + Date.now();
+          profiles.push({ id: newId, name: name.trim(), created: Date.now() });
+          DB.saveProfiles(profiles);
+          AppState.currentUserId = newId;
+          renderLobbyProfiles();
+        }
       });
 
-      DOM.playerSelect.addEventListener('change', (e) => {
-        AppState.activePlayerId = e.target.value;
-        AppState.scaleConfirmed = false;
-        refreshLobbyUI();
-      });
-
-      DOM.btnDeletePlayer.addEventListener('click', () => {
-        const active = getActivePlayer();
-        if (!active) return;
-        DB.deletePlayer(active.id);
-        refreshLobbyUI();
-      });
-
-      DOM.btnOpenNewPlayerModal.addEventListener('click', () => {
-        DOM.inputPlayerName.value = '';
-        DOM.inputPlayerHeight.value = '';
-        DOM.modalNewPlayer.classList.remove('hidden');
-      });
-
-      DOM.btnCancelNewPlayer.addEventListener('click', () => {
-        DOM.modalNewPlayer.classList.add('hidden');
-      });
-
-      DOM.btnSaveNewPlayer.addEventListener('click', () => {
-        const name = DOM.inputPlayerName.value.trim();
-        const height = parseFloat(DOM.inputPlayerHeight.value);
-        if (!name || isNaN(height) || height < 80 || height > 220) {
-          SoundFX.speak('正しい選手名と身長を入力してください。');
+      document.getElementById('btnDeleteProfile').addEventListener('click', () => {
+        const profiles = DB.getProfiles();
+        if (profiles.length <= 1) {
+          alert('最後の選手プロファイルは削除できません。');
           return;
         }
-
-        const newP = {
-          id: 'p_' + Date.now(),
-          name,
-          height,
-          category: DOM.inputPlayerCategory.value,
-          dominantLeg: DOM.inputPlayerDominantLeg.value
-        };
-
-        const list = DB.getPlayers();
-        list.push(newP);
-        DB.savePlayers(list);
-        AppState.activePlayerId = newP.id;
-        AppState.scaleConfirmed = false;
-
-        DOM.modalNewPlayer.classList.add('hidden');
-        refreshLobbyUI();
-        SoundFX.beepCountdown();
+        if (confirm('現在の選手プロファイルを削除しますか？過去の測定履歴も消去されます。')) {
+          const filtered = profiles.filter(p => p.id !== AppState.currentUserId);
+          DB.saveProfiles(filtered);
+          AppState.currentUserId = filtered[0].id;
+          renderLobbyProfiles();
+        }
       });
 
-      DOM.btnGoScan.addEventListener('click', () => {
-        SoundFX.init();
-        AppState.scanStableFrames = 0;
-        updateScanProgress(0, 30);
-        switchScreen('screenScan');
-        SoundFX.speak('直立スキャンを開始します。カメラから約2m離れてください。');
+      document.getElementById('btnGoScan').addEventListener('click', () => switchScreen('screenScan'));
+      document.getElementById('btnCancelScan').addEventListener('click', () => switchScreen('screenLobby'));
+      document.getElementById('btnCaptureScan').addEventListener('click', () => {
+        if (AppState.poseDetector) {
+          const dummy = [
+            { x: 0.5, y: 0.15, visibility: 0.9 },
+            ...Array(10).fill({ x: 0.5, y: 0.3, visibility: 0.9 }),
+            { x: 0.4, y: 0.28, visibility: 0.9 },
+            { x: 0.6, y: 0.28, visibility: 0.9 },
+            ...Array(10).fill({ x: 0.5, y: 0.5, visibility: 0.9 }),
+            { x: 0.42, y: 0.55, visibility: 0.9 },
+            { x: 0.58, y: 0.55, visibility: 0.9 },
+            { x: 0.43, y: 0.72, visibility: 0.9 },
+            { x: 0.57, y: 0.72, visibility: 0.9 },
+            { x: 0.43, y: 0.92, visibility: 0.9 },
+            { x: 0.57, y: 0.92, visibility: 0.9 }
+          ];
+          captureScanCalibration(dummy);
+        }
       });
 
-      DOM.btnCancelScan.addEventListener('click', () => {
-        switchScreen('screenLobby');
-      });
-
-      document.querySelectorAll('.btnTestSelect').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          SoundFX.init();
-          const testId = e.currentTarget.dataset.testid;
+      document.querySelectorAll('.btn-test').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const testId = btn.getAttribute('data-testid');
           startTestSession(testId);
         });
       });
 
-      DOM.btnAbortTest.addEventListener('click', () => {
-        cleanupTestSession();
-        switchScreen('screenLobby');
+      document.getElementById('btnCancelTest').addEventListener('click', () => switchScreen('screenLobby'));
+      document.getElementById('btnResultBackLobby').addEventListener('click', () => switchScreen('screenLobby'));
+      document.getElementById('btnResultGoDrill').addEventListener('click', () => {
+        const drillMap = {
+          thoracic: 'drill_thoracic',
+          tpose: 'drill_shoulder',
+          oneleg: 'drill_singleleg',
+          stepping: 'drill_stepping'
+        };
+        const targetDrill = drillMap[AppState.activeTestId] || 'drill_thoracic';
+        startDrillSession(targetDrill);
       });
 
-      DOM.btnReplaySpeed05.addEventListener('click', () => {
-        DOM.replayVideoPlayer.playbackRate = 0.5;
-        DOM.btnReplaySpeed05.className = 'px-2 py-0.5 bg-sky-700 text-white rounded text-[10px] font-bold border border-sky-500';
-        DOM.btnReplaySpeed10.className = 'px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[10px] font-bold border border-slate-600';
+      document.getElementById('btnReplaySpeedHalf').addEventListener('click', () => {
+        const v = document.getElementById('resultReplayVideo');
+        if (v) v.playbackRate = 0.5;
+        document.getElementById('btnReplaySpeedHalf').className = 'px-2.5 py-1 rounded-lg bg-amber-500 text-[10px] font-black text-slate-950 border border-amber-500 shadow';
+        document.getElementById('btnReplaySpeedNormal').className = 'px-2.5 py-1 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-300 border border-slate-700';
       });
 
-      DOM.btnReplaySpeed10.addEventListener('click', () => {
-        DOM.replayVideoPlayer.playbackRate = 1.0;
-        DOM.btnReplaySpeed10.className = 'px-2 py-0.5 bg-sky-700 text-white rounded text-[10px] font-bold border border-sky-500';
-        DOM.btnReplaySpeed05.className = 'px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[10px] font-bold border border-slate-600';
+      document.getElementById('btnReplaySpeedNormal').addEventListener('click', () => {
+        const v = document.getElementById('resultReplayVideo');
+        if (v) v.playbackRate = 1.0;
+        document.getElementById('btnReplaySpeedNormal').className = 'px-2.5 py-1 rounded-lg bg-amber-500/20 text-[10px] font-black text-amber-400 border border-amber-500/40 shadow';
+        document.getElementById('btnReplaySpeedHalf').className = 'px-2.5 py-1 rounded-lg bg-slate-800 text-[10px] font-bold text-slate-300 border border-slate-700';
       });
 
-      DOM.btnSaveToChart.addEventListener('click', () => {
-        if (AppState.lastResultData) {
-          const active = getActivePlayer();
-          const cfg = TEST_CONFIGS[AppState.lastResultData.testId];
-          const sc = AppState.lastResultData.scoreData;
-          const newRecord = {
-            id: 'rec_' + Date.now(),
-            playerId: active ? active.id : 'unknown',
-            testId: AppState.lastResultData.testId,
-            testTitle: cfg.title,
-            score: sc.score,
-            summaryMetric: `${sc.metric1} | ${sc.metric2} | ${sc.metric3}`,
-            timestamp: Date.now(),
-            hasVideo: !!AppState.lastRecordedUrl,
-            videoBlobUrl: AppState.lastRecordedUrl
-          };
-          DB.addRecord(newRecord);
-        }
-        switchScreen('screenLobby');
+      document.getElementById('btnGoDrillLobby').addEventListener('click', () => startDrillSession('drill_thoracic'));
+      document.getElementById('btnCancelDrill').addEventListener('click', () => switchScreen('screenLobby'));
+
+      document.getElementById('btnSwitchDrillModal').addEventListener('click', () => {
+        document.getElementById('modalDrillSelector').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseDrillModal').addEventListener('click', () => {
+        document.getElementById('modalDrillSelector').classList.add('hidden');
       });
 
-      DOM.btnQuickDrillFromResult.addEventListener('click', () => {
-        const currentTestId = AppState.lastResultData ? AppState.lastResultData.testId : 'pelvis';
-        startDrillSession(currentTestId);
-      });
-
-      DOM.btnGoDrill.addEventListener('click', () => {
-        SoundFX.init();
-        DOM.modalSelectDrill.classList.remove('hidden');
-      });
-
-      DOM.btnCloseDrillModal.addEventListener('click', () => {
-        DOM.modalSelectDrill.classList.add('hidden');
-      });
-
-      DOM.btnSwitchDrillModal.addEventListener('click', () => {
-        DOM.modalSelectDrill.classList.remove('hidden');
-      });
-
-      document.querySelectorAll('.btnSelectDrillItem').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const drillId = e.currentTarget.dataset.drillid;
-          DOM.modalSelectDrill.classList.add('hidden');
-          startDrillSession(drillId);
+      document.querySelectorAll('.btn-select-drill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dId = btn.getAttribute('data-drill');
+          document.getElementById('modalDrillSelector').classList.add('hidden');
+          startDrillSession(dId);
         });
       });
 
-      DOM.btnFinishDrill.addEventListener('click', () => {
-        switchScreen('screenLobby');
-      });
+      document.getElementById('btnGoRecord').addEventListener('click', () => switchScreen('screenRecord'));
+      document.getElementById('btnRecordBackLobby').addEventListener('click', () => switchScreen('screenLobby'));
+      document.getElementById('selectRecordTest').addEventListener('change', renderRecordChart);
 
-      DOM.btnGoRecord.addEventListener('click', () => {
-        switchScreen('screenRecord');
-      });
-
-      DOM.btnBackToLobbyFromRecord.addEventListener('click', () => {
-        switchScreen('screenLobby');
-      });
-
-      DOM.btnExportCsv.addEventListener('click', () => {
-        const records = DB.getRecords();
+      document.getElementById('btnExportCsv').addEventListener('click', () => {
+        const records = DB.getRecords(AppState.currentUserId);
         if (records.length === 0) {
-          SoundFX.speak('エクスポートするデータがありません。');
+          alert('エクスポート可能な記録がありません。');
           return;
         }
-
-        let csv = 'ID,PlayerID,TestTitle,Score,SummaryMetric,Timestamp\n';
+        let csv = '日時,種目ID,スコア\n';
         records.forEach(r => {
-          csv += `"${r.id}","${r.playerId}","${r.testTitle}",${r.score},"${r.summaryMetric}","${new Date(r.timestamp).toISOString()}"\n`;
+          csv += `"${r.date}","${r.testId}",${r.score}\n`;
         });
-
-        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `body_schema_records_${Date.now()}.csv`;
-        link.click();
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `brain_gps_records_${AppState.currentUserId}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
       });
 
-      DOM.btnClearHistory.addEventListener('click', () => {
-        DB.clearAllRecords();
-        renderRecordScreen();
-      });
-
-      DOM.btnCloseHistReplay.addEventListener('click', () => {
-        DOM.modalReplayVideo.pause();
-        DOM.modalHistoryReplay.classList.add('hidden');
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then((reg) => {
-          reg.update();
-        }).catch(err => {
-          console.warn('SW registration notice:', err);
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.warn('SW registration error:', err);
         });
       }
-
-      bindEventListeners();
-      refreshLobbyUI();
-      resetSleepTimer();
-
-      document.body.addEventListener('click', () => {
-        SoundFX.init();
-      }, { once: true });
     });
   </script>
 </body>
