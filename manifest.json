@@ -1,7 +1,7 @@
 {
 "name": "身体図式・脳内GPSドック",
 "short_name": "脳内GPS",
-"version": "5.0",
+"version": "1.0",
 "description": "主観と客観のズレを目隠しテストとリプレイで自覚し1分ドリルで身体図式を書き換えるPWA",
 "start_url": "./index.html",
 "display": "standalone",
