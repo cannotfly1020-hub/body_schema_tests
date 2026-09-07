@@ -1976,8 +1976,61 @@
 
     function exportHistoryToCSV() {
       if (records.length === 0) {
-      if (targetScreenId === 'screenRecord') {
-        renderRecordScreen();
+        showToast('エクスポートするデータがありません');
+        return;
+      }
+      let csv = '\uFEFF日時,選手名,種目,覚醒度スコア(%),メトリクス詳細,アドバイス\n';
+      records.forEach(r => {
+        const metricStr = Object.entries(r.metrics || {}).map(([k, v]) => `${k}:${v}`).join(' / ');
+        const cleanAdvice = (r.advice || '').replace(/"/g, '""');
+        csv += `"${r.date}","${r.playerName}","${getTestName(r.testType)}","${r.score}","${metricStr}","${cleanAdvice}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `body_gps_records_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSVファイルを書き出しました');
+    }
+
+    /* ==========================================
+       11. 画面遷移 (SPA Router) 管理
+    ========================================== */
+    function switchScreen(targetScreenId) {
+      const screens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
+      screens.forEach(sId => {
+        const el = document.getElementById(sId);
+        if (!el) return;
+        if (sId === targetScreenId) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      currentScreen = targetScreenId;
+
+      // 画面切り替え時のカメラ・タイマー制御
+      if (targetScreenId === 'screenScan') {
+        const vid = document.getElementById('scanVideo');
+        startCameraStream(vid);
+        scanHoldFrames = 0;
+      } else if (targetScreenId === 'screenTest') {
+        const vid = document.getElementById('testVideo');
+        startCameraStream(vid);
+        startSelectedTest();
+      } else if (targetScreenId === 'screenDrill') {
+        const vid = document.getElementById('drillVideo');
+        startCameraStream(vid);
+      } else {
+        // ロビー、結果、カルテ画面ではカメラとタイマーを完全に停止
+        stopCameraStream();
+        stopAllTestTimers();
+        if (targetScreenId === 'screenRecord') {
+          renderRecordScreen();
+        }
       }
     }
 
