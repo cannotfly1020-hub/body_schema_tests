@@ -1,45 +1,2047 @@
-const CACHE_NAME = 'brain-gps-dock-v1';
-const ASSETS_TO_CACHE = [
-  './index.html',
-  './manifest.json'
-];
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0f1d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>身体図式・脳内GPSドック</title>
+  <link rel="manifest" href="manifest.json">
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
-  );
-});
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Font Awesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- MediaPipe Pose CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+  <!-- Confetti.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --font-rounded: 'M PLUS Rounded 1c', sans-serif;
+      --font-num: 'Montserrat', sans-serif;
+    }
+    body {
+      font-family: var(--font-rounded);
+      background-color: #0a0f1d;
+      color: #ffffff;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .font-num {
+      font-family: var(--font-num);
+    }
+    /* ブロスタ風サンバースト背景 */
+    .sunburst-bg {
+      background: radial-gradient(circle at center, #1b2848 0%, #0a0f1d 75%);
+      position: relative;
+      overflow: hidden;
+    }
+    .sunburst-bg::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: repeating-conic-gradient(
+        from 0deg,
+        rgba(30, 58, 138, 0.15) 0deg 15deg,
+        transparent 15deg 30deg
       );
-    }).then(() => self.clients.claim())
-  );
-});
+      pointer-events: none;
+      animation: rotateBurst 120s linear infinite;
+    }
+    @keyframes rotateBurst {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* 3Dボタンデザイン */
+    .btn-3d-yellow {
+      background: linear-gradient(180deg, #ffea00 0%, #f59e0b 100%);
+      border-bottom: 5px solid #b45309;
+      box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+      transition: all 0.08s ease-in-out;
+    }
+    .btn-3d-yellow:active {
+      transform: translateY(3px);
+      border-bottom: 2px solid #b45309;
+      box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+    }
+    .btn-3d-cyan {
+      background: linear-gradient(180deg, #00f0ff 0%, #0284c7 100%);
+      border-bottom: 5px solid #0369a1;
+      box-shadow: 0 8px 20px rgba(2, 132, 199, 0.4);
+      transition: all 0.08s ease-in-out;
+    }
+    .btn-3d-cyan:active {
+      transform: translateY(3px);
+      border-bottom: 2px solid #0369a1;
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.3);
+    }
+    .btn-3d-emerald {
+      background: linear-gradient(180deg, #10b981 0%, #047857 100%);
+      border-bottom: 5px solid #065f46;
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+      transition: all 0.08s ease-in-out;
+    }
+    .btn-3d-emerald:active {
+      transform: translateY(3px);
+      border-bottom: 2px solid #065f46;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+    }
+    .btn-3d-danger {
+      background: linear-gradient(180deg, #f43f5e 0%, #be123c 100%);
+      border-bottom: 5px solid #881337;
+      box-shadow: 0 8px 20px rgba(244, 63, 94, 0.4);
+      transition: all 0.08s ease-in-out;
+    }
+    .btn-3d-danger:active {
+      transform: translateY(3px);
+      border-bottom: 2px solid #881337;
+      box-shadow: 0 2px 10px rgba(244, 63, 94, 0.3);
+    }
+    .btn-3d-dark {
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      border-bottom: 4px solid #0f172a;
+      box-shadow: 0 6px 15px rgba(15, 23, 42, 0.6);
+      transition: all 0.08s ease-in-out;
+    }
+    .btn-3d-dark:active {
+      transform: translateY(2px);
+      border-bottom: 2px solid #0f172a;
+    }
+    /* ネオン枠 */
+    .neon-border {
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3), inset 0 0 15px rgba(56, 189, 248, 0.2);
+    }
+    .neon-border-gold {
+      border: 2px solid #facc15;
+      box-shadow: 0 0 15px rgba(250, 204, 21, 0.35), inset 0 0 15px rgba(250, 204, 21, 0.15);
+    }
+    /* カスタムスクロールバー */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    /* 鏡像反転用クラス */
+    .mirror-mode {
+      transform: scaleX(-1);
+    }
+  </style>
+</head>
+<body class="w-full h-[100dvh] flex flex-col justify-center items-center p-0 m-0 overflow-hidden select-none bg-[#0a0f1d]">
 
-self.addEventListener('fetch', (event) => {
-  // Cache-first falling back to network strategy for local app assets
-  if (event.request.method !== 'GET') return;
+  <!-- メインスマホ縦画面コンテナ (100dvh固定) -->
+  <div id="appContainer" class="w-full max-w-md h-[100dvh] flex flex-col sunburst-bg relative overflow-hidden shadow-2xl border-x border-slate-800">
+    
+    <!-- 共通最上部バー -->
+    <header class="w-full h-14 bg-slate-900/90 backdrop-blur-md px-4 flex items-center justify-between border-b-2 border-slate-800 z-50 shrink-0">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center text-slate-950 font-black shadow-md">
+          <i class="fa-solid fa-satellite-dish text-sm"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-black tracking-wider text-amber-300 drop-shadow">脳内GPSドック</h1>
+          <p id="topBarPlayerName" class="text-[10px] text-slate-400 font-bold leading-none truncate max-w-[120px]">未登録</p>
+        </div>
+      </div>
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
+      <div class="flex items-center space-x-2">
+        <!-- 音声ミュート切替 -->
+        <button id="btnToggleSound" class="w-9 h-9 rounded-xl bg-slate-800 text-amber-400 flex items-center justify-center text-xs font-bold border border-slate-700 active:scale-95 shadow">
+          <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+        </button>
+        <!-- カメラ前後切替 -->
+        <button id="btnToggleCamera" class="w-9 h-9 rounded-xl bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold border border-slate-700 active:scale-95 shadow" title="カメラ切替">
+          <i class="fa-solid fa-camera-rotate"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================================ -->
+    <!-- 画面 1: トップロビー画面 (Lobby Screen) -->
+    <!-- ============================================================ -->
+    <section id="screenLobby" class="flex-1 flex flex-col p-4 overflow-y-auto z-10 space-y-4">
+      
+      <!-- 選手ステータスカード -->
+      <div class="bg-slate-900/95 border-2 border-slate-700 rounded-3xl p-4 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/40">
+              <i class="fa-solid fa-user-ninja mr-1"></i>選手情報
+            </span>
+            <span id="playerBadgeCategory" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+              U-15 / 一般
+            </span>
+          </div>
+          <button id="btnOpenPlayerModal" class="text-xs font-black text-cyan-400 bg-cyan-950/60 border border-cyan-500/40 px-3 py-1 rounded-xl active:scale-95">
+            選手変更 / 登録
+          </button>
+        </div>
+
+        <div class="flex items-end justify-between">
+          <div>
+            <h2 id="lobbyPlayerName" class="text-2xl font-black text-white tracking-wide">ゲスト選手</h2>
+            <p class="text-xs text-slate-400 mt-0.5 font-bold">
+              登録身長: <span id="lobbyPlayerHeight" class="text-amber-400 font-num font-black text-sm">---</span> cm
+              <span class="mx-1">|</span>
+              利き足: <span id="lobbyPlayerDominantFoot" class="text-slate-300">右</span>
+            </p>
+          </div>
+          <div class="text-right">
+            <div id="calibrationBadge" class="text-[10px] font-black px-2.5 py-1 rounded-lg bg-rose-950/80 text-rose-300 border border-rose-600/40">
+              <i class="fa-solid fa-triangle-exclamation mr-1"></i>未スキャン
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 身長・直立スキャン測定ステーションカード -->
+      <div class="bg-gradient-to-br from-indigo-950/80 to-slate-900/95 border-2 border-indigo-700/60 rounded-3xl p-4 shadow-xl relative">
+        <div class="flex items-start space-x-3">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-xl font-black shrink-0 shadow-lg">
+            <i class="fa-solid fa-ruler-combined"></i>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-black text-indigo-200">直立スキャン・縮尺測定</h3>
+              <span class="text-[10px] text-indigo-300 font-bold bg-indigo-900/60 px-2 py-0.5 rounded-full border border-indigo-500/30">事前準備</span>
+            </div>
+            <p class="text-[11px] text-slate-300 mt-1 leading-snug">
+              カメラから約2m離れて直立し、全身（頭〜踵）を読み取って絶対モノサシ（px/cm）をロックします。
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-3.5 pt-3 border-t border-indigo-800/40 flex items-center justify-between">
+          <div class="text-[11px] text-slate-400">
+            絶対縮尺比率: <span id="lobbyPxPerCm" class="font-num text-cyan-300 font-black">--</span> px/cm
+          </div>
+          <button id="btnStartScan" class="btn-3d-cyan px-4 py-2 rounded-xl text-xs font-black text-white flex items-center space-x-1.5">
+            <i class="fa-solid fa-crosshairs"></i>
+            <span>直立スキャン起動</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4大テスト測定へ進むメインボタン -->
+      <div class="pt-1">
+        <button id="btnGoToTestStation" class="w-full btn-3d-yellow py-4 rounded-2xl text-slate-950 font-black text-lg flex items-center justify-center space-x-2 tracking-wider">
+          <i class="fa-solid fa-bolt text-xl animate-pulse"></i>
+          <span>テスト測定ステーションへ進む</span>
+        </button>
+        <p class="text-center text-[10px] text-slate-400 mt-1.5 font-bold">
+          ※ 選手登録＆直立スキャン後に受検するとミリ単位の精密解析が可能です
+        </p>
+      </div>
+
+      <!-- 下部ショートカットボタン群 -->
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button id="btnGoToDrillMenu" class="btn-3d-emerald py-3 px-3 rounded-2xl text-white font-black text-xs flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-dumbbell text-sm"></i>
+          <span>AI骨格ドリル</span>
+        </button>
+        <button id="btnGoToRecord" class="btn-3d-dark py-3 px-3 rounded-2xl text-amber-300 font-black text-xs flex items-center justify-center space-x-2 border border-slate-700">
+          <i class="fa-solid fa-chart-line text-sm"></i>
+          <span>成長カルテ・推移</span>
+        </button>
+      </div>
+
+      <!-- 理念カード -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-center">
+        <p class="text-[10px] text-slate-400 font-bold leading-relaxed">
+          「脳内GPSのズレ」を自覚すれば身体は一瞬で変わる。<br>
+          目隠しテスト ➔ ズレの自覚 ➔ 1分ドリルで覚醒！
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面 2: 直立キャリブレーション（身長・縮尺スキャン）画面 -->
+    <!-- ============================================================ -->
+    <section id="screenScan" class="flex-1 flex flex-col relative hidden bg-black">
+      <!-- リアルタイムカメラ映像＆オーバーレイ -->
+      <div class="relative w-full flex-1 overflow-hidden">
+        <video id="scanVideo" class="w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
+        <canvas id="scanCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+
+        <!-- ガイド枠線（頭頂・足元目安） -->
+        <div class="absolute inset-x-8 top-12 border-t-2 border-dashed border-amber-400 pointer-events-none flex justify-between">
+          <span class="text-[10px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded">頭頂ライン</span>
+        </div>
+        <div class="absolute inset-x-8 bottom-16 border-b-2 border-dashed border-amber-400 pointer-events-none flex justify-between">
+          <span class="text-[10px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded">足元ライン</span>
+        </div>
+
+        <!-- 状態ガイダンステキスト -->
+        <div class="absolute top-4 inset-x-4 flex justify-center pointer-events-none">
+          <div id="scanStatusBadge" class="bg-slate-950/80 backdrop-blur-md border border-cyan-400 text-cyan-300 px-4 py-1.5 rounded-full text-xs font-black shadow-lg animate-pulse">
+            約2m離れて、直立してください
+          </div>
+        </div>
+
+        <!-- 安定度プログレスバー -->
+        <div class="absolute bottom-4 inset-x-6">
+          <div class="bg-slate-900/80 p-2.5 rounded-2xl border border-slate-700 backdrop-blur-md">
+            <div class="flex justify-between text-[11px] font-black mb-1">
+              <span class="text-slate-300">直立安定ホールド</span>
+              <span id="scanProgressText" class="text-amber-400 font-num">0%</span>
+            </div>
+            <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+              <div id="scanProgressBar" class="h-full bg-gradient-to-r from-cyan-400 to-amber-400 w-0 transition-all duration-100"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スキャン中止ボタン -->
+      <div class="h-16 bg-slate-950 px-4 flex items-center justify-between border-t border-slate-800 shrink-0">
+        <button id="btnCancelScan" class="btn-3d-dark px-4 py-2 rounded-xl text-xs font-black text-slate-300">
+          <i class="fa-solid fa-arrow-left mr-1"></i>戻る
+        </button>
+        <p class="text-[11px] text-slate-400 font-bold">頭から踵まで画面内に収めてください</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面 3: 4大テスト測定ステーション (Test Screen) -->
+    <!-- ============================================================ -->
+    <section id="screenTest" class="flex-1 flex flex-col relative hidden bg-black">
+      
+      <!-- テスト種目セレクタタブ -->
+      <div class="w-full bg-slate-900/90 backdrop-blur-md px-2 py-1.5 flex space-x-1 border-b border-slate-800 z-30 shrink-0 overflow-x-auto">
+        <button data-test="step" class="tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-white bg-amber-500/30 border border-amber-400/50 truncate">
+          👣 足踏み
+        </button>
+        <button data-test="tpose" class="tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-slate-400 bg-slate-800/80 border border-slate-700 truncate">
+          ⚖️ Tポーズ
+        </button>
+        <button data-test="oneleg" class="tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-slate-400 bg-slate-800/80 border border-slate-700 truncate">
+          ⚓ 片足立ち
+        </button>
+        <button data-test="xfactor" class="tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-slate-400 bg-slate-800/80 border border-slate-700 truncate">
+          🪑 骨盤制動
+        </button>
+      </div>
+
+      <!-- カメラ映像 ＆ リアルタイム骨格・セーフゾーン描画領域 -->
+      <div class="relative w-full flex-1 overflow-hidden bg-slate-950">
+        <video id="testVideo" class="w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
+        <canvas id="testCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+
+        <!-- セーフゾーン警告境界枠（視覚フィードバック） -->
+        <div id="safeZoneBorder" class="absolute inset-4 border-2 border-cyan-400/40 rounded-3xl pointer-events-none transition-colors duration-150">
+          <span class="absolute -top-3 left-6 bg-slate-900/90 text-cyan-300 border border-cyan-400/50 px-2 py-0.5 rounded text-[9px] font-black">
+            SAFE BOUNDARY
+          </span>
+        </div>
+
+        <!-- 画面上部ステータスバッジ群 -->
+        <div class="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none z-20">
+          <div class="flex items-center space-x-1.5">
+            <span id="testRecordingBadge" class="hidden px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse shadow">
+              <i class="fa-solid fa-circle text-[8px] mr-1"></i>REC
+            </span>
+            <span id="testModeTitle" class="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-900/80 text-amber-300 border border-amber-400/40 backdrop-blur-md">
+              👣 目隠し足踏み (15秒)
+            </span>
+          </div>
+
+          <!-- 残り時間 / タイマー表示 -->
+          <div class="bg-slate-900/90 border border-slate-700 text-white px-3 py-1 rounded-xl backdrop-blur-md font-num font-black text-lg tracking-wider text-amber-400 shadow">
+            <span id="testTimerDisplay">15.0</span><span class="text-xs ml-0.5 text-slate-400">s</span>
+          </div>
+        </div>
+
+        <!-- 中央大型カウントダウン表示 (3, 2, 1, GO!) -->
+        <div id="countdownOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none z-40 hidden">
+          <div id="countdownNumber" class="text-8xl font-black font-num text-amber-400 drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)] animate-bounce">
+            3
+          </div>
+        </div>
+
+        <!-- はみ出し・突進強制終了警告オーバーレイ -->
+        <div id="dangerOverlay" class="absolute inset-0 bg-rose-950/90 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-6 text-center">
+          <div class="w-20 h-20 rounded-full bg-rose-600 text-white flex items-center justify-center text-4xl mb-4 shadow-2xl animate-ping">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h3 class="text-2xl font-black text-rose-300 tracking-wider">画面はみ出し検知！</h3>
+          <p id="dangerReasonText" class="text-lg font-black text-white mt-2">
+            🚨 85cm以上 前方へ突進しました！
+          </p>
+          <p class="text-xs text-slate-300 mt-2">
+            視覚が遮断されると脳内GPSが前方突進を自覚できません。<br>測定を安全に自動停止しました。
+          </p>
+          <button id="btnDangerDismiss" class="mt-6 btn-3d-yellow px-6 py-3 rounded-2xl text-slate-950 font-black text-sm">
+            結果＆リプレイを確認する
+          </button>
+        </div>
+
+        <!-- 画面下部：全身検出＆準備案内テキスト -->
+        <div id="testInstructionBox" class="absolute bottom-4 inset-x-4 bg-slate-950/85 border border-slate-700 rounded-2xl p-2.5 backdrop-blur-md z-20">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <div id="bodyDetectDot" class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
+              <span id="testInstructionText" class="text-xs font-black text-slate-200">
+                全身（頭〜踵）を枠内に収めて静止してください
+              </span>
+            </div>
+            <div id="lockStabilizeProgress" class="text-[11px] font-num font-black text-cyan-300">
+              0/12
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下部コントロールバー -->
+      <div class="h-16 bg-slate-950 px-4 flex items-center justify-between border-t border-slate-800 shrink-0">
+        <button id="btnBackFromTest" class="btn-3d-dark px-4 py-2 rounded-xl text-xs font-black text-slate-300">
+          <i class="fa-solid fa-arrow-left mr-1"></i>ロビーへ
+        </button>
+
+        <div class="flex items-center space-x-2">
+          <!-- 強制終了/中断ボタン -->
+          <button id="btnStopTestManual" class="hidden btn-3d-danger px-4 py-2 rounded-xl text-xs font-black text-white">
+            <i class="fa-solid fa-stop mr-1"></i>停止
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面 4: 結果 ＆ ローカル即時リプレイ画面 (Result Screen) -->
+    <!-- ============================================================ -->
+    <section id="screenResult" class="flex-1 flex flex-col p-4 overflow-y-auto z-10 space-y-4 hidden">
+      
+      <!-- 覚醒度ヘッダーカード -->
+      <div class="bg-gradient-to-r from-amber-500/20 via-slate-900 to-indigo-950/80 border-2 border-amber-400/60 rounded-3xl p-4 shadow-2xl relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-black text-amber-300 bg-amber-400/20 border border-amber-400/40 px-3 py-0.5 rounded-full">
+            身体図式スキャン結果
+          </span>
+          <span id="resultTestDate" class="text-[10px] text-slate-400 font-num">2026/09/07</span>
+        </div>
+
+        <div class="mt-3 flex items-end justify-between">
+          <div>
+            <p class="text-xs text-slate-300 font-bold">脳内GPS同期ステータス</p>
+            <h2 id="resultScoreTitle" class="text-3xl font-black text-amber-400 font-num tracking-wider mt-0.5">
+              【★ 覚醒度 85%】
+            </h2>
+          </div>
+          <div class="text-right">
+            <span id="resultNextLevel" class="text-[11px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-400/40 px-2.5 py-1 rounded-xl">
+              🔒 あと12°で完全覚醒！
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 即時ローカル録画リプレイプレイヤー（外部送信ゼロ） -->
+      <div class="bg-slate-900/90 border border-slate-700 rounded-3xl p-3 shadow-xl">
+        <div class="flex items-center justify-between mb-2 px-1">
+          <h3 class="text-xs font-black text-cyan-300 flex items-center">
+            <i class="fa-solid fa-play-circle text-sm mr-1.5"></i>
+            客観視リプレイ（完全端末内保存）
+          </h3>
+          <!-- 再生スピード切替 -->
+          <div class="flex items-center space-x-1 bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <button id="btnSpeed05" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-300 bg-slate-700">0.5x</button>
+            <button id="btnSpeed10" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400">1.0x</button>
+          </div>
+        </div>
+
+        <div class="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden border border-slate-800">
+          <video id="replayVideo" class="w-full h-full object-contain" playsinline webkit-playsinline controls></video>
+        </div>
+        <p class="text-[10px] text-slate-400 text-center mt-1.5">
+          ※ 撮影動画はサーバーに一切送信されず、端末内メモリで安全に完結します
+        </p>
+      </div>
+
+      <!-- バイオメカニクス詳細数値グリッド -->
+      <div class="bg-slate-900/90 border border-slate-700 rounded-3xl p-4 shadow-xl space-y-3">
+        <h3 class="text-xs font-black text-slate-300 border-b border-slate-800 pb-2 flex items-center">
+          <i class="fa-solid fa-compass-drafting text-amber-400 mr-2"></i>バイオメカニクス実測データ
+        </h3>
+
+        <div id="resultMetricContainer" class="grid grid-cols-2 gap-2.5">
+          <!-- 動的メトリクスカード挿入 -->
+        </div>
+
+        <!-- ズレのアハ体験・コーチング解説 -->
+        <div class="bg-indigo-950/40 border border-indigo-700/40 rounded-2xl p-3 mt-2">
+          <p id="resultCoachAdvice" class="text-xs text-indigo-200 leading-relaxed font-bold">
+            「まっすぐ立っているつもり」でも骨盤が右へ14°回旋し、前方へ32cm突進しています。この主観と客観のギャップを専用ドリルで上書きしましょう！
+          </p>
+        </div>
+      </div>
+
+      <!-- 次のアクションボタン群 -->
+      <div class="space-y-2 pt-1 pb-4">
+        <button id="btnStartRecommendedDrill" class="w-full btn-3d-emerald py-3.5 rounded-2xl text-white font-black text-sm flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-dumbbell text-base"></i>
+          <span id="btnDrillText">改善AI骨格ドリルを開始する</span>
+        </button>
+        <button id="btnSaveRecordAndBack" class="w-full btn-3d-dark py-3 rounded-2xl text-amber-400 font-black text-xs border border-slate-700">
+          カルテに記録してロビーへ戻る
+        </button>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面 5: 大画面AI骨格バイオフィードバックドリル画面 (Drill Screen) -->
+    <!-- ============================================================ -->
+    <section id="screenDrill" class="flex-1 flex flex-col relative hidden bg-black">
+      
+      <!-- ドリル種目セレクタ -->
+      <div class="w-full bg-slate-900/90 px-3 py-2 flex items-center justify-between border-b border-slate-800 z-30 shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 text-xs font-black">
+            <i class="fa-solid fa-person-walking"></i>
+          </span>
+          <div>
+            <h3 id="drillTitle" class="text-xs font-black text-emerald-400">🪑 イス座り・手組み胸回し体操</h3>
+            <p class="text-[10px] text-slate-400">胸郭の純粋回旋（X-Factor）を再同期</p>
+          </div>
+        </div>
+        <button id="btnExitDrill" class="text-xs font-bold text-slate-400 hover:text-white px-2 py-1 bg-slate-800 rounded-lg">
+          終了
+        </button>
+      </div>
+
+      <!-- カメラ映像 ＆ AI骨格フィードバック -->
+      <div class="relative w-full flex-1 overflow-hidden bg-slate-950">
+        <video id="drillVideo" class="w-full h-full object-cover" playsinline webkit-playsinline muted autoplay></video>
+        <canvas id="drillCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+
+        <!-- 目標姿勢一致インジケータ -->
+        <div class="absolute top-3 inset-x-4 flex justify-between items-center pointer-events-none z-20">
+          <div id="drillFeedbackBadge" class="bg-slate-950/80 border border-slate-700 text-slate-300 px-3 py-1 rounded-xl text-xs font-black backdrop-blur-md">
+            姿勢をセットしてください
+          </div>
+          <div class="bg-slate-900/90 border border-emerald-400 text-emerald-300 px-3 py-1 rounded-xl font-num font-black text-sm">
+            成功: <span id="drillSuccessCount">0</span>/3
+          </div>
+        </div>
+
+        <!-- 3秒キープ・プログレスリング/サークル -->
+        <div id="drillHoldContainer" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30 hidden">
+          <div class="w-32 h-32 rounded-full border-4 border-emerald-400 bg-emerald-950/60 backdrop-blur-md flex flex-col items-center justify-center animate-pulse">
+            <span class="text-xs font-black text-emerald-300">KEEP</span>
+            <span id="drillHoldSeconds" class="text-4xl font-num font-black text-white">3</span>
+          </div>
+        </div>
+
+        <!-- ガイド説明オーバーレイ -->
+        <div class="absolute bottom-4 inset-x-4 bg-slate-950/90 border border-emerald-500/40 rounded-2xl p-3 z-20 backdrop-blur-md">
+          <p id="drillInstruction" class="text-xs text-emerald-200 font-bold leading-relaxed">
+            イスに座って骨盤を固定し、<strong>両手を頭の後ろで組み肘を大きく開いて</strong>、胸郭だけを左右にゆっくり回旋させましょう！
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 画面 6: 選手カルテ・成長推移画面 (Record Screen) -->
+    <!-- ============================================================ -->
+    <section id="screenRecord" class="flex-1 flex flex-col p-4 overflow-y-auto z-10 space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-black text-amber-300 flex items-center">
+          <i class="fa-solid fa-chart-line mr-2"></i>成長カルテ・推移
+        </h2>
+        <button id="btnExportCSV" class="text-xs font-black bg-cyan-950 text-cyan-300 border border-cyan-400/40 px-3 py-1.5 rounded-xl active:scale-95">
+          <i class="fa-solid fa-file-csv mr-1"></i>CSV出力
+        </button>
+      </div>
+
+      <!-- 推移グラフカード (自前SVGグラフ) -->
+      <div class="bg-slate-900/90 border border-slate-700 rounded-3xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-black text-slate-300">覚醒度（身体図式スコア）推移</span>
+          <span class="text-[10px] text-slate-400">直近の測定履歴</span>
+        </div>
+        <div class="w-full h-44 bg-slate-950/60 rounded-2xl p-2 flex items-center justify-center overflow-hidden border border-slate-800">
+          <svg id="recordChartSvg" class="w-full h-full" viewBox="0 0 320 140">
+            <!-- 動的チャート描画 -->
+          </svg>
+        </div>
+      </div>
+
+      <!-- 履歴リスト -->
+      <div class="bg-slate-900/90 border border-slate-700 rounded-3xl p-4 shadow-xl space-y-2.5">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <span class="text-xs font-black text-slate-300">過去の測定データ</span>
+          <button id="btnClearHistory" class="text-[10px] text-rose-400 font-bold hover:underline">
+            履歴全削除
+          </button>
+        </div>
+        <div id="recordHistoryList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <!-- 動的リスト -->
+        </div>
+      </div>
+
+      <!-- 戻るボタン -->
+      <div class="pt-2 pb-6">
+        <button id="btnBackFromRecord" class="w-full btn-3d-dark py-3.5 rounded-2xl text-slate-300 font-black text-xs border border-slate-700">
+          ロビーへ戻る
+        </button>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- モーダル: 選手登録 ＆ 切替モーダル -->
+    <!-- ============================================================ -->
+    <div id="playerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <h3 class="text-base font-black text-amber-300 flex items-center">
+            <i class="fa-solid fa-user-gear mr-2"></i>選手プロファイル管理
+          </h3>
+          <button id="btnClosePlayerModal" class="w-7 h-7 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- 登録済み選手選択 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">登録選手を切り替え</label>
+          <select id="playerSelectDropdown" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold focus:outline-none focus:border-amber-400">
+            <!-- オプション動的生成 -->
+          </select>
+        </div>
+
+        <div class="relative flex py-1 items-center">
+          <div class="flex-grow border-t border-slate-800"></div>
+          <span class="flex-shrink mx-2 text-[10px] text-slate-500 font-bold">または新規登録</span>
+          <div class="flex-grow border-t border-slate-800"></div>
+        </div>
+
+        <!-- 新規登録フォーム -->
+        <form id="formNewPlayer" class="space-y-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-300 mb-1">選手名 / ニックネーム</label>
+            <input type="text" id="inputPlayerName" required placeholder="例: ヤマダ タロウ" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-300 mb-1">実身長 (cm)</label>
+              <input type="number" id="inputPlayerHeight" required step="0.5" placeholder="165" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-num focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-300 mb-1">学年 / カテゴリ</label>
+              <select id="inputPlayerCategory" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                <option value="U-12">小学生 (U-12)</option>
+                <option value="U-15" selected>中学生 (U-15)</option>
+                <option value="U-18">高校生 (U-18)</option>
+                <option value="大学・一般">大学・一般</option>
+                <option value="シニア">シニア</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-300 mb-1">利き足</label>
+              <select id="inputPlayerDominantFoot" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                <option value="右" selected>右足</option>
+                <option value="左">左足</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-300 mb-1">利き手</label>
+              <select id="inputPlayerDominantHand" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                <option value="右" selected>右手</option>
+                <option value="左">左手</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full btn-3d-yellow py-2.5 rounded-xl text-slate-950 font-black text-xs mt-2">
+            <i class="fa-solid fa-plus mr-1"></i>新規プロファイルを保存
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- カスタム通知トースト -->
+    <div id="toastNotification" class="fixed bottom-6 inset-x-8 bg-slate-950 border-2 border-amber-400 text-amber-300 px-4 py-2.5 rounded-2xl shadow-2xl z-50 text-center text-xs font-black transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+      通知メッセージ
+    </div>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- アプリケーション JavaScript ロジック -->
+  <!-- ============================================================ -->
+  <script>
+    /* ==========================================
+       1. グローバルステート & ストレージ管理
+    ========================================== */
+    const STORAGE_KEY_PLAYERS = 'body_gps_players_v1';
+    const STORAGE_KEY_ACTIVE_PLAYER = 'body_gps_active_player_v1';
+    const STORAGE_KEY_RECORDS = 'body_gps_records_v1';
+
+    let players = [];
+    let activePlayer = null;
+    let records = [];
+
+    // カメラ & MediaPipe 制御ステート
+    let currentCameraFacing = 'user'; // 'user' (インカメラ) または 'environment' (外カメラ)
+    let currentStream = null;
+    let poseDetector = null;
+    let cameraUtilInstance = null;
+    let isCameraSwitching = false;
+    let soundEnabled = true;
+
+    // 現在の画面
+    let currentScreen = 'screenLobby';
+
+    // 測定・キャリブレーション共通変数
+    let currentPxPerCm = null;
+    let baselineHipWidth = null;
+    let baselineShoulderWidth = null;
+    let baselineHeadY = null;
+    let baselineCenter = null;
+
+    // 録画関連 (MediaRecorder)
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let replayVideoBlobUrl = null;
+
+    // テスト測定ステート
+    let currentSelectedTest = 'step'; // 'step', 'tpose', 'oneleg', 'xfactor'
+    let isTestRunning = false;
+    let testTimerInterval = null;
+    let testRemainingTime = 15.0;
+    let stableFrameCount = 0;
+    const REQUIRED_STABLE_FRAMES = 12;
+
+    // リアルタイムサンプリング用バッファ
+    let testSamples = [];
+
+    // ドリルステート
+    let currentDrillType = 'xfactor';
+    let drillSuccessCounter = 0;
+    let drillHoldStartTime = null;
+    let drillHoldTimer = null;
+
+    /* ==========================================
+       2. Web Audio API 音響シンセサイザー & 音声ナビゲーション
+    ========================================== */
+    let audioCtx = null;
+    function initAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
       }
-      return fetch(event.request).then((networkResponse) => {
-        return networkResponse;
-      }).catch(() => {
-        // Fallback or ignore for CDN calls
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // 効果音生成（ビープ、ブザー、ファンファーレ）
+    function playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.25) {
+      if (!soundEnabled) return;
+      try {
+        initAudioContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.error('Audio tone error', e);
+      }
+    }
+
+    // 危険ブザー（画面はみ出し・足着地）
+    function playAlarmBuzzer() {
+      if (!soundEnabled) return;
+      try {
+        initAudioContext();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } catch (e) {}
+    }
+
+    // カウントダウン音
+    function playTick() {
+      playTone(660, 'sine', 0.08, 0.2);
+    }
+    function playGoBeep() {
+      playTone(1320, 'triangle', 0.35, 0.35);
+    }
+
+    // 音声案内（SpeechSynthesis）
+    function speak(text) {
+      if (!soundEnabled || !('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ja-JP';
+        utter.rate = 1.15;
+        utter.pitch = 1.05;
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        console.error('Speech error', e);
+      }
+    }
+
+    // トースト通知
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      toast.textContent = msg;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 2600);
+    }
+
+    /* ==========================================
+       3. 選手プロフィール & ストレージ操作
+    ========================================== */
+    function loadStorageData() {
+      try {
+        const pStr = localStorage.getItem(STORAGE_KEY_PLAYERS);
+        players = pStr ? JSON.parse(pStr) : [];
+
+        const actId = localStorage.getItem(STORAGE_KEY_ACTIVE_PLAYER);
+        if (actId && players.some(p => p.id === actId)) {
+          activePlayer = players.find(p => p.id === actId);
+        } else if (players.length > 0) {
+          activePlayer = players[0];
+        } else {
+          // 初期デフォルト選手
+          activePlayer = {
+            id: 'player_default',
+            name: 'アスリート1号',
+            height: 168.0,
+            category: 'U-15',
+            dominantFoot: '右',
+            dominantHand: '右',
+            pxPerCm: null,
+            refHipWidth: null,
+            refShoulderWidth: null
+          };
+          players = [activePlayer];
+          savePlayers();
+        }
+
+        const rStr = localStorage.getItem(STORAGE_KEY_RECORDS);
+        records = rStr ? JSON.parse(rStr) : [];
+      } catch (e) {
+        console.error('Failed to load storage', e);
+      }
+      updatePlayerUI();
+      updatePlayerDropdown();
+    }
+
+    function savePlayers() {
+      localStorage.setItem(STORAGE_KEY_PLAYERS, JSON.stringify(players));
+      if (activePlayer) {
+        localStorage.setItem(STORAGE_KEY_ACTIVE_PLAYER, activePlayer.id);
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+    }
+
+    function updatePlayerUI() {
+      if (!activePlayer) return;
+      document.getElementById('topBarPlayerName').textContent = activePlayer.name;
+      document.getElementById('lobbyPlayerName').textContent = activePlayer.name;
+      document.getElementById('lobbyPlayerHeight').textContent = activePlayer.height ? activePlayer.height.toFixed(1) : '---';
+      document.getElementById('lobbyPlayerDominantFoot').textContent = activePlayer.dominantFoot || '右';
+      document.getElementById('playerBadgeCategory').textContent = activePlayer.category || 'U-15';
+
+      const calibBadge = document.getElementById('calibrationBadge');
+      const pxEl = document.getElementById('lobbyPxPerCm');
+      if (activePlayer.pxPerCm) {
+        currentPxPerCm = activePlayer.pxPerCm;
+        baselineHipWidth = activePlayer.refHipWidth;
+        baselineShoulderWidth = activePlayer.refShoulderWidth;
+        calibBadge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>スキャン済';
+        calibBadge.className = 'text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40';
+        pxEl.textContent = activePlayer.pxPerCm.toFixed(2);
+      } else {
+        currentPxPerCm = null;
+        calibBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i>未スキャン';
+        calibBadge.className = 'text-[10px] font-black px-2.5 py-1 rounded-lg bg-rose-950/80 text-rose-300 border border-rose-600/40';
+        pxEl.textContent = '--';
+      }
+    }
+
+    function updatePlayerDropdown() {
+      const select = document.getElementById('playerSelectDropdown');
+      select.innerHTML = '';
+      players.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.category} / ${p.height}cm)`;
+        if (activePlayer && activePlayer.id === p.id) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
       });
-    })
-  );
-});
+    }
+
+    /* ==========================================
+       4. カメラ制御 & MediaPipe Pose 初期化
+    ========================================== */
+    async function startCameraStream(videoEl) {
+      if (isCameraSwitching) return;
+      isCameraSwitching = true;
+
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: currentCameraFacing },
+          width: { ideal: 720 },
+          height: { ideal: 1280 }
+        }
+      };
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        currentStream = stream;
+        videoEl.srcObject = stream;
+        await videoEl.play();
+
+        // 自撮り（user）なら鏡像反転、外カメラなら通常
+        applyMirrorStyles();
+      } catch (err) {
+        console.error('Camera stream error:', err);
+        showToast('カメラの起動に失敗しました。権限を確認してください');
+      } finally {
+        isCameraSwitching = false;
+      }
+    }
+
+    function applyMirrorStyles() {
+      const isUser = (currentCameraFacing === 'user');
+      const scanVid = document.getElementById('scanVideo');
+      const scanCvs = document.getElementById('scanCanvas');
+      const testVid = document.getElementById('testVideo');
+      const testCvs = document.getElementById('testCanvas');
+      const drillVid = document.getElementById('drillVideo');
+      const drillCvs = document.getElementById('drillCanvas');
+
+      const elements = [scanVid, scanCvs, testVid, testCvs, drillVid, drillCvs];
+      elements.forEach(el => {
+        if (!el) return;
+        if (isUser) {
+          el.classList.add('mirror-mode');
+        } else {
+          el.classList.remove('mirror-mode');
+        }
+      });
+    }
+
+    function initMediaPipePose() {
+      poseDetector = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+      });
+
+      poseDetector.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        smoothSegmentation: false,
+        minDetectionConfidence: 0.55,
+        minTrackingConfidence: 0.55
+      });
+
+      poseDetector.onResults(onPoseResultsRouter);
+    }
+
+    // MediaPipe フレーム送信ループ
+    let isProcessingFrame = false;
+    async function runMediaPipeLoop() {
+      let activeVideo = null;
+      if (currentScreen === 'screenScan') activeVideo = document.getElementById('scanVideo');
+      else if (currentScreen === 'screenTest') activeVideo = document.getElementById('testVideo');
+      else if (currentScreen === 'screenDrill') activeVideo = document.getElementById('drillVideo');
+
+      if (activeVideo && activeVideo.readyState >= 2 && !isProcessingFrame && !isCameraSwitching) {
+        isProcessingFrame = true;
+        try {
+          await poseDetector.send({ image: activeVideo });
+        } catch (e) {
+          // ignore stream switch errors
+        }
+        isProcessingFrame = false;
+      }
+      requestAnimationFrame(runMediaPipeLoop);
+    }
+
+    // 結果ルーター
+    function onPoseResultsRouter(results) {
+      if (currentScreen === 'screenScan') {
+        handleScanFrame(results);
+      } else if (currentScreen === 'screenTest') {
+        handleTestFrame(results);
+      } else if (currentScreen === 'screenDrill') {
+        handleDrillFrame(results);
+      }
+    }
+
+    /* ==========================================
+       5. 独立身長・直立スキャン測定ロジック
+    ========================================== */
+    let scanHoldFrames = 0;
+    const REQUIRED_SCAN_FRAMES = 30; // 約1秒間の安定
+
+    function handleScanFrame(results) {
+      const canvas = document.getElementById('scanCanvas');
+      const ctx = canvas.getContext('2d');
+      const video = document.getElementById('scanVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth || 720;
+      canvas.height = video.videoHeight || 1280;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!results.poseLandmarks) {
+        updateScanUI(false, 0, '全身が認識されていません');
+        return;
+      }
+
+      const lm = results.poseLandmarks;
+      // 描画
+      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color: '#00f0ff', lineWidth: 3 });
+      drawLandmarks(ctx, lm, { color: '#ffea00', lineWidth: 2, radius: 4 });
+
+      // 主要関節の可視性判定（頭、肩、腰、膝、足首、踵）
+      const requiredIndices = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30];
+      const allVisible = requiredIndices.every(i => lm[i] && lm[i].visibility > 0.6);
+
+      // 画面境界内に収まっているか（y: 0.05 ~ 0.95）
+      const headY = lm[0].y;
+      const heelY = Math.max(lm[29].y, lm[30].y);
+      const isInside = (headY > 0.04 && heelY < 0.96);
+
+      if (allVisible && isInside) {
+        scanHoldFrames++;
+        const pct = Math.min(100, Math.round((scanHoldFrames / REQUIRED_SCAN_FRAMES) * 100));
+        updateScanUI(true, pct, '直立姿勢を保持してください...');
+
+        if (scanHoldFrames >= REQUIRED_SCAN_FRAMES) {
+          // キャリブレーション完了計算
+          finishCalibration(lm, canvas.width, canvas.height);
+        }
+      } else {
+        scanHoldFrames = Math.max(0, scanHoldFrames - 2);
+        updateScanUI(false, Math.round((scanHoldFrames / REQUIRED_SCAN_FRAMES) * 100), '頭から踵まで画面内に収めてください');
+      }
+    }
+
+    function updateScanUI(isReady, pct, msg) {
+      const badge = document.getElementById('scanStatusBadge');
+      const bar = document.getElementById('scanProgressBar');
+      const txt = document.getElementById('scanProgressText');
+      if (badge) badge.textContent = msg;
+      if (bar) bar.style.width = `${pct}%`;
+      if (txt) txt.textContent = `${pct}%`;
+    }
+
+    function finishCalibration(lm, canvasW, canvasH) {
+      if (!activePlayer || !activePlayer.height) {
+        showToast('選手の身長データが設定されていません');
+        switchScreen('screenLobby');
+        return;
+      }
+
+      // 頭頂〜踵のピクセル距離（鼻から頭頂までのオフセット推定: 鼻〜肩距離の約0.6倍を加算）
+      const noseY = lm[0].y * canvasH;
+      const shoulderAvgY = ((lm[11].y + lm[12].y) / 2) * canvasH;
+      const headTopEstimatedY = noseY - Math.abs(shoulderAvgY - noseY) * 0.7;
+      const heelY = Math.max(lm[29].y, lm[30].y) * canvasH;
+      const pixelHeight = Math.abs(heelY - headTopEstimatedY);
+
+      // pxPerCm 算出
+      const pxPerCm = pixelHeight / activePlayer.height;
+
+      // 基準腰幅・肩幅
+      const hipL = { x: lm[23].x * canvasW, y: lm[23].y * canvasH };
+      const hipR = { x: lm[24].x * canvasW, y: lm[24].y * canvasH };
+      const refHipW = Math.hypot(hipR.x - hipL.x, hipR.y - hipL.y);
+
+      const shL = { x: lm[11].x * canvasW, y: lm[11].y * canvasH };
+      const shR = { x: lm[12].x * canvasW, y: lm[12].y * canvasH };
+      const refShW = Math.hypot(shR.x - shL.x, shR.y - shL.y);
+
+      activePlayer.pxPerCm = pxPerCm;
+      activePlayer.refHipWidth = refHipW;
+      activePlayer.refShoulderWidth = refShW;
+      savePlayers();
+      updatePlayerUI();
+
+      playTone(880, 'sine', 0.2);
+      setTimeout(() => playTone(1320, 'sine', 0.35), 180);
+      speak('スキャン完了！絶対縮尺をロックしました');
+      showToast('直立スキャン完了！');
+
+      setTimeout(() => {
+        switchScreen('screenLobby');
+      }, 900);
+    }
+
+    /* ==========================================
+       6. 4大身体図式テスト 測定エンジン
+    ========================================== */
+    function startSelectedTest() {
+      isTestRunning = false;
+      stableFrameCount = 0;
+      testSamples = [];
+      document.getElementById('dangerOverlay').classList.add('hidden');
+      document.getElementById('testRecordingBadge').classList.add('hidden');
+      document.getElementById('btnStopTestManual').classList.add('hidden');
+
+      // 種目に応じた時間とタイトルのセット
+      if (currentSelectedTest === 'step') {
+        testRemainingTime = 15.0;
+        document.getElementById('testModeTitle').textContent = '👣 目隠し足踏み (15秒)';
+      } else if (currentSelectedTest === 'tpose') {
+        testRemainingTime = 6.0;
+        document.getElementById('testModeTitle').textContent = '⚖️ Tポーズ (6秒)';
+      } else if (currentSelectedTest === 'oneleg') {
+        testRemainingTime = 15.0;
+        document.getElementById('testModeTitle').textContent = '⚓ 片足立ち (最大15秒)';
+      } else if (currentSelectedTest === 'xfactor') {
+        testRemainingTime = 10.0;
+        document.getElementById('testModeTitle').textContent = '🪑 骨盤制動 (10秒)';
+      }
+
+      document.getElementById('testTimerDisplay').textContent = testRemainingTime.toFixed(1);
+      document.getElementById('testInstructionText').textContent = '全身（頭〜踵）を枠内に収めて静止してください';
+      speak('全身を枠内に入れて静止してください');
+    }
+
+    function handleTestFrame(results) {
+      const canvas = document.getElementById('testCanvas');
+      const ctx = canvas.getContext('2d');
+      const video = document.getElementById('testVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth || 720;
+      canvas.height = video.videoHeight || 1280;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!results.poseLandmarks) {
+        updateTestStabilizeUI(false, 0);
+        return;
+      }
+
+      const lm = results.poseLandmarks;
+
+      // 骨格描画（テスト中は視覚補助）
+      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color: isTestRunning ? '#10b981' : '#38bdf8', lineWidth: 3 });
+      drawLandmarks(ctx, lm, { color: '#ffea00', lineWidth: 1.5, radius: 4 });
+
+      // セーフゾーン境界検知 (画面端から 4%〜6% の余白)
+      const isOutsideBoundary = checkBoundaryViolation(lm);
+      if (isTestRunning && isOutsideBoundary) {
+        triggerDangerAbort('🚨 85cm以上 前方へ突進または枠外へ逸脱しました！');
+        return;
+      }
+
+      // テスト未開始時: 12フレーム安定検出
+      if (!isTestRunning) {
+        const isFullBodyDetected = checkFullBodyVisible(lm);
+        if (isFullBodyDetected) {
+          stableFrameCount++;
+          updateTestStabilizeUI(true, stableFrameCount);
+          if (stableFrameCount >= REQUIRED_STABLE_FRAMES) {
+            beginTestCountdown();
+          }
+        } else {
+          stableFrameCount = Math.max(0, stableFrameCount - 1);
+          updateTestStabilizeUI(false, stableFrameCount);
+        }
+      } else {
+        // テスト実行中: バイオメカニクス実測サンプリング
+        processTestRealtimeMetrics(lm, canvas.width, canvas.height);
+      }
+    }
+
+    function checkFullBodyVisible(lm) {
+      // 0:鼻, 11/12:肩, 23/24:腰, 25/26:膝, 27/28:足首, 29/30:踵
+      const criticalKeys = [0, 11, 12, 23, 24, 25, 26, 27, 28, 29, 30];
+      return criticalKeys.every(k => lm[k] && lm[k].visibility > 0.55);
+    }
+
+    function checkBoundaryViolation(lm) {
+      // いずれかの主要関節が画面上下左右の極端な縁（<0.02 または >0.98）に触れたら検知
+      const checkKeys = [0, 11, 12, 23, 24, 27, 28];
+      return checkKeys.some(k => {
+        const pt = lm[k];
+        return (pt.x < 0.02 || pt.x > 0.98 || pt.y < 0.02 || pt.y > 0.98);
+      });
+    }
+
+    function updateTestStabilizeUI(isOk, count) {
+      const dot = document.getElementById('bodyDetectDot');
+      const progressTxt = document.getElementById('lockStabilizeProgress');
+      const inst = document.getElementById('testInstructionText');
+
+      if (isOk) {
+        dot.className = 'w-3 h-3 rounded-full bg-emerald-400 animate-ping';
+        progressTxt.textContent = `${count}/${REQUIRED_STABLE_FRAMES}`;
+        if (count < REQUIRED_STABLE_FRAMES) {
+          inst.textContent = 'そのまま静止してください...';
+        }
+      } else {
+        dot.className = 'w-3 h-3 rounded-full bg-rose-500 animate-pulse';
+        progressTxt.textContent = `${count}/${REQUIRED_STABLE_FRAMES}`;
+        inst.textContent = '頭から踵まで画面内に収めてください';
+      }
+    }
+
+    // 自動カウントダウン (3・2・1・GO!)
+    let isCountingDown = false;
+    function beginTestCountdown() {
+      if (isCountingDown || isTestRunning) return;
+      isCountingDown = true;
+
+      const overlay = document.getElementById('countdownOverlay');
+      const numEl = document.getElementById('countdownNumber');
+      overlay.classList.remove('hidden');
+
+      let count = 3;
+      numEl.textContent = count;
+      playTick();
+      speak('目を閉じて、3、2、1、スタート！');
+
+      const cdInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          numEl.textContent = count;
+          playTick();
+        } else if (count === 0) {
+          numEl.textContent = 'GO!';
+          playGoBeep();
+        } else {
+          clearInterval(cdInterval);
+          overlay.classList.add('hidden');
+          isCountingDown = false;
+          executeTestStart();
+        }
+      }, 950);
+    }
+
+    // テスト本番開始
+    function executeTestStart() {
+      isTestRunning = true;
+      testSamples = [];
+      document.getElementById('testRecordingBadge').classList.remove('hidden');
+      document.getElementById('btnStopTestManual').classList.remove('hidden');
+      document.getElementById('testInstructionText').textContent = '測定中... 目隠しのまま継続してください';
+
+      // 端末内録画の開始
+      startLocalRecording();
+
+      // メトロノーム（足踏み時100BPM）
+      let beatCount = 0;
+      const startTime = performance.now();
+
+      testTimerInterval = setInterval(() => {
+        const elapsed = (performance.now() - startTime) / 1000;
+        const remain = Math.max(0, testRemainingTime - elapsed);
+        document.getElementById('testTimerDisplay').textContent = remain.toFixed(1);
+
+        // 足踏み専用メトロノーム音
+        if (currentSelectedTest === 'step' && soundEnabled) {
+          beatCount++;
+          if (beatCount % 6 === 0) { // 約100BPMの間隔
+            playTone(800, 'triangle', 0.05, 0.15);
+          }
+        }
+
+        // ラスト3秒カウント
+        if (remain <= 3.2 && remain > 2.8) speak('3');
+        if (remain <= 2.2 && remain > 1.8) speak('2');
+        if (remain <= 1.2 && remain > 0.8) speak('1');
+
+        if (remain <= 0) {
+          finishTestNormally();
+        }
+      }, 100);
+    }
+
+    // リアルタイムサンプリング計算
+    function processTestRealtimeMetrics(lm, canvasW, canvasH) {
+      const pxRatio = currentPxPerCm || 3.5; // 未測定時デフォルトフォールバック
+
+      const hipL = { x: lm[23].x * canvasW, y: lm[23].y * canvasH, z: lm[23].z };
+      const hipR = { x: lm[24].x * canvasW, y: lm[24].y * canvasH, z: lm[24].z };
+      const shL = { x: lm[11].x * canvasW, y: lm[11].y * canvasH, z: lm[11].z };
+      const shR = { x: lm[12].x * canvasW, y: lm[12].y * canvasH, z: lm[12].z };
+      const wristL = { x: lm[15].x * canvasW, y: lm[15].y * canvasH };
+      const wristR = { x: lm[16].x * canvasW, y: lm[16].y * canvasH };
+      const ankleL = { x: lm[27].x * canvasW, y: lm[27].y * canvasH };
+      const ankleR = { x: lm[28].x * canvasW, y: lm[28].y * canvasH };
+      const nose = { x: lm[0].x * canvasW, y: lm[0].y * canvasH };
+
+      // サンプルオブジェクト
+      const sample = {
+        time: performance.now(),
+        nose,
+        hipCenter: { x: (hipL.x + hipR.x) / 2, y: (hipL.y + hipR.y) / 2 },
+        hipWidth: Math.hypot(hipR.x - hipL.x, hipR.y - hipL.y),
+        shoulderWidth: Math.hypot(shR.x - shL.x, shR.y - shL.y),
+        hipRotDeg: (Math.atan2(hipR.z - hipL.z, (hipR.x - hipL.x) / canvasW) * (180 / Math.PI)),
+        shoulderRotDeg: (Math.atan2(shR.z - shL.z, (shR.x - shL.x) / canvasW) * (180 / Math.PI)),
+        wristL, wristR, shL, shR, ankleL, ankleR
+      };
+
+      testSamples.push(sample);
+
+      // 片足立ち専用: 浮かせた足の接地判定
+      if (currentSelectedTest === 'oneleg' && testSamples.length > 10) {
+        const isLHigher = ankleL.y < ankleR.y;
+        const liftedAnkleY = isLHigher ? ankleL.y : ankleR.y;
+        const supportAnkleY = isLHigher ? ankleR.y : ankleL.y;
+
+        // 浮かせ足が支持足の高さまで落ちたら着地と判定（接地閾値: 35px以内）
+        if (Math.abs(supportAnkleY - liftedAnkleY) < 30) {
+          playAlarmBuzzer();
+          speak('着地を検知しました');
+          finishTestNormally('足裏センサー着地');
+        }
+      }
+    }
+
+    // 突進・はみ出し警告による強制停止
+    function triggerDangerAbort(reason) {
+      if (!isTestRunning) return;
+      isTestRunning = false;
+      clearInterval(testTimerInterval);
+      stopLocalRecording();
+      playAlarmBuzzer();
+
+      const overlay = document.getElementById('dangerOverlay');
+      const textEl = document.getElementById('dangerReasonText');
+      textEl.textContent = reason;
+      overlay.classList.remove('hidden');
+    }
+
+    // 正常終了
+    function finishTestNormally(note = '') {
+      if (!isTestRunning) return;
+      isTestRunning = false;
+      clearInterval(testTimerInterval);
+      stopLocalRecording();
+
+      playTone(523.25, 'sine', 0.15);
+      setTimeout(() => playTone(659.25, 'sine', 0.15), 150);
+      setTimeout(() => playTone(783.99, 'sine', 0.35), 300);
+
+      speak('終了です！目を開けてリプレイを確認してください');
+      showToast('測定完了！リザルトを集計中...');
+
+      setTimeout(() => {
+        computeAndShowResults();
+      }, 700);
+    }
+
+    /* ==========================================
+       7. 端末内ローカル録画 (MediaRecorder)
+    ========================================== */
+    function startLocalRecording() {
+      recordedChunks = [];
+      const video = document.getElementById('testVideo');
+      if (!video || !video.srcObject) return;
+
+      try {
+        const stream = video.srcObject;
+        const mimeTypes = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+        let selectedMime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+        mediaRecorder = selectedMime ? new MediaRecorder(stream, { mimeType: selectedMime }) : new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recordedChunks.push(e.data);
+          }
+        };
+        mediaRecorder.onstop = () => {
+          if (recordedChunks.length > 0) {
+            const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/mp4' });
+            if (replayVideoBlobUrl) URL.revokeObjectURL(replayVideoBlobUrl);
+            replayVideoBlobUrl = URL.createObjectURL(blob);
+            const repVid = document.getElementById('replayVideo');
+            if (repVid) repVid.src = replayVideoBlobUrl;
+          }
+        };
+        mediaRecorder.start(100);
+      } catch (err) {
+        console.warn('MediaRecorder error (playback might be disabled):', err);
+      }
+    }
+
+    function stopLocalRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try {
+          mediaRecorder.stop();
+        } catch (e) {}
+      }
+    }
+
+    /* ==========================================
+       8. バイオメカニクス解析・覚醒度スコア計算
+    ========================================== */
+    function computeAndShowResults() {
+      if (testSamples.length < 5) {
+        showToast('十分なサンプルが取得できませんでした');
+        switchScreen('screenLobby');
+        return;
+      }
+
+      const pxRatio = currentPxPerCm || 3.5;
+      const first = testSamples[0];
+      const last = testSamples[testSamples.length - 1];
+
+      let metrics = {};
+      let scorePct = 85;
+      let scoreTitle = '【★ 覚醒度 85%】';
+      let nextLevelMsg = 'あと少しで覚醒！';
+      let coachAdvice = '';
+
+      if (currentSelectedTest === 'step') {
+        // ① 足踏み: 前後突進(Z軸cm) + 左右ズレ(cm) + 水平回旋角(°)
+        // Z軸移動量: 初期腰幅と最終腰幅・頭部位置などの幾何変化からcm換算
+        const deltaX_px = last.hipCenter.x - first.hipCenter.x;
+        const lateralDriftCm = Math.abs(deltaX_px / pxRatio);
+        
+        // 前後突進 (Z軸): 身長ピクセル比または腰幅拡大比から推定
+        const initialHipW = baselineHipWidth || first.hipWidth;
+        const hipScale = last.hipWidth / initialHipW;
+        // 近づくと大きくなる: 画角60度想定で拡大率からZ軸移動量算出
+        const forwardRushCm = Math.max(0, (hipScale - 1.0) * 120);
+
+        // 回旋角
+        const netRotationDeg = Math.abs(last.hipRotDeg - first.hipRotDeg);
+
+        // 覚醒度スコア
+        const penalty = (lateralDriftCm * 1.5) + (forwardRushCm * 0.8) + (netRotationDeg * 1.2);
+        scorePct = Math.max(40, Math.min(99, Math.round(100 - penalty)));
+        scoreTitle = `【★ 覚醒度 ${scorePct}%】`;
+        nextLevelMsg = `🔒 あと ${Math.round(netRotationDeg * 0.5 + 4)}° 回旋抑制で覚醒！`;
+        coachAdvice = `目隠しの15秒間で前方へ ${forwardRushCm.toFixed(1)}cm 突進し、骨盤が ${netRotationDeg.toFixed(1)}° 回旋しました。脳内GPSの「まっすぐ」と現実の軌道にズレが生じています。`;
+
+        metrics = {
+          '前後突進 (Z軸)': `${forwardRushCm.toFixed(1)} cm`,
+          '左右ブレ (X軸)': `${lateralDriftCm.toFixed(1)} cm`,
+          '骨盤回旋角度': `${netRotationDeg.toFixed(1)} °`,
+          '同期スコア': `${scorePct} pt`
+        };
+
+      } else if (currentSelectedTest === 'tpose') {
+        // ② Tポーズ: 左右腕の独立水平角(°) + 手首高低差(cm)
+        const leftArmAngle = Math.abs(Math.atan2(last.wristL.y - last.shL.y, last.wristL.x - last.shL.x) * (180 / Math.PI));
+        const rightArmAngle = Math.abs(Math.atan2(last.wristR.y - last.shR.y, last.shR.x - last.wristR.x) * (180 / Math.PI));
+        const wristDiffCm = Math.abs(last.wristL.y - last.wristR.y) / pxRatio;
+
+        const penalty = (wristDiffCm * 3) + Math.abs(leftArmAngle) + Math.abs(rightArmAngle);
+        scorePct = Math.max(45, Math.min(99, Math.round(100 - penalty)));
+        scoreTitle = `【★ 覚醒度 ${scorePct}%】`;
+        nextLevelMsg = `🔒 手首差あと ${wristDiffCm.toFixed(1)}cm 修正で覚醒！`;
+        coachAdvice = `主観では両腕を水平に保っている感覚でしたが、実際は左右手首に ${wristDiffCm.toFixed(1)}cm の高低差がありました。肩甲骨センサーの再校正が必要です。`;
+
+        metrics = {
+          '左腕傾斜角': `${leftArmAngle.toFixed(1)} °`,
+          '右腕傾斜角': `${rightArmAngle.toFixed(1)} °`,
+          '手首左右高低差': `${wristDiffCm.toFixed(1)} cm`,
+          '肩甲骨水平度': `${scorePct} %`
+        };
+
+      } else if (currentSelectedTest === 'oneleg') {
+        // ③ 片足立ち: 静止耐久時間(秒) + 頭部ブレ揺らぎ(cm)
+        const durationSec = (testSamples[testSamples.length - 1].time - testSamples[0].time) / 1000;
+        let headSwitches = 0;
+        for (let i = 1; i < testSamples.length; i++) {
+          headSwitches += Math.hypot(testSamples[i].nose.x - testSamples[i - 1].nose.x, testSamples[i].nose.y - testSamples[i - 1].nose.y);
+        }
+        const headSwayCm = (headSwitches / testSamples.length) / pxRatio;
+
+        scorePct = Math.min(99, Math.round((durationSec / 15.0) * 80 + Math.max(0, 20 - headSwayCm * 2)));
+        scoreTitle = `【★ 覚醒度 ${scorePct}%】`;
+        nextLevelMsg = durationSec >= 14.5 ? '🏆 足裏センサー完全覚醒！' : `🔒 あと ${(15.0 - durationSec).toFixed(1)}秒 キープで覚醒！`;
+        coachAdvice = `支持足の足裏アーチセンサーが揺らぎを感知し、頭部が計 ${headSwayCm.toFixed(1)}cm 揺動しました。足裏3点支持ドリルで固有受容覚を高めましょう。`;
+
+        metrics = {
+          '耐久維持時間': `${durationSec.toFixed(1)} 秒`,
+          '頭部ブレ幅': `${headSwayCm.toFixed(1)} cm`,
+          '足裏接地安定度': `${scorePct} %`,
+          '判定': durationSec >= 14.0 ? 'ゴールド' : 'シルバー'
+        };
+
+      } else if (currentSelectedTest === 'xfactor') {
+        // ④ 骨盤制動 (X-Factor): 胸郭純回旋角(°) vs 骨盤逃げ角(°)
+        let maxShoulderTurn = 0;
+        let maxHipTurn = 0;
+        testSamples.forEach(s => {
+          if (Math.abs(s.shoulderRotDeg) > maxShoulderTurn) maxShoulderTurn = Math.abs(s.shoulderRotDeg);
+          if (Math.abs(s.hipRotDeg) > maxHipTurn) maxHipTurn = Math.abs(s.hipRotDeg);
+        });
+
+        const xFactor = Math.max(0, maxShoulderTurn - maxHipTurn);
+        scorePct = Math.min(99, Math.round((xFactor / 45.0) * 100));
+        scoreTitle = `【★ 覚醒度 ${scorePct}%】`;
+        nextLevelMsg = `🔒 あと ${Math.max(0, 45 - Math.round(xFactor))}° の分離捻転で覚醒！`;
+        coachAdvice = `肩を回す際につられて骨盤が ${maxHipTurn.toFixed(1)}° 一緒に回旋（逃げ）しています。純粋な胸椎の捻転（X-Factor: ${xFactor.toFixed(1)}°）を取り戻すドリルが最適です。`;
+
+        metrics = {
+          '胸郭最大回旋': `${maxShoulderTurn.toFixed(1)} °`,
+          '骨盤逃げ角': `${maxHipTurn.toFixed(1)} °`,
+          '純捻転分離度': `${xFactor.toFixed(1)} °`,
+          'X-Factorスコア': `${scorePct} pt`
+        };
+      }
+
+      // UI反映
+      document.getElementById('resultScoreTitle').textContent = scoreTitle;
+      document.getElementById('resultNextLevel').textContent = nextLevelMsg;
+      document.getElementById('resultCoachAdvice').textContent = coachAdvice;
+      document.getElementById('resultTestDate').textContent = new Date().toLocaleDateString('ja-JP');
+
+      const metricBox = document.getElementById('resultMetricContainer');
+      metricBox.innerHTML = '';
+      Object.entries(metrics).forEach(([label, val]) => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-950/80 border border-slate-800 rounded-2xl p-2.5 text-center';
+        item.innerHTML = `
+          <p class="text-[10px] text-slate-400 font-bold">${label}</p>
+          <p class="text-base font-black text-amber-300 font-num mt-0.5">${val}</p>
+        `;
+        metricBox.appendChild(item);
+      });
+
+      // カルテ保存
+      const newRecord = {
+        id: 'rec_' + Date.now(),
+        playerId: activePlayer ? activePlayer.id : 'default',
+        playerName: activePlayer ? activePlayer.name : 'ゲスト',
+        date: new Date().toISOString(),
+        testType: currentSelectedTest,
+        score: scorePct,
+        metrics: metrics,
+        advice: coachAdvice
+      };
+      records.unshift(newRecord);
+      saveRecords();
+
+      // Confetti 祝福演出
+      if (scorePct >= 80 && typeof confetti === 'function') {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+
+      switchScreen('screenResult');
+    }
+
+    /* ==========================================
+       9. AI骨格バイオフィードバックドリル
+    ========================================== */
+    function startDrillMode(type = 'xfactor') {
+      currentDrillType = type;
+      drillSuccessCount = 0;
+      document.getElementById('drillSuccessCount').textContent = '0';
+      document.getElementById('drillHoldContainer').classList.add('hidden');
+
+      if (type === 'xfactor') {
+        document.getElementById('drillTitle').textContent = '🪑 イス座り・手組み胸回し体操';
+        document.getElementById('drillInstruction').innerHTML = 
+          'イスに座って骨盤を固定し、<strong>両手を頭の後ろで組み肘を大きく開いて</strong>、胸郭だけを左右にゆっくり回旋させましょう！';
+        speak('イスに座り、両手を頭の後ろで組んで肘を開いてください');
+      }
+
+      switchScreen('screenDrill');
+    }
+
+    function handleDrillFrame(results) {
+      const canvas = document.getElementById('drillCanvas');
+      const ctx = canvas.getContext('2d');
+      const video = document.getElementById('drillVideo');
+      if (!canvas || !video) return;
+
+      canvas.width = video.videoWidth || 720;
+      canvas.height = video.videoHeight || 1280;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!results.poseLandmarks) return;
+      const lm = results.poseLandmarks;
+
+      let isPoseMatched = false;
+
+      if (currentDrillType === 'xfactor') {
+        // 🪑 イス座り・頭の後ろ手組み胸回し判定
+        // 条件1: 両手首(15, 16)が頭部近傍(鼻0や耳7,8の近く・肩より上)
+        // 条件2: 肘(13, 14)が肩幅より外側に張っている
+        // 条件3: 肩の回旋角が 25度以上
+        const wristL = lm[15];
+        const wristR = lm[16];
+        const nose = lm[0];
+        const shoulderL = lm[11];
+        const shoulderR = lm[12];
+        const elbowL = lm[13];
+        const elbowR = lm[14];
+
+        const handsBehindHead = (wristL.y < shoulderL.y && wristR.y < shoulderR.y) &&
+                                (Math.abs(wristL.x - nose.x) < 0.28 && Math.abs(wristR.x - nose.x) < 0.28);
+        const elbowsFlared = (elbowL.x > shoulderL.x || elbowR.x < shoulderR.x);
+
+        // 肩回旋角
+        const shoulderTurn = Math.abs(Math.atan2(shoulderR.z - shoulderL.z, shoulderR.x - shoulderL.x) * (180 / Math.PI));
+
+        if (handsBehindHead && elbowsFlared && shoulderTurn > 24) {
+          isPoseMatched = true;
+        }
+      }
+
+      // 骨格描画：マッチ時はエメラルドグリーンに発光
+      const boneColor = isPoseMatched ? '#00ff88' : '#38bdf8';
+      const lineWidth = isPoseMatched ? 6 : 3;
+
+      drawConnectors(ctx, lm, POSE_CONNECTIONS, { color: boneColor, lineWidth: lineWidth });
+      drawLandmarks(ctx, lm, { color: isPoseMatched ? '#ffffff' : '#facc15', lineWidth: 2, radius: isPoseMatched ? 6 : 4 });
+
+      // バイオフィードバック判定＆3秒キープタイマー
+      const feedbackBadge = document.getElementById('drillFeedbackBadge');
+      const holdContainer = document.getElementById('drillHoldContainer');
+      const holdSecEl = document.getElementById('drillHoldSeconds');
+
+      if (isPoseMatched) {
+        feedbackBadge.textContent = '🌟 目標フォーム一致！そのままキープ！';
+        feedbackBadge.className = 'bg-emerald-950/90 border border-emerald-400 text-emerald-300 px-3 py-1 rounded-xl text-xs font-black backdrop-blur-md animate-pulse';
+        holdContainer.classList.remove('hidden');
+
+        if (!drillHoldStartTime) {
+          drillHoldStartTime = performance.now();
+          playTone(880, 'sine', 0.1);
+        }
+
+        const elapsedSec = (performance.now() - drillHoldStartTime) / 1000;
+        const remainingHold = Math.max(0, 3 - Math.floor(elapsedSec));
+        holdSecEl.textContent = remainingHold;
+
+        if (elapsedSec >= 3.0) {
+          // キープ成功！
+          drillHoldStartTime = null;
+          drillSuccessCount++;
+          document.getElementById('drillSuccessCount').textContent = drillSuccessCount;
+          playTone(523, 'sine', 0.1);
+          setTimeout(() => playTone(659, 'sine', 0.1), 100);
+          setTimeout(() => playTone(1046, 'sine', 0.3), 200);
+          speak('ナイスキープ！脳内GPSが更新されました！');
+
+          if (typeof confetti === 'function') {
+            confetti({ particleCount: 50, spread: 60 });
+          }
+
+          if (drillSuccessCount >= 3) {
+            showToast('🎉 ドリル目標クリア！');
+            setTimeout(() => {
+              switchScreen('screenLobby');
+            }, 1500);
+          }
+        }
+      } else {
+        feedbackBadge.textContent = '両手を頭の後ろに組み、胸を回してください';
+        feedbackBadge.className = 'bg-slate-950/80 border border-slate-700 text-slate-300 px-3 py-1 rounded-xl text-xs font-black backdrop-blur-md';
+        holdContainer.classList.add('hidden');
+        drillHoldStartTime = null;
+      }
+    }
+
+    /* ==========================================
+       10. 成長カルテ推移・グラフ・CSV出力
+    ========================================== */
+    function renderRecordScreen() {
+      const list = document.getElementById('recordHistoryList');
+      const svg = document.getElementById('recordChartSvg');
+      list.innerHTML = '';
+      svg.innerHTML = '';
+
+      const playerRecs = records.filter(r => !activePlayer || r.playerId === activePlayer.id);
+
+      if (playerRecs.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">測定履歴がまだありません</p>';
+        return;
+      }
+
+      // 履歴一覧
+      playerRecs.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-950/60 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between text-xs';
+        const d = new Date(r.date);
+        const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        item.innerHTML = `
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-black text-amber-300 font-num">${r.score}%</span>
+              <span class="text-[11px] text-slate-300 font-bold">${getTestName(r.testType)}</span>
+            </div>
+            <p class="text-[9px] text-slate-400 mt-0.5">${dateStr}</p>
+          </div>
+          <button data-id="${r.id}" class="btn-delete-rec text-slate-500 hover:text-rose-400 text-xs px-2 py-1">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        `;
+        list.appendChild(item);
+      });
+
+      // 削除イベント
+      list.querySelectorAll('.btn-delete-rec').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.getAttribute('data-id');
+          records = records.filter(r => r.id !== id);
+          saveRecords();
+          renderRecordScreen();
+        });
+      });
+
+      // SVG推移グラフ描画（直近8件）
+      const chartData = [...playerRecs].reverse().slice(-8);
+      if (chartData.length > 1) {
+        const width = 320;
+        const height = 140;
+        const padX = 25;
+        const padY = 20;
+
+        let points = [];
+        chartData.forEach((d, idx) => {
+          const x = padX + (idx / (chartData.length - 1)) * (width - padX * 2);
+          const y = height - padY - ((d.score - 40) / 60) * (height - padY * 2);
+          points.push({ x, y, score: d.score });
+        });
+
+        // 折れ線パス
+        let pathD = `M ${points[0].x} ${points[0].y}`;
+        points.slice(1).forEach(p => pathD += ` L ${p.x} ${p.y}`);
+
+        svg.innerHTML = `
+          <!-- グリッド線 -->
+          <line x1="${padX}" y1="${padY}" x2="${width - padX}" y2="${padY}" stroke="#334155" stroke-dasharray="2"/>
+          <line x1="${padX}" y1="${height / 2}" x2="${width - padX}" y2="${height / 2}" stroke="#334155" stroke-dasharray="2"/>
+          <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" stroke="#334155" stroke-dasharray="2"/>
+          
+          <!-- 折れ線 -->
+          <path d="${pathD}" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- データ点 -->
+          ${points.map(p => `
+            <circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#facc15" stroke="#0a0f1d" stroke-width="2"/>
+            <text x="${p.x}" y="${p.y - 8}" font-size="9" font-weight="900" fill="#fef08a" text-anchor="middle">${p.score}%</text>
+          `).join('')}
+        `;
+      }
+    }
+
+    function getTestName(type) {
+      switch (type) {
+        case 'step': return '👣 足踏み';
+        case 'tpose': return '⚖️ Tポーズ';
+        case 'oneleg': return '⚓ 片足立ち';
+        case 'xfactor': return '🪑 骨盤制動';
+        default: return '測定';
+      }
+    }
+
+    function exportHistoryToCSV() {
+      if (records.length === 0) {
+        showToast('エクスポートするデータがありません');
+        return;
+      }
+      let csv = '\uFEFF日時,選手名,種目,覚醒度スコア(%),メトリクス詳細,アドバイス\n';
+      records.forEach(r => {
+        const metricStr = Object.entries(r.metrics || {}).map(([k, v]) => `${k}:${v}`).join(' / ');
+        const cleanAdvice = (r.advice || '').replace(/"/g, '""');
+        csv += `"${r.date}","${r.playerName}","${getTestName(r.testType)}","${r.score}","${metricStr}","${cleanAdvice}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `body_gps_records_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSVファイルを書き出しました');
+    }
+
+    /* ==========================================
+       11. 画面遷移 (SPA Router) 管理
+    ========================================== */
+    function switchScreen(targetScreenId) {
+      const screens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
+      screens.forEach(sId => {
+        const el = document.getElementById(sId);
+        if (!el) return;
+        if (sId === targetScreenId) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      currentScreen = targetScreenId;
+
+      // 各画面切り替え時のカメラ割り当て
+      if (targetScreenId === 'screenScan') {
+        const vid = document.getElementById('scanVideo');
+        startCameraStream(vid);
+        scanHoldFrames = 0;
+      } else if (targetScreenId === 'screenTest') {
+        const vid = document.getElementById('testVideo');
+        startCameraStream(vid);
+        startSelectedTest();
+      } else if (targetScreenId === 'screenDrill') {
+        const vid = document.getElementById('drillVideo');
+        startCameraStream(vid);
+      } else if (targetScreenId === 'screenRecord') {
+        renderRecordScreen();
+      }
+    }
+
+    /* ==========================================
+       12. イベントリスナー統合 ＆ アプリ初期化
+    ========================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStorageData();
+      initMediaPipePose();
+      runMediaPipeLoop();
+
+      // カメラ切り替えボタン (自撮り ⇄ 外カメラ)
+      document.getElementById('btnToggleCamera').addEventListener('click', async () => {
+        currentCameraFacing = (currentCameraFacing === 'user') ? 'environment' : 'user';
+        showToast(currentCameraFacing === 'user' ? 'インカメラ（鏡像モード）' : '外カメラ（背面・撮影モード）');
+
+        let activeVideo = null;
+        if (currentScreen === 'screenScan') activeVideo = document.getElementById('scanVideo');
+        else if (currentScreen === 'screenTest') activeVideo = document.getElementById('testVideo');
+        else if (currentScreen === 'screenDrill') activeVideo = document.getElementById('drillVideo');
+
+        if (activeVideo) {
+          await startCameraStream(activeVideo);
+        }
+      });
+
+      // サウンドトグルボタン
+      document.getElementById('btnToggleSound').addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        const icon = document.getElementById('soundIcon');
+        if (soundEnabled) {
+          icon.className = 'fa-solid fa-volume-high text-amber-400';
+          showToast('サウンド: ON');
+        } else {
+          icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+          showToast('サウンド: OFF (消音)');
+        }
+      });
+
+      // 選手登録・切替モーダル
+      const modal = document.getElementById('playerModal');
+      document.getElementById('btnOpenPlayerModal').addEventListener('click', () => modal.classList.remove('hidden'));
+      document.getElementById('btnClosePlayerModal').addEventListener('click', () => modal.classList.add('hidden'));
+
+      // 選手ドロップダウン選択
+      document.getElementById('playerSelectDropdown').addEventListener('change', (e) => {
+        const selId = e.target.value;
+        const p = players.find(x => x.id === selId);
+        if (p) {
+          activePlayer = p;
+          savePlayers();
+          updatePlayerUI();
+          showToast(`選手を「${p.name}」に切り替えました`);
+          modal.classList.add('hidden');
+        }
+      });
+
+      // 新規選手登録
+      document.getElementById('formNewPlayer').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('inputPlayerName').value.trim();
+        const height = parseFloat(document.getElementById('inputPlayerHeight').value);
+        const category = document.getElementById('inputPlayerCategory').value;
+        const domFoot = document.getElementById('inputPlayerDominantFoot').value;
+        const domHand = document.getElementById('inputPlayerDominantHand').value;
+
+        if (!name || isNaN(height)) return;
+
+        const newP = {
+          id: 'player_' + Date.now(),
+          name,
+          height,
+          category,
+          dominantFoot: domFoot,
+          dominantHand: domHand,
+          pxPerCm: null,
+          refHipWidth: null,
+          refShoulderWidth: null
+        };
+
+        players.push(newP);
+        activePlayer = newP;
+        savePlayers();
+        updatePlayerUI();
+        updatePlayerDropdown();
+        modal.classList.add('hidden');
+        showToast(`選手「${name}」を登録しました！`);
+        e.target.reset();
+      });
+
+      // トップ ➔ 直立スキャン起動
+      document.getElementById('btnStartScan').addEventListener('click', () => {
+        initAudioContext();
+        switchScreen('screenScan');
+      });
+      document.getElementById('btnCancelScan').addEventListener('click', () => {
+        switchScreen('screenLobby');
+      });
+
+      // トップ ➔ 測定ステーション
+      document.getElementById('btnGoToTestStation').addEventListener('click', () => {
+        initAudioContext();
+        switchScreen('screenTest');
+      });
+
+      // トップ ➔ ドリルメニュー
+      document.getElementById('btnGoToDrillMenu').addEventListener('click', () => {
+        initAudioContext();
+        startDrillMode('xfactor');
+      });
+
+      // トップ ➔ カルテ
+      document.getElementById('btnGoToRecord').addEventListener('click', () => {
+        switchScreen('screenRecord');
+      });
+      document.getElementById('btnBackFromRecord').addEventListener('click', () => {
+        switchScreen('screenLobby');
+      });
+
+      // テスト画面内種目タブ
+      document.querySelectorAll('.tab-test-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const testKey = e.currentTarget.getAttribute('data-test');
+          currentSelectedTest = testKey;
+          document.querySelectorAll('.tab-test-btn').forEach(b => {
+            b.className = 'tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-slate-400 bg-slate-800/80 border border-slate-700 truncate';
+          });
+          e.currentTarget.className = 'tab-test-btn flex-1 py-1.5 px-2 rounded-xl text-[11px] font-black text-white bg-amber-500/30 border border-amber-400/50 truncate';
+          startSelectedTest();
+        });
+      });
+
+      // テスト中断
+      document.getElementById('btnBackFromTest').addEventListener('click', () => {
+        isTestRunning = false;
+        clearInterval(testTimerInterval);
+        stopLocalRecording();
+        switchScreen('screenLobby');
+      });
+      document.getElementById('btnStopTestManual').addEventListener('click', () => {
+        finishTestNormally('手動停止');
+      });
+
+      // はみ出しオーバーレイ確認
+      document.getElementById('btnDangerDismiss').addEventListener('click', () => {
+        document.getElementById('dangerOverlay').classList.add('hidden');
+        computeAndShowResults();
+      });
+
+      // リプレイ再生速度
+      document.getElementById('btnSpeed05').addEventListener('click', (e) => {
+        const vid = document.getElementById('replayVideo');
+        if (vid) vid.playbackRate = 0.5;
+        e.target.className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-300 bg-slate-700';
+        document.getElementById('btnSpeed10').className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-400';
+      });
+      document.getElementById('btnSpeed10').addEventListener('click', (e) => {
+        const vid = document.getElementById('replayVideo');
+        if (vid) vid.playbackRate = 1.0;
+        e.target.className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-300 bg-slate-700';
+        document.getElementById('btnSpeed05').className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-400';
+      });
+
+      // リザルト ➔ 推奨ドリル開始
+      document.getElementById('btnStartRecommendedDrill').addEventListener('click', () => {
+        startDrillMode(currentSelectedTest === 'xfactor' ? 'xfactor' : 'xfactor');
+      });
+
+      // リザルト ➔ カルテ保存してロビーへ
+      document.getElementById('btnSaveRecordAndBack').addEventListener('click', () => {
+        switchScreen('screenLobby');
+      });
+
+      // ドリル終了
+      document.getElementById('btnExitDrill').addEventListener('click', () => {
+        switchScreen('screenLobby');
+      });
+
+      // CSVエクスポート & 全削除
+      document.getElementById('btnExportCSV').addEventListener('click', exportHistoryToCSV);
+      document.getElementById('btnClearHistory').addEventListener('click', () => {
+        records = records.filter(r => activePlayer && r.playerId !== activePlayer.id);
+        saveRecords();
+        renderRecordScreen();
+        showToast('履歴を削除しました');
+      });
+
+      // 初回ユーザー操作時にオーディオロック解除
+      window.addEventListener('click', () => initAudioContext(), { once: true });
+      window.addEventListener('touchstart', () => initAudioContext(), { once: true });
+
+      // Service Worker 登録 (PWA)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.log('SW registration skipped or error:', err);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
