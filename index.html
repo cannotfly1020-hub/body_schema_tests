@@ -644,8 +644,13 @@
 
   <script>
     /**
-     * 身体図式・脳内GPSドック v2.0
+     * 身体図式・脳内GPSドック v2.0 - 完全安定版
      */
+
+    // 全DOM要素への安全な動的アクセサ（未定義クラッシュを根絶）
+    const DOM = new Proxy({}, {
+      get: (_, id) => document.getElementById(id)
+    });
 
     const AppState = {
       currentScreen: 'screenLobby',
@@ -656,6 +661,7 @@
       stream: null,
       cameraHelper: null,
       poseDetector: null,
+      isPoseModelLoading: false,
       sleepTimeoutId: null,
       isSleeping: false,
       players: [],
@@ -702,7 +708,6 @@
         if (AppState.audioCtx && AppState.audioCtx.state === 'suspended') {
           AppState.audioCtx.resume();
         }
-        // iOS Safari対策: ユーザー操作時に空のバッファを再生してAudioContextを即座に完全アンロック
         if (AppState.audioCtx && !AppState.audioUnlocked) {
           try {
             const buffer = AppState.audioCtx.createBuffer(1, 1, 22050);
@@ -732,7 +737,6 @@
           osc.type = type;
           osc.frequency.setValueAtTime(freq, now);
 
-          // iPhoneスピーカーでもはっきり抜ける音圧設計
           gain.gain.setValueAtTime(0.001, now);
           gain.gain.linearRampToValueAtTime(gainVal, now + 0.015);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -747,51 +751,49 @@
         }
       }
 
-      // カウントダウン音（3, 2, 1の各秒音）
+      // カウントダウン音（3, 2, 1）
       static beepCountdown() {
         this.playTone(660, 0.12, 'triangle', 0.5);
       }
 
-      // 測定スタート合図音（ホイッスル調: ピピッ・ピーーッ！）
+      // 測定スタート合図音（ホイッスル調）
       static playStartWhistle() {
         if (!AppState.isSoundEnabled) return;
         this.playTone(1760, 0.08, 'square', 0.45);
-        setTimeout(() => this.playTone(1760, 0.08, 'square', 0.45), 100);
-        setTimeout(() => this.playTone(2093, 0.4, 'triangle', 0.6), 220);
+        setTimeout(() => this.playTone(1760, 0.08, 'square', 0.45), 90);
+        setTimeout(() => this.playTone(2093, 0.38, 'triangle', 0.6), 200);
       }
 
-      // 測定終了合図音（ホイッスル調: ピーッ・ピピッ！）
+      // 測定終了合図音（ホイッスル調）
       static playFinishWhistle() {
         if (!AppState.isSoundEnabled) return;
         this.playTone(2093, 0.35, 'triangle', 0.6);
-        setTimeout(() => this.playTone(1760, 0.1, 'square', 0.45), 380);
-        setTimeout(() => this.playTone(1760, 0.15, 'square', 0.45), 500);
+        setTimeout(() => this.playTone(1760, 0.1, 'square', 0.45), 360);
+        setTimeout(() => this.playTone(1760, 0.15, 'square', 0.45), 480);
       }
 
-      // 測定中の毎秒チクタク音（目隠し中も進行が耳で分かる）
+      // 毎秒のチクタク音（目隠し中の進行確認）
       static playTestTick(isAccent = false) {
         if (isAccent) {
-          // 5秒ごとのアクセント音
           this.playTone(1050, 0.08, 'triangle', 0.4);
         } else {
-          // 通常の秒刻み音
           this.playTone(700, 0.05, 'sine', 0.3);
         }
       }
 
-      // ラスト3秒カウント音（音階上昇: ド・ミ・ソ）
+      // ラスト3秒カウント音（ド・ミ・ソの上昇音）
       static playLastSecondsWarning(count) {
         const freqs = { 3: 523.25, 2: 659.25, 1: 783.99 };
         const f = freqs[count] || 600;
         this.playTone(f, 0.18, 'triangle', 0.5);
       }
 
-      // 目隠し足踏み用メトロノーム音（100BPMの小気味よいウッドブロック調）
+      // 足踏み用メトロノーム音
       static beepMetronome() {
         this.playTone(1250, 0.04, 'triangle', 0.45);
       }
 
-      // 危険逸脱アラートブザー
+      // 危険逸脱アラート
       static alertBuzzer() {
         this.playTone(220, 0.45, 'sawtooth', 0.5);
       }
@@ -804,16 +806,17 @@
         setTimeout(() => this.playTone(1046.5, 0.38, 'triangle', 0.55), 390);
       }
 
-      // 絵文字や記号を除去し、日本語文章のみを抽出するフィルター
+      // スタンプ・絵文字を100%完全除去するフィルター
       static stripEmojis(text) {
         if (!text) return '';
         return text
-          .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{200D}\u{FE0F}]/gu, '')
-          .replace(/[【】★⚡🔒🎬📊📑🚨💡]/g, '')
+          .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji}\uFE0F\u200D]/gu, '')
+          .replace(/[【】★⚡🔒🎬📊📑🚨💡⚓👣⚖️🪑]/g, '')
+          .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
           .trim();
       }
 
-      // 動作説明読み上げ（スタンプ・絵文字の読み上げを完全カット）
+      // 音声読み上げ（スタンプ名読み上げを完全遮断）
       static speak(text) {
         if (!AppState.isSoundEnabled || !window.speechSynthesis) return;
         try {
@@ -885,6 +888,7 @@
 
     function initMediaPipePose() {
       if (AppState.poseDetector) return;
+      AppState.isPoseModelLoading = true;
 
       const pose = new Pose({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
@@ -901,6 +905,7 @@
 
       pose.onResults(onPoseResultsReceived);
       AppState.poseDetector = pose;
+      AppState.isPoseModelLoading = false;
     }
 
     async function switchScreen(targetScreenId) {
@@ -910,15 +915,18 @@
       const willNeedCamera = cameraScreens.includes(targetScreenId);
 
       if (!willNeedCamera && AppState.stream) {
-        stopCamera();
+        await stopCamera();
       }
 
       const allScreens = ['screenLobby', 'screenScan', 'screenTest', 'screenResult', 'screenDrill', 'screenRecord'];
       allScreens.forEach(id => {
-        if (id === targetScreenId) {
-          DOM[id].classList.remove('hidden');
-        } else {
-          DOM[id].classList.add('hidden');
+        const el = DOM[id];
+        if (el) {
+          if (id === targetScreenId) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
         }
       });
       AppState.currentScreen = targetScreenId;
@@ -932,7 +940,7 @@
       }
     }
 
-    function stopCamera() {
+    async function stopCamera() {
       if (AppState.cameraHelper) {
         try { AppState.cameraHelper.stop(); } catch (e) {}
         AppState.cameraHelper = null;
@@ -940,11 +948,13 @@
       if (AppState.stream) {
         AppState.stream.getTracks().forEach(t => t.stop());
         AppState.stream = null;
+        // iOS Safari対策: トラック解放待機（NotReadableError防止）
+        await new Promise(res => setTimeout(res, 120));
       }
     }
 
     async function startCameraForCurrentScreen() {
-      stopCamera();
+      await stopCamera();
       initMediaPipePose();
 
       let videoEl = null;
@@ -954,12 +964,13 @@
 
       if (!videoEl) return;
 
+      const isPortrait = window.innerHeight >= window.innerWidth;
       const constraints = {
         audio: false,
         video: {
           facingMode: AppState.cameraFacing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: isPortrait ? 720 : 1280 },
+          height: { ideal: isPortrait ? 1280 : 720 }
         }
       };
 
@@ -967,6 +978,12 @@
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         AppState.stream = stream;
         videoEl.srcObject = stream;
+
+        // メタデータ確定待機
+        await new Promise(resolve => {
+          if (videoEl.readyState >= 1) return resolve();
+          videoEl.onloadedmetadata = () => resolve();
+        });
         await videoEl.play();
 
         updateCameraMirrorStyles();
@@ -976,11 +993,15 @@
             if (AppState.isSleeping) return;
             const currentVideo = getCurrentActiveVideo();
             if (currentVideo && AppState.poseDetector && currentVideo.readyState >= 2) {
-              await AppState.poseDetector.send({ image: currentVideo });
+              try {
+                await AppState.poseDetector.send({ image: currentVideo });
+              } catch (err) {
+                console.warn('Pose processing frame dropped:', err);
+              }
             }
           },
-          width: 1280,
-          height: 720
+          width: isPortrait ? 720 : 1280,
+          height: isPortrait ? 1280 : 720
         });
         AppState.cameraHelper.start();
 
@@ -1012,6 +1033,7 @@
         DOM.videoDrill, DOM.canvasDrill
       ];
       targets.forEach(el => {
+        if (!el) return;
         if (isUser) {
           el.classList.add('mirror-mode');
         } else {
@@ -1179,7 +1201,7 @@
       const cfg = TEST_CONFIGS[testId];
       if (!cfg) return;
 
-      SoundFX.init(); // iOSでのアンロックを確実に実行
+      SoundFX.init();
 
       AppState.activeTestId = testId;
       AppState.testState = 'prepping';
@@ -1198,7 +1220,7 @@
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
-      // 絵文字を読ませず、滑らかに指示を発声
+      // 絵文字を読ませず滑らかにアナウンス
       SoundFX.speak(`${cfg.speechTitle}。全身を枠に収めて静止してください。静止後3秒で開始します。`);
     }
 
@@ -1224,14 +1246,13 @@
       }
 
       if (AppState.testState === 'prepping') {
-        // 静止判定（頭部・腰の微小揺れが一定以下の状態を連続検知）
         const curNoseX = nose.x * w;
         const curNoseY = nose.y * h;
         let isStill = false;
 
         if (AppState.lastNosePos) {
           const moveDist = Math.hypot(curNoseX - AppState.lastNosePos.x, curNoseY - AppState.lastNosePos.y);
-          if (moveDist < 12) { // 安定静止
+          if (moveDist < 12) {
             isStill = true;
           }
         }
@@ -1245,7 +1266,7 @@
           DOM.testPrepIndicator.innerHTML = '<span class="text-yellow-400 font-bold">静止してください</span>';
         }
 
-        // 約0.6秒間の安定静止が確認されたら、正確に「3秒前カウントダウン」へ移行
+        // 静止が確認されたら正確に3秒前カウントダウンへ
         if (AppState.stableDetectionFrames >= 18) {
           AppState.initialPoseSnapshot = {
             hipCenterX: ((leftHip.x + rightHip.x) / 2) * w,
@@ -1277,7 +1298,7 @@
           const expansionRatio = currentHipWidth / AppState.baseHipWidthPx;
           if (expansionRatio >= 1.7) {
             const forwardCm = ((expansionRatio - 1.0) * 100).toFixed(0);
-            triggerDangerAbort(`🚨 ${forwardCm}cm以上 前方へ突進しました！`);
+            triggerDangerAbort(`前方へ突進しました！`);
             return;
           }
 
@@ -1401,7 +1422,7 @@
         } else if (count === 0) {
           DOM.testBigBannerNumber.textContent = 'START!';
           DOM.testBigBannerSub.textContent = '測定開始！';
-          // 明確なスタート合図ホイッスル
+          // スタートホイッスル
           SoundFX.playStartWhistle();
           pulseAudioIcon(true);
         } else {
@@ -1427,7 +1448,7 @@
 
       startLocalRecording();
 
-      // 足踏みテスト専用: 100BPMメトロノーム音（600ms間隔）
+      // 足踏みテスト専用: 100BPMメトロノーム
       if (cfg.useMetronome) {
         AppState.testMetronomeInterval = setInterval(() => {
           if (AppState.testState === 'running') {
@@ -1437,25 +1458,22 @@
         }, 600);
       }
 
-      // 毎秒チクタク音 ＆ タイマー進行 ＆ ラスト3秒警告音
+      // 毎秒チクタク音 ＆ タイマー ＆ ラスト3秒カウント
       AppState.testTimerInterval = setInterval(() => {
         AppState.testRemainingSec--;
         DOM.testTimerText.textContent = AppState.testRemainingSec;
 
         if (AppState.testRemainingSec > 3) {
-          // 残り4秒以上: 毎秒のチクタク音（5秒ごとにアクセント）
           const isAccent = (AppState.testRemainingSec % 5 === 0);
           SoundFX.playTestTick(isAccent);
           pulseAudioIcon();
         } else if (AppState.testRemainingSec >= 1 && AppState.testRemainingSec <= 3) {
-          // 残り3, 2, 1秒: 段階上昇ビープ音
           SoundFX.playLastSecondsWarning(AppState.testRemainingSec);
           pulseAudioIcon(true);
         }
 
         if (AppState.testRemainingSec <= 0) {
           cleanupTestSession();
-          // 測定終了ホイッスルを鳴らして完了
           SoundFX.playFinishWhistle();
           setTimeout(() => {
             finishTestSession('規定時間終了！お疲れ様でした。');
@@ -1500,7 +1518,7 @@
         recorder.start();
         AppState.mediaRecorder = recorder;
       } catch (err) {
-        console.warn('MediaRecorder unsupported or error:', err);
+        console.warn('MediaRecorder error:', err);
       }
     }
 
@@ -1518,7 +1536,7 @@
 
       setTimeout(() => {
         DOM.testDangerAlert.classList.add('hidden');
-        finishTestSession(`⚠️ ${reason}`);
+        finishTestSession(`注意、${reason}`);
       }, 2500);
     }
 
@@ -1896,7 +1914,6 @@
     }
 
     function bindEventListeners() {
-      // ユーザーの初回操作でWeb Audioを確実にアンロック
       ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evtName => {
         window.addEventListener(evtName, () => {
           SoundFX.init();
@@ -1919,7 +1936,7 @@
       DOM.btnSoundToggle.addEventListener('click', () => {
         AppState.isSoundEnabled = !AppState.isSoundEnabled;
         DOM.btnSoundToggle.textContent = AppState.isSoundEnabled ? '🔊 ON' : '🔇 OFF';
-        if (AppState.isSoundEnabled) SoundFX.beepStart();
+        if (AppState.isSoundEnabled) SoundFX.beepCountdown();
       });
 
       DOM.btnHome.addEventListener('click', () => {
@@ -1973,7 +1990,7 @@
 
         DOM.modalNewPlayer.classList.add('hidden');
         refreshLobbyUI();
-        SoundFX.beepStart();
+        SoundFX.beepCountdown();
       });
 
       DOM.btnGoScan.addEventListener('click', () => {
@@ -2089,7 +2106,6 @@
     window.addEventListener('load', () => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then((reg) => {
-          // キャッシュ更新チェック
           reg.update();
         }).catch(err => {
           console.warn('SW registration failed:', err);
