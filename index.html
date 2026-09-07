@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック v4.0</title>
+  <title>身体図式・脳内GPSドック v5.0</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0a0f1d">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -44,7 +44,7 @@
       color: #ffffff;
     }
 
-    /* 画面切り替えの絶対ルール（IDセレクタの詳細度に勝つ強制クラス制御） */
+    /* 画面切り替えの絶対統一クラス（IDセレクタの詳細度競合を完全防止） */
     .app-screen {
       display: none !important;
       flex-direction: column;
@@ -64,7 +64,7 @@
       overflow: hidden;
     }
 
-    /* 4大テストグリッドを縦方向に強制ストレッチ */
+    /* 4大テストグリッドを縦方向に強制ストレッチ（iPhone余白ゼロ化） */
     .test-grid-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -171,7 +171,7 @@
             <h1 class="text-sm font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-yellow-300 to-emerald-300">
               脳内GPSドック
             </h1>
-            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v4.0</span>
+            <span class="text-[9px] bg-sky-500/30 text-sky-300 border border-sky-400/50 px-1 py-0.2 rounded font-black">v5.0</span>
           </div>
           <div id="activePlayerBadge" class="text-[10px] text-emerald-400 font-bold leading-tight truncate max-w-[120px]">
             未設定
@@ -239,7 +239,7 @@
           <span class="text-xs font-black text-emerald-400 flex items-center space-x-1">
             <span>🎯</span><span>2. 4大目隠し・身体図式テスト</span>
           </span>
-          <span class="text-[9px] text-slate-400">ピークホールド幾何学解析</span>
+          <span class="text-[9px] text-slate-400">幾何学ピークホールド解析</span>
         </div>
 
         <div class="test-grid-container">
@@ -677,8 +677,8 @@
 
   <script>
     /**
-     * 身体図式・脳内GPSドック v4.0
-     * 幾何学射影コサイン則 ＆ 4大特化ドリル体系 ＆ フォーム音声ガイダンス
+     * 身体図式・脳内GPSドック v5.0
+     * 幾何学射影コサイン則 ＆ 音声ガイダンス完全連動 ＆ 4大再構築ドリル
      */
 
     const DOM = new Proxy({}, {
@@ -864,9 +864,13 @@
           .trim();
       }
 
-      static speak(text, onEndCallback = null) {
+      static speak(text, onEndCallback = null, minLockMs = 0) {
         if (!AppState.isSoundEnabled || !window.speechSynthesis) {
-          if (onEndCallback) onEndCallback();
+          if (minLockMs > 0) {
+            setTimeout(() => { if (onEndCallback) onEndCallback(); }, minLockMs);
+          } else {
+            if (onEndCallback) onEndCallback();
+          }
           return;
         }
         try {
@@ -882,20 +886,47 @@
           uttr.rate = 1.05;
           uttr.pitch = 1.0;
 
-          let hasEnded = false;
-          const finishCall = () => {
-            if (!hasEnded) {
-              hasEnded = true;
-              if (onEndCallback) onEndCallback();
+          // iOS GC（ガベージコレクション）による強制終了を防ぐグローバル参照
+          window._activeUtterance = uttr;
+
+          let speechFinished = false;
+          let minTimePassed = (minLockMs <= 0);
+
+          const tryComplete = () => {
+            if (speechFinished && minTimePassed) {
+              window._activeUtterance = null;
+              if (onEndCallback) {
+                const cb = onEndCallback;
+                onEndCallback = null;
+                cb();
+              }
             }
           };
 
-          uttr.onend = finishCall;
-          uttr.onerror = finishCall;
+          if (minLockMs > 0) {
+            setTimeout(() => {
+              minTimePassed = true;
+              tryComplete();
+            }, minLockMs);
+          }
 
-          // フォールバック: 長時間音声が終了検知されない場合の安全タイマー（文字数に応じた最大待機時間）
-          const maxWaitMs = Math.max(3500, cleanText.length * 160);
-          setTimeout(finishCall, maxWaitMs);
+          uttr.onend = () => {
+            speechFinished = true;
+            tryComplete();
+          };
+
+          uttr.onerror = () => {
+            speechFinished = true;
+            tryComplete();
+          };
+
+          // フォールバック最大時間
+          const maxWait = Math.max(minLockMs + 1500, cleanText.length * 200);
+          setTimeout(() => {
+            speechFinished = true;
+            minTimePassed = true;
+            tryComplete();
+          }, maxWait);
 
           window.speechSynthesis.speak(uttr);
         } catch (e) {
@@ -1250,12 +1281,12 @@
       DOM.scanProgressBar.style.width = `${pct}%`;
     }
 
-    // 4大テスト構成（詳細フォーム音声ガイダンス付き）
     const TEST_CONFIGS = {
       stepping: {
         title: '👣 目隠し足踏みテスト',
         speechTitle: '目隠し足踏みテスト',
         guidanceSpeech: '目隠し足踏みテスト。両腕を胸の前で軽く曲げ、目隠しをしてその場で15秒間リズムよく足踏みしてください。まずはカメラに全身を映して静止してください。',
+        guidanceMinSec: 5.2,
         sub: '目隠しをしてその場で15秒間リズムよく足踏み',
         duration: 15,
         useMetronome: true,
@@ -1267,6 +1298,7 @@
         title: '⚖️ Tポーズ水平テスト',
         speechTitle: 'Tポーズ水平テスト',
         guidanceSpeech: 'Tポーズ水平テスト。両腕を真横へ床と完全に平行になるよう伸ばし、目隠しをして6秒間静止してください。まずはカメラに全身を映してください。',
+        guidanceMinSec: 4.8,
         sub: '目隠しをして両腕を床と平行（水平）に6秒保持',
         duration: 6,
         useMetronome: false,
@@ -1278,6 +1310,7 @@
         title: '⚓ 片足立ちキープテスト',
         speechTitle: '片足立ちキープテスト',
         guidanceSpeech: '片足立ちキープテスト。両手を腰にあて、目隠しをして片足を浮かせ、最大15秒間バランスを保持してください。まずは直立して静止してください。',
+        guidanceMinSec: 5.0,
         sub: '目隠しをして片足を上げ最大15秒バランス保持',
         duration: 15,
         useMetronome: false,
@@ -1289,6 +1322,7 @@
         title: '🪑 骨盤制動胸捻転テスト',
         speechTitle: '骨盤制動胸捻転テスト',
         guidanceSpeech: '骨盤制動胸捻転テスト。両手を胸の前で組み、イスに座るか骨盤を正面に向けたまま、上半身だけを左右へ限界まで大きく捻ってください。まずは静止してください。',
+        guidanceMinSec: 5.5,
         sub: '骨盤を固定し上半身を左右へ最大回旋（10秒）',
         duration: 10,
         useMetronome: false,
@@ -1298,7 +1332,7 @@
       }
     };
 
-    function startTestSession(testId) {
+    async function startTestSession(testId) {
       const cfg = TEST_CONFIGS[testId];
       if (!cfg) return;
 
@@ -1339,18 +1373,18 @@
       DOM.testDangerAlert.classList.add('hidden');
       DOM.testBigBanner.classList.add('hidden');
 
-      // 音声ガイダンス待機ロックをONにする
+      // 画面を切り替えてから待機フラグを設定（ライフサイクルの自己キャンセルを防止）
+      await switchScreen('screenTest');
+
       AppState.isSpeechGuiding = true;
       DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
 
-      switchScreen('screenTest');
-
-      // ガイダンス音声が最後まで終了した時に初めて静止待機へ移行する
+      const minLockMs = Math.round(cfg.guidanceMinSec * 1000);
       SoundFX.speak(cfg.guidanceSpeech, () => {
         AppState.isSpeechGuiding = false;
-        SoundFX.playTone(880, 0.08, 'triangle', 0.4); // 説明終了時の合図音
+        SoundFX.playTone(880, 0.09, 'triangle', 0.45);
         DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span><span class="text-yellow-300 font-bold">👀 全身を映して静止してください</span>';
-      });
+      }, minLockMs);
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1377,7 +1411,7 @@
       const hasFullBody = allDetected && isWithinBounds;
 
       if (AppState.testState === 'prepping') {
-        // 説明音声が流れている最中は静止判定およびカウントダウンをロック
+        // 音声ガイダンス中は静止カウントを完全ロック
         if (AppState.isSpeechGuiding) {
           AppState.stableDetectionFrames = 0;
           DOM.testPrepIndicator.innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span><span class="text-sky-300 font-bold">📢 説明を聞いてください...</span>';
@@ -1475,7 +1509,6 @@
           }
         }
 
-        // 高精度幾何学バイオメカニクス計算
         updateHighPrecisionBiomechanics(AppState.activeTestId, landmarks, w, h);
 
         if (AppState.activeTestId === 'oneleg' && !AppState.testGracePeriod) {
@@ -1516,7 +1549,6 @@
       data.maxDevZCm = Math.max(data.maxDevZCm, zDisplacementCm);
 
       if (testId === 'pelvis') {
-        // 射影幾何学コサイン則 ＆ ピークホールド
         const baseS = snap.shoulderWidthPx;
         const baseH = snap.hipWidthPx;
 
@@ -1887,7 +1919,6 @@
       switchScreen('screenResult');
     }
 
-    // 4大再構築ドリルのマスター定義
     const DRILL_CONFIGS = {
       stepping: {
         id: 'stepping',
@@ -1964,7 +1995,6 @@
       SoundFX.speak(cfg.speechStart);
     }
 
-    // 4種目対応のリアルタイムAI骨格ドリル判定ロジック
     function processDrillFrame(landmarks, w, h) {
       const drillId = AppState.activeDrillId;
       const nose = landmarks[0];
@@ -1986,7 +2016,6 @@
       const ctx = canvas.getContext('2d');
 
       if (drillId === 'pelvis') {
-        // ドリル4: イス座り胸回し
         if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
           const handsNearHead = (leftWrist.y < leftShoulder.y + 0.12) && (rightWrist.y < rightShoulder.y + 0.12);
           const dx = (rightShoulder.x - leftShoulder.x);
@@ -1998,7 +2027,6 @@
         }
       }
       else if (drillId === 'tpose') {
-        // ドリル2: 肩甲骨水平アイソメトリック
         if (leftShoulder && rightShoulder && leftWrist && rightWrist) {
           const lDx = (leftWrist.x - leftShoulder.x) * w;
           const lDy = (leftWrist.y - leftShoulder.y) * h;
@@ -2011,25 +2039,21 @@
           const diffAngle = Math.abs(leftAngle - rightAngle);
           liveValText = `${diffAngle.toFixed(1)}°`;
 
-          // 腕を真横に広げ、左右差が3.5°以内
           const armsSpread = (leftWrist.x < leftShoulder.x - 0.15) && (rightWrist.x > rightShoulder.x + 0.15);
           isConditionMet = armsSpread && diffAngle <= 3.5;
         }
       }
       else if (drillId === 'oneleg') {
-        // ドリル3: 足裏3点接地アンカーバランサー
         if (nose && leftHip && rightHip && leftAnkle && rightAnkle) {
           const hipCenterX = ((leftHip.x + rightHip.x) / 2) * w;
           const swayCm = Math.abs((nose.x * w) - hipCenterX) / AppState.pxPerCm;
           const ankleDiffY = Math.abs(leftAnkle.y - rightAnkle.y) * h;
 
           liveValText = `${swayCm.toFixed(1)}cm`;
-          // 片足がしっかり浮いていて（高さ差25px以上）、頭部動揺が2.5cm以内
           isConditionMet = (ankleDiffY >= 25) && (swayCm <= 2.5);
         }
       }
       else if (drillId === 'stepping') {
-        // ドリル1: 重心センタリング・ハイキック
         if (leftHip && rightHip && leftKnee && rightKnee) {
           const hipCenterXPx = ((leftHip.x + rightHip.x) / 2) * w;
           const baseCenter = AppState.initialPoseSnapshot ? AppState.initialPoseSnapshot.hipCenterX : hipCenterXPx;
@@ -2037,7 +2061,6 @@
 
           liveValText = `${devCm.toFixed(1)}cm`;
 
-          // どちらかの膝が股関節付近まで持ち上がっているか
           const leftKneeLifted = leftKnee.y < leftHip.y + 0.12;
           const rightKneeLifted = rightKnee.y < rightHip.y + 0.12;
 
@@ -2047,7 +2070,6 @@
 
       DOM.drillLiveVal1.textContent = liveValText;
 
-      // 保持カウント判定（3秒キープでクリア）
       if (isConditionMet) {
         drawSkeleton(ctx, landmarks, canvas.width, canvas.height, '#10b981');
 
@@ -2269,7 +2291,6 @@
       }
     }
 
-    // イベントリスナーのバインド
     function bindEventListeners() {
       ['touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evtName => {
         window.addEventListener(evtName, () => {
@@ -2408,13 +2429,11 @@
         switchScreen('screenLobby');
       });
 
-      // 結果画面からの弱点直結ドリル起動
       DOM.btnQuickDrillFromResult.addEventListener('click', () => {
         const currentTestId = AppState.lastResultData ? AppState.lastResultData.testId : 'pelvis';
         startDrillSession(currentTestId);
       });
 
-      // ロビーからのドリルボタンタップでドリル選択モーダルを表示
       DOM.btnGoDrill.addEventListener('click', () => {
         SoundFX.init();
         DOM.modalSelectDrill.classList.remove('hidden');
