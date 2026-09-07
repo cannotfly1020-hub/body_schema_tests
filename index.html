@@ -659,7 +659,8 @@
       audioCtx: null,
       audioUnlocked: false,
       stream: null,
-      cameraHelper: null,
+      cameraAnimId: null,
+      isProcessingPose: false,
       poseDetector: null,
       isPoseModelLoading: false,
       sleepTimeoutId: null,
@@ -678,6 +679,7 @@
       activeTestId: null,
       testState: 'idle',
       testTimerInterval: null,
+      testCountdownInterval: null,
       testMetronomeInterval: null,
       testTickInterval: null,
       testRemainingSec: 0,
@@ -940,16 +942,20 @@
       }
     }
 
-    async function stopCamera() {
-      if (AppState.cameraHelper) {
-        try { AppState.cameraHelper.stop(); } catch (e) {}
-        AppState.cameraHelper = null;
+    function stopCameraLoop() {
+      if (AppState.cameraAnimId) {
+        cancelAnimationFrame(AppState.cameraAnimId);
+        AppState.cameraAnimId = null;
       }
+      AppState.isProcessingPose = false;
+    }
+
+    async function stopCamera() {
+      stopCameraLoop();
       if (AppState.stream) {
         AppState.stream.getTracks().forEach(t => t.stop());
         AppState.stream = null;
-        // iOS Safari対策: トラック解放待機（NotReadableError防止）
-        await new Promise(res => setTimeout(res, 120));
+        await new Promise(res => setTimeout(res, 80));
       }
     }
 
@@ -964,50 +970,71 @@
 
       if (!videoEl) return;
 
-      const isPortrait = window.innerHeight >= window.innerWidth;
+      // モバイルで確実に失敗しない安全なカメラ制約
       const constraints = {
         audio: false,
         video: {
-          facingMode: AppState.cameraFacing,
-          width: { ideal: isPortrait ? 720 : 1280 },
-          height: { ideal: isPortrait ? 1280 : 720 }
+          facingMode: { ideal: AppState.cameraFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       };
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (errConstraint) {
+          console.warn('Fallback to basic video constraint:', errConstraint);
+          stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        }
+
         AppState.stream = stream;
         videoEl.srcObject = stream;
+        videoEl.muted = true;
+        videoEl.playsInline = true;
+        videoEl.setAttribute('playsinline', '');
+        videoEl.setAttribute('webkit-playsinline', '');
 
-        // メタデータ確定待機
+        // ハング防止タイマー付きメタデータ確定処理
         await new Promise(resolve => {
           if (videoEl.readyState >= 1) return resolve();
           videoEl.onloadedmetadata = () => resolve();
+          setTimeout(resolve, 300); // 300msでフォールバック通過
         });
-        await videoEl.play();
+
+        try {
+          await videoEl.play();
+        } catch (playErr) {
+          console.warn('Video play triggered:', playErr);
+        }
 
         updateCameraMirrorStyles();
 
-        AppState.cameraHelper = new Camera(videoEl, {
-          onFrame: async () => {
-            if (AppState.isSleeping) return;
-            const currentVideo = getCurrentActiveVideo();
-            if (currentVideo && AppState.poseDetector && currentVideo.readyState >= 2) {
-              try {
-                await AppState.poseDetector.send({ image: currentVideo });
-              } catch (err) {
-                console.warn('Pose processing frame dropped:', err);
-              }
+        // 競合する外部Cameraヘルパーを廃止し、自前のrequestAnimationFrameループで超安定化
+        stopCameraLoop();
+        const renderLoop = async () => {
+          if (AppState.isSleeping || !AppState.stream) return;
+
+          const currentVideo = getCurrentActiveVideo();
+          if (currentVideo && AppState.poseDetector && currentVideo.readyState >= 2 && !AppState.isProcessingPose) {
+            AppState.isProcessingPose = true;
+            try {
+              await AppState.poseDetector.send({ image: currentVideo });
+            } catch (err) {
+              // フレームドロップは無視して継続
+            } finally {
+              AppState.isProcessingPose = false;
             }
-          },
-          width: isPortrait ? 720 : 1280,
-          height: isPortrait ? 1280 : 720
-        });
-        AppState.cameraHelper.start();
+          }
+          AppState.cameraAnimId = requestAnimationFrame(renderLoop);
+        };
+
+        AppState.cameraAnimId = requestAnimationFrame(renderLoop);
 
       } catch (err) {
         console.error('Camera access failed:', err);
-        SoundFX.speak('カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。');
+        SoundFX.speak('カメラの起動に失敗しました。カメラの利用許可を確認してください。');
       }
     }
 
@@ -1412,7 +1439,12 @@
       SoundFX.beepCountdown();
       pulseAudioIcon();
 
-      const cdInterval = setInterval(() => {
+      if (AppState.testCountdownInterval) {
+        clearInterval(AppState.testCountdownInterval);
+        AppState.testCountdownInterval = null;
+      }
+
+      AppState.testCountdownInterval = setInterval(() => {
         count--;
         if (count > 0) {
           DOM.testBigBannerNumber.textContent = count;
@@ -1426,7 +1458,8 @@
           SoundFX.playStartWhistle();
           pulseAudioIcon(true);
         } else {
-          clearInterval(cdInterval);
+          clearInterval(AppState.testCountdownInterval);
+          AppState.testCountdownInterval = null;
           DOM.testBigBanner.classList.add('hidden');
           runTestMeasurement();
         }
@@ -1472,24 +1505,20 @@
           pulseAudioIcon(true);
         }
 
-        if (AppState.testRemainingSec <= 0) {
-          cleanupTestSession();
-          SoundFX.playFinishWhistle();
-          setTimeout(() => {
-            finishTestSession('規定時間終了！お疲れ様でした。');
-          }, 600);
+    function getSupportedMimeType() {
+      const types = [
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+      ];
+      for (const type of types) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+          return type;
         }
-      }, 1000);
-    }
-
-    function pulseAudioIcon(isHighAlert = false) {
-      if (!DOM.testAudioPulseIcon) return;
-      DOM.testAudioPulseIcon.style.transform = 'scale(1.4)';
-      DOM.testAudioPulseIcon.style.color = isHighAlert ? '#ef4444' : '#38bdf8';
-      setTimeout(() => {
-        DOM.testAudioPulseIcon.style.transform = 'scale(1.0)';
-        DOM.testAudioPulseIcon.style.color = '#ffea00';
-      }, 150);
+      }
+      return '';
     }
 
     function startLocalRecording() {
@@ -1497,17 +1526,20 @@
       if (!AppState.stream) return;
 
       try {
-        const recorder = new MediaRecorder(AppState.stream, {
-          mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
-        });
+        const mimeType = getSupportedMimeType();
+        const options = mimeType ? { mimeType } : undefined;
+        const recorder = new MediaRecorder(AppState.stream, options);
+
         recorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) {
             AppState.recordedChunks.push(e.data);
           }
         };
+
         recorder.onstop = () => {
           if (AppState.recordedChunks.length > 0) {
-            const blob = new Blob(AppState.recordedChunks, { type: 'video/webm' });
+            const blobType = mimeType || 'video/mp4';
+            const blob = new Blob(AppState.recordedChunks, { type: blobType });
             AppState.lastRecordedBlob = blob;
             if (AppState.lastRecordedUrl) {
               URL.revokeObjectURL(AppState.lastRecordedUrl);
@@ -1515,10 +1547,11 @@
             AppState.lastRecordedUrl = URL.createObjectURL(blob);
           }
         };
+
         recorder.start();
         AppState.mediaRecorder = recorder;
       } catch (err) {
-        console.warn('MediaRecorder error:', err);
+        console.warn('MediaRecorder init error (fallback recording skipped):', err);
       }
     }
 
@@ -1541,6 +1574,10 @@
     }
 
     function cleanupTestSession() {
+      if (AppState.testCountdownInterval) {
+        clearInterval(AppState.testCountdownInterval);
+        AppState.testCountdownInterval = null;
+      }
       if (AppState.testTimerInterval) {
         clearInterval(AppState.testTimerInterval);
         AppState.testTimerInterval = null;
@@ -1907,6 +1944,7 @@
     function wakeUpFromSleep() {
       AppState.isSleeping = false;
       DOM.sleepOverlay.classList.add('hidden');
+      stopCameraLoop();
       const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
       if (cameraScreens.includes(AppState.currentScreen)) {
         startCameraForCurrentScreen();
