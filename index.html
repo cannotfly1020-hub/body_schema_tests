@@ -179,18 +179,18 @@
       </div>
 
       <!-- 操作ボタン群 -->
-      <div class="flex items-center space-x-1.5">
-        <button id="btnCameraFlip" class="brawl-btn btn-blue text-xs px-2.5 py-1" title="カメラ切替">
-          🔄 反転
-        </button>
-        <button id="btnSoundToggle" class="brawl-btn btn-yellow text-xs px-2.5 py-1" title="音声">
-          🔊 ON
-        </button>
-        <button id="btnHome" class="brawl-btn btn-purple text-xs px-2.5 py-1" title="ホーム">
-          🏠
-        </button>
-      </div>
-    </header>
+    <div class="flex items-center space-x-1.5">
+      <button id="btnCameraFlip" class="brawl-btn btn-blue text-xs px-2.5 py-1" title="カメラ切替">
+        🔄 反転
+      </button>
+      <button id="btnSoundToggle" class="brawl-btn btn-yellow text-xs px-2.5 py-1" title="音声">
+        🔊 ON
+      </button>
+      <button id="btnHome" class="brawl-btn btn-purple text-xs px-2.5 py-1" title="ホーム">
+        🏠
+      </button>
+    </div>
+  </header>
 
     <!-- トップロビー画面: iPhoneの縦長アスペクト比を100%活かし余白を完全ゼロ化 -->
     <section id="screenLobby" class="w-full relative p-3 space-y-2.5">
@@ -691,104 +691,6 @@
       drillCompleted: false
     };
 
-    const DOM = {
-      appContainer: document.getElementById('appContainer'),
-      activePlayerBadge: document.getElementById('activePlayerBadge'),
-      playerSelect: document.getElementById('playerSelect'),
-      dspPlayerHeight: document.getElementById('dspPlayerHeight'),
-      dspScaleStatus: document.getElementById('dspScaleStatus'),
-      dspRecordCount: document.getElementById('dspRecordCount'),
-      btnCameraFlip: document.getElementById('btnCameraFlip'),
-      btnSoundToggle: document.getElementById('btnSoundToggle'),
-      btnHome: document.getElementById('btnHome'),
-      
-      screenLobby: document.getElementById('screenLobby'),
-      screenScan: document.getElementById('screenScan'),
-      screenTest: document.getElementById('screenTest'),
-      screenResult: document.getElementById('screenResult'),
-      screenDrill: document.getElementById('screenDrill'),
-      screenRecord: document.getElementById('screenRecord'),
-
-      videoScan: document.getElementById('videoScan'),
-      canvasScan: document.getElementById('canvasScan'),
-      scanProgressBar: document.getElementById('scanProgressBar'),
-      scanStatusText: document.getElementById('scanStatusText'),
-      scanResultMetric: document.getElementById('scanResultMetric'),
-      btnGoScan: document.getElementById('btnGoScan'),
-      btnCancelScan: document.getElementById('btnCancelScan'),
-
-      videoTest: document.getElementById('videoTest'),
-      canvasTest: document.getElementById('canvasTest'),
-      testBadgeTitle: document.getElementById('testBadgeTitle'),
-      testInstructionSubtitle: document.getElementById('testInstructionSubtitle'),
-      testTimerText: document.getElementById('testTimerText'),
-      testAudioPulseIcon: document.getElementById('testAudioPulseIcon'),
-      testBigBanner: document.getElementById('testBigBanner'),
-      testBigBannerNumber: document.getElementById('testBigBannerNumber'),
-      testBigBannerSub: document.getElementById('testBigBannerSub'),
-      testDangerAlert: document.getElementById('testDangerAlert'),
-      testDangerReason: document.getElementById('testDangerReason'),
-      metricXVal: document.getElementById('metricXVal'),
-      metricZVal: document.getElementById('metricZVal'),
-      metricDynamicLabel: document.getElementById('metricDynamicLabel'),
-      metricDynamicVal: document.getElementById('metricDynamicVal'),
-      testPrepIndicator: document.getElementById('testPrepIndicator'),
-      btnAbortTest: document.getElementById('btnAbortTest'),
-
-      resTestName: document.getElementById('resTestName'),
-      resAwakenScore: document.getElementById('resAwakenScore'),
-      resNextGoalBadge: document.getElementById('resNextGoalBadge'),
-      replayVideoPlayer: document.getElementById('replayVideoPlayer'),
-      replayPlaceholder: document.getElementById('replayPlaceholder'),
-      btnReplaySpeed05: document.getElementById('btnReplaySpeed05'),
-      btnReplaySpeed10: document.getElementById('btnReplaySpeed10'),
-      resMetricLabel1: document.getElementById('resMetricLabel1'),
-      resMetricVal1: document.getElementById('resMetricVal1'),
-      resMetricLabel2: document.getElementById('resMetricLabel2'),
-      resMetricVal2: document.getElementById('resMetricVal2'),
-      resMetricLabel3: document.getElementById('resMetricLabel3'),
-      resMetricVal3: document.getElementById('resMetricVal3'),
-      resMetricLabel4: document.getElementById('resMetricLabel4'),
-      resMetricVal4: document.getElementById('resMetricVal4'),
-      resFeedbackCommentary: document.getElementById('resFeedbackCommentary'),
-      btnSaveToChart: document.getElementById('btnSaveToChart'),
-      btnQuickDrillFromResult: document.getElementById('btnQuickDrillFromResult'),
-
-      videoDrill: document.getElementById('videoDrill'),
-      canvasDrill: document.getElementById('canvasDrill'),
-      drillSuccessCount: document.getElementById('drillSuccessCount'),
-      drillHoldIndicator: document.getElementById('drillHoldIndicator'),
-      drillHoldSecondsText: document.getElementById('drillHoldSecondsText'),
-      drillCelebrateBanner: document.getElementById('drillCelebrateBanner'),
-      drillLiveAngle: document.getElementById('drillLiveAngle'),
-      btnGoDrill: document.getElementById('btnGoDrill'),
-      btnFinishDrill: document.getElementById('btnFinishDrill'),
-
-      chartSvg: document.getElementById('chartSvg'),
-      chartNoDataMsg: document.getElementById('chartNoDataMsg'),
-      historyListContainer: document.getElementById('historyListContainer'),
-      btnGoRecord: document.getElementById('btnGoRecord'),
-      btnBackToLobbyFromRecord: document.getElementById('btnBackToLobbyFromRecord'),
-      btnExportCsv: document.getElementById('btnExportCsv'),
-      btnClearHistory: document.getElementById('btnClearHistory'),
-
-      modalNewPlayer: document.getElementById('modalNewPlayer'),
-      btnOpenNewPlayerModal: document.getElementById('btnOpenNewPlayerModal'),
-      btnSaveNewPlayer: document.getElementById('btnSaveNewPlayer'),
-      btnCancelNewPlayer: document.getElementById('btnCancelNewPlayer'),
-      btnDeletePlayer: document.getElementById('btnDeletePlayer'),
-      inputPlayerName: document.getElementById('inputPlayerName'),
-      inputPlayerHeight: document.getElementById('inputPlayerHeight'),
-      inputPlayerCategory: document.getElementById('inputPlayerCategory'),
-      inputPlayerDominantLeg: document.getElementById('inputPlayerDominantLeg'),
-      modalHistoryReplay: document.getElementById('modalHistoryReplay'),
-      modalReplayVideo: document.getElementById('modalReplayVideo'),
-      histReplayTitle: document.getElementById('histReplayTitle'),
-      histReplayDetails: document.getElementById('histReplayDetails'),
-      btnCloseHistReplay: document.getElementById('btnCloseHistReplay'),
-      sleepOverlay: document.getElementById('sleepOverlay')
-    };
-
     class SoundFX {
       static init() {
         if (!AppState.audioCtx) {
@@ -800,7 +702,7 @@
         if (AppState.audioCtx && AppState.audioCtx.state === 'suspended') {
           AppState.audioCtx.resume();
         }
-        // iOS Safari向けの無音バッファ再生による強力アンロック
+        // iOS Safari対策: ユーザー操作時に空のバッファを再生してAudioContextを即座に完全アンロック
         if (AppState.audioCtx && !AppState.audioUnlocked) {
           try {
             const buffer = AppState.audioCtx.createBuffer(1, 1, 22050);
@@ -810,24 +712,27 @@
             source.start(0);
             AppState.audioUnlocked = true;
           } catch (e) {
-            console.warn('Audio unlock attempt failed:', e);
+            console.warn('Audio unlock failed:', e);
           }
         }
       }
 
-      static playTone(freq, duration = 0.1, type = 'sine', gainVal = 0.35) {
+      static playTone(freq, duration = 0.1, type = 'sine', gainVal = 0.45) {
         if (!AppState.isSoundEnabled) return;
         this.init();
         if (!AppState.audioCtx) return;
 
         try {
+          if (AppState.audioCtx.state === 'suspended') {
+            AppState.audioCtx.resume();
+          }
           const now = AppState.audioCtx.currentTime;
           const osc = AppState.audioCtx.createOscillator();
           const gain = AppState.audioCtx.createGain();
           osc.type = type;
           osc.frequency.setValueAtTime(freq, now);
 
-          // iPhoneスピーカーでも確実に抜けるアタックと減衰
+          // iPhoneスピーカーでもはっきり抜ける音圧設計
           gain.gain.setValueAtTime(0.001, now);
           gain.gain.linearRampToValueAtTime(gainVal, now + 0.015);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -842,53 +747,81 @@
         }
       }
 
+      // カウントダウン音（3, 2, 1の各秒音）
       static beepCountdown() {
-        // カウントダウン音（聞き取りやすい高音ポーン）
-        this.playTone(660, 0.15, 'triangle', 0.4);
+        this.playTone(660, 0.12, 'triangle', 0.5);
       }
 
-      static beepStart() {
-        // 測定スタート合図（高音ピロリン）
-        this.playTone(880, 0.12, 'square', 0.4);
-        setTimeout(() => this.playTone(1320, 0.35, 'triangle', 0.45), 100);
+      // 測定スタート合図音（ホイッスル調: ピピッ・ピーーッ！）
+      static playStartWhistle() {
+        if (!AppState.isSoundEnabled) return;
+        this.playTone(1760, 0.08, 'square', 0.45);
+        setTimeout(() => this.playTone(1760, 0.08, 'square', 0.45), 100);
+        setTimeout(() => this.playTone(2093, 0.4, 'triangle', 0.6), 220);
       }
 
+      // 測定終了合図音（ホイッスル調: ピーッ・ピピッ！）
+      static playFinishWhistle() {
+        if (!AppState.isSoundEnabled) return;
+        this.playTone(2093, 0.35, 'triangle', 0.6);
+        setTimeout(() => this.playTone(1760, 0.1, 'square', 0.45), 380);
+        setTimeout(() => this.playTone(1760, 0.15, 'square', 0.45), 500);
+      }
+
+      // 測定中の毎秒チクタク音（目隠し中も進行が耳で分かる）
       static playTestTick(isAccent = false) {
-        // 測定中の毎秒チクタク音（目隠しでも測定中であることが明確に伝わる音）
         if (isAccent) {
-          this.playTone(980, 0.08, 'triangle', 0.3);
+          // 5秒ごとのアクセント音
+          this.playTone(1050, 0.08, 'triangle', 0.4);
         } else {
-          this.playTone(600, 0.05, 'triangle', 0.22);
+          // 通常の秒刻み音
+          this.playTone(700, 0.05, 'sine', 0.3);
         }
       }
 
+      // ラスト3秒カウント音（音階上昇: ド・ミ・ソ）
       static playLastSecondsWarning(count) {
-        // ラスト3秒カウント（音階上昇：ド・ミ・ソ）
         const freqs = { 3: 523.25, 2: 659.25, 1: 783.99 };
         const f = freqs[count] || 600;
-        this.playTone(f, 0.2, 'square', 0.35);
+        this.playTone(f, 0.18, 'triangle', 0.5);
       }
 
+      // 目隠し足踏み用メトロノーム音（100BPMの小気味よいウッドブロック調）
       static beepMetronome() {
-        // 足踏み用メトロノーム（クラベス調のウッドブロック音）
-        this.playTone(1200, 0.04, 'triangle', 0.35);
+        this.playTone(1250, 0.04, 'triangle', 0.45);
       }
 
+      // 危険逸脱アラートブザー
       static alertBuzzer() {
-        this.playTone(180, 0.45, 'sawtooth', 0.4);
+        this.playTone(220, 0.45, 'sawtooth', 0.5);
       }
 
+      // 達成ファンファーレ
       static fanFare() {
-        this.playTone(523.25, 0.15, 'triangle', 0.3);
-        setTimeout(() => this.playTone(659.25, 0.15, 'triangle', 0.3), 150);
-        setTimeout(() => this.playTone(783.99, 0.35, 'triangle', 0.4), 300);
+        this.playTone(523.25, 0.12, 'triangle', 0.4);
+        setTimeout(() => this.playTone(659.25, 0.12, 'triangle', 0.4), 130);
+        setTimeout(() => this.playTone(783.99, 0.12, 'triangle', 0.45), 260);
+        setTimeout(() => this.playTone(1046.5, 0.38, 'triangle', 0.55), 390);
       }
 
+      // 絵文字や記号を除去し、日本語文章のみを抽出するフィルター
+      static stripEmojis(text) {
+        if (!text) return '';
+        return text
+          .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{200D}\u{FE0F}]/gu, '')
+          .replace(/[【】★⚡🔒🎬📊📑🚨💡]/g, '')
+          .trim();
+      }
+
+      // 動作説明読み上げ（スタンプ・絵文字の読み上げを完全カット）
       static speak(text) {
         if (!AppState.isSoundEnabled || !window.speechSynthesis) return;
         try {
           window.speechSynthesis.cancel();
-          const uttr = new SpeechSynthesisUtterance(text);
+          const cleanText = this.stripEmojis(text);
+          if (!cleanText) return;
+
+          const uttr = new SpeechSynthesisUtterance(cleanText);
           uttr.lang = 'ja-JP';
           uttr.rate = 1.1;
           uttr.pitch = 1.0;
@@ -1210,6 +1143,7 @@
     const TEST_CONFIGS = {
       stepping: {
         title: '👣 目隠し足踏みテスト',
+        speechTitle: '目隠し足踏みテスト',
         sub: '目隠しをしてその場で15秒間リズムよく足踏み',
         duration: 15,
         useMetronome: true,
@@ -1217,6 +1151,7 @@
       },
       tpose: {
         title: '⚖️ Tポーズ水平テスト',
+        speechTitle: 'Tポーズ水平テスト',
         sub: '目隠しをして両腕を床と平行（水平）に6秒保持',
         duration: 6,
         useMetronome: false,
@@ -1224,6 +1159,7 @@
       },
       oneleg: {
         title: '⚓ 片足立ちキープテスト',
+        speechTitle: '片足立ちキープテスト',
         sub: '目隠しをして片足を上げ最大15秒バランス保持',
         duration: 15,
         useMetronome: false,
@@ -1231,6 +1167,7 @@
       },
       pelvis: {
         title: '🪑 骨盤制動胸捻転テスト',
+        speechTitle: '骨盤制動胸捻転テスト',
         sub: '骨盤を正面固定したまま上半身を最大捻転（10秒）',
         duration: 10,
         useMetronome: false,
@@ -1261,7 +1198,8 @@
       DOM.testBigBanner.classList.add('hidden');
 
       switchScreen('screenTest');
-      SoundFX.speak(`${cfg.title}。全身を映し、まっすぐ静止してください。静止後3秒で開始します。`);
+      // 絵文字を読ませず、滑らかに指示を発声
+      SoundFX.speak(`${cfg.speechTitle}。全身を枠に収めて静止してください。静止後3秒で開始します。`);
     }
 
     function processTestFrame(landmarks, w, h) {
@@ -1463,7 +1401,8 @@
         } else if (count === 0) {
           DOM.testBigBannerNumber.textContent = 'START!';
           DOM.testBigBannerSub.textContent = '測定開始！';
-          SoundFX.beepStart();
+          // 明確なスタート合図ホイッスル
+          SoundFX.playStartWhistle();
           pulseAudioIcon(true);
         } else {
           clearInterval(cdInterval);
@@ -1488,7 +1427,7 @@
 
       startLocalRecording();
 
-      // 足踏みテスト専用：100BPMメトロノーム音（600ms間隔）
+      // 足踏みテスト専用: 100BPMメトロノーム音（600ms間隔）
       if (cfg.useMetronome) {
         AppState.testMetronomeInterval = setInterval(() => {
           if (AppState.testState === 'running') {
@@ -1498,25 +1437,29 @@
         }, 600);
       }
 
-      // 毎秒チクタク音＆タイマー進行＆ラスト3秒警告音
+      // 毎秒チクタク音 ＆ タイマー進行 ＆ ラスト3秒警告音
       AppState.testTimerInterval = setInterval(() => {
         AppState.testRemainingSec--;
         DOM.testTimerText.textContent = AppState.testRemainingSec;
 
         if (AppState.testRemainingSec > 3) {
-          // 残り時間4秒以上：毎秒チクタク音
+          // 残り4秒以上: 毎秒のチクタク音（5秒ごとにアクセント）
           const isAccent = (AppState.testRemainingSec % 5 === 0);
           SoundFX.playTestTick(isAccent);
           pulseAudioIcon();
         } else if (AppState.testRemainingSec >= 1 && AppState.testRemainingSec <= 3) {
-          // ラスト3・2・1秒：段階上昇アラート音
+          // 残り3, 2, 1秒: 段階上昇ビープ音
           SoundFX.playLastSecondsWarning(AppState.testRemainingSec);
           pulseAudioIcon(true);
         }
 
         if (AppState.testRemainingSec <= 0) {
           cleanupTestSession();
-          finishTestSession('規定時間終了！お疲れ様でした。');
+          // 測定終了ホイッスルを鳴らして完了
+          SoundFX.playFinishWhistle();
+          setTimeout(() => {
+            finishTestSession('規定時間終了！お疲れ様でした。');
+          }, 600);
         }
       }, 1000);
     }
