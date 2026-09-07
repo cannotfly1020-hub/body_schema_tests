@@ -1503,7 +1503,27 @@
         } else if (AppState.testRemainingSec >= 1 && AppState.testRemainingSec <= 3) {
           SoundFX.playLastSecondsWarning(AppState.testRemainingSec);
           pulseAudioIcon(true);
+        } else if (AppState.testRemainingSec <= 0) {
+          clearInterval(AppState.testTimerInterval);
+          AppState.testTimerInterval = null;
+          SoundFX.playFinishWhistle();
+          finishTestSession('測定終了！お疲れ様でした！');
         }
+      }, 1000);
+    }
+
+    function pulseAudioIcon(isLarge = false) {
+      const el = DOM.testAudioPulseIcon;
+      if (!el) return;
+      el.style.transform = isLarge ? 'scale(1.4)' : 'scale(1.2)';
+      el.style.color = '#38bdf8';
+      setTimeout(() => {
+        if (el) {
+          el.style.transform = 'scale(1.0)';
+          el.style.color = '#fde047';
+        }
+      }, 150);
+    }
 
     function getSupportedMimeType() {
       const types = [
