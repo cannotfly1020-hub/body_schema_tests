@@ -1,24 +1,17 @@
 {
 "name": "身体図式・脳内GPSドック",
 "short_name": "脳内GPS",
-"version": "1.0",
-"description": "主観と客観のズレを目隠しテストとリプレイで自覚し1分ドリルで身体図式を書き換えるPWA",
+"version": "1.4",
 "start_url": "./index.html",
 "display": "standalone",
+"background_color": "#0F172A",
+"theme_color": "#0F172A",
 "orientation": "portrait",
-"background_color": "#0a0f1d",
-"theme_color": "#0a0f1d",
 "icons": [
 {
-"src": "https://placehold.co/192x192/0a0f1d/38bdf8?text=GPS",
-"sizes": "192x192",
-"type": "image/png",
-"purpose": "any maskable"
-},
-{
-"src": "https://placehold.co/512x512/0a0f1d/ffea00?text=GPS",
-"sizes": "512x512",
-"type": "image/png",
+"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='128' fill='%230F172A'/%3E%3Cpath d='M256 96a160 160 0 1 0 160 160A160 160 0 0 0 256 96zm0 272a112 112 0 1 1 112-112 112 112 0 0 1-112 112z' fill='%23F59E0B'/%3E%3Ccircle cx='256' cy='256' r='48' fill='%2338BDF8'/%3E%3C/svg%3E",
+"sizes": "192x192 512x512",
+"type": "image/svg+xml",
 "purpose": "any maskable"
 }
 ]
