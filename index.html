@@ -37,10 +37,18 @@
     .font-num {
       font-family: var(--font-montserrat);
     }
+    /* 画面切り替えの厳格なクラス制御（Tailwind競合防止） */
     .app-screen {
       display: none !important;
     }
     .app-screen.active {
+      display: flex !important;
+    }
+    /* モーダル・オーバーレイの厳格な表示制御 */
+    .app-modal {
+      display: none !important;
+    }
+    .app-modal.active {
       display: flex !important;
     }
     /* 3Dポップボタンスタイル */
@@ -48,6 +56,7 @@
       background: linear-gradient(180deg, #FBBF24 0%, #D97706 100%);
       box-shadow: 0 5px 0 #92400E, 0 8px 15px rgba(0,0,0,0.4);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-primary:active {
       transform: translateY(4px);
@@ -57,6 +66,7 @@
       background: linear-gradient(180deg, #2DD4BF 0%, #0D9488 100%);
       box-shadow: 0 5px 0 #115E59, 0 8px 15px rgba(0,0,0,0.4);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-teal:active {
       transform: translateY(4px);
@@ -66,6 +76,7 @@
       background: linear-gradient(180deg, #818CF8 0%, #4F46E5 100%);
       box-shadow: 0 5px 0 #3730A3, 0 8px 15px rgba(0,0,0,0.4);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-indigo:active {
       transform: translateY(4px);
@@ -75,6 +86,7 @@
       background: linear-gradient(180deg, #FB7185 0%, #E11D48 100%);
       box-shadow: 0 5px 0 #9F1239, 0 8px 15px rgba(0,0,0,0.4);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-rose:active {
       transform: translateY(4px);
@@ -84,6 +96,7 @@
       background: linear-gradient(180deg, #34D399 0%, #059669 100%);
       box-shadow: 0 5px 0 #065F46, 0 8px 15px rgba(0,0,0,0.4);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-emerald:active {
       transform: translateY(4px);
@@ -93,6 +106,7 @@
       background: linear-gradient(180deg, #334155 0%, #1E293B 100%);
       box-shadow: 0 4px 0 #0F172A, 0 6px 12px rgba(0,0,0,0.3);
       transition: transform 0.06s ease, box-shadow 0.06s ease;
+      cursor: pointer;
     }
     .btn-brawl-dark:active {
       transform: translateY(3px);
@@ -457,12 +471,12 @@
       </div>
     </section>
 
-    <!-- モーダル & スリープ -->
-    <div id="modalDrillSelector" class="hidden absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <!-- モーダル & スリープ（クリック遮断を防ぐ厳格なapp-modal制御） -->
+    <div id="modalDrillSelector" class="app-modal absolute inset-0 z-50 bg-black/85 backdrop-blur-sm items-center justify-center p-4">
       <div class="w-full max-w-xs bg-slate-900 border-2 border-slate-700 rounded-3xl p-4 flex flex-col gap-2.5 shadow-2xl">
         <div class="flex justify-between items-center border-b border-slate-800 pb-2">
           <h3 class="text-xs font-black text-white">4大ドリルを選択</h3>
-          <button id="btnCloseDrillModal" class="text-slate-400 font-black text-base px-1">✕</button>
+          <button id="btnCloseDrillModal" class="text-slate-400 font-black text-base px-2 py-1">✕</button>
         </div>
         <div class="grid grid-cols-1 gap-2">
           <button data-drill="drill_stepping" class="btn-select-drill btn-brawl-primary text-left p-2.5 rounded-2xl text-xs font-black text-slate-950">
@@ -481,7 +495,7 @@
       </div>
     </div>
 
-    <div id="sleepOverlay" class="hidden absolute inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-6 text-center cursor-pointer">
+    <div id="sleepOverlay" class="app-modal absolute inset-0 z-50 bg-black/95 flex-col items-center justify-center p-6 text-center cursor-pointer">
       <span class="text-5xl animate-pulse">💤</span>
       <h3 class="text-base font-black text-slate-200 mt-3">省電力スリープ中</h3>
       <p class="text-xs text-slate-400 mt-1">画面をタップすると即座に復帰します</p>
@@ -500,7 +514,6 @@
       animFrameId: null,
       poseDetector: null,
       
-      // 直近に推論された生の骨格データ
       lastDetectedLandmarks: null,
       
       // スキャン絶対モノサシ
@@ -510,7 +523,7 @@
         pxPerCmY: 3.2,
         baseShoulderWidth: 120,
         baseHipWidth: 90,
-        baseTorsoHeight: 180 // 首〜股関節の基準長（距離補正の安全原点）
+        baseTorsoHeight: 180
       },
       
       // 測定セッション
@@ -532,7 +545,6 @@
       },
       hasLegLifted: false,
       
-      // 音声待機ロック
       isSpeechGuiding: false,
       guidanceMinTimer: null,
       activeUtterance: null,
@@ -560,7 +572,6 @@
         footContactLostTime: 0
       },
       
-      // 録画
       mediaRecorder: null,
       recordedChunks: [],
       replayBlobUrl: null,
@@ -815,7 +826,7 @@
         runCameraLoop(videoEl, screenId);
       } catch (err) {
         console.error('Camera open error:', err);
-        alert('カメラの起動に失敗しました。カメラパーミッションを確認してください。');
+        alert('カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。');
       }
     }
 
@@ -886,7 +897,6 @@
       const landmarks = results.poseLandmarks;
       if (!landmarks) return;
 
-      // リアルタイム骨格を常に最新保持
       AppState.lastDetectedLandmarks = landmarks;
 
       if (AppState.currentScreen === 'screenScan') {
@@ -898,7 +908,7 @@
       }
     }
 
-    /* --- 8. スキャン判定ロジック (実データ反映) --- */
+    /* --- 8. スキャン判定ロジック --- */
     function handleScanFrame(landmarks) {
       const canvas = document.getElementById('scanCanvas');
       const video = document.getElementById('scanVideo');
@@ -967,7 +977,7 @@
       switchScreen('screenLobby');
     }
 
-    /* --- 9. 4大テスト測定エンジン (数学的整合モデル) --- */
+    /* --- 9. 4大テスト測定エンジン --- */
     const TEST_CONFIGS = {
       stepping: {
         title: '目隠し足踏み',
@@ -1008,7 +1018,6 @@
       AppState.stillFrames = 0;
       AppState.hasLegLifted = false;
 
-      // バッファ初期化
       AppState.metricsBuffer = {
         xFactorHistory: [],
         armDiffHistory: [],
@@ -1112,7 +1121,6 @@
       if (diffNose < 0.008 && diffHip < 0.008) {
         AppState.stillFrames++;
         if (AppState.stillFrames >= 25) {
-          // 静止確定時の位置をゼロ点原点として採取
           const shCenterY = (landmarks[11].y + landmarks[12].y) / 2;
           AppState.baseOrigin = {
             hipCenterX: hipCenter.x,
@@ -1191,7 +1199,6 @@
       }, 100);
     }
 
-    /* --- バイオメカニクス計算エンジン（バグ解消・正規化） --- */
     function calculateBiomechanicsRealtime(landmarks, w, h) {
       const leftShoulder = landmarks[11];
       const rightShoulder = landmarks[12];
@@ -1204,7 +1211,6 @@
 
       const devInfo = document.getElementById('testDevLiveInfo');
 
-      // 1. 骨盤制動胸捻転 (X-Factor: 胸郭回旋角 - 骨盤回旋角)
       if (AppState.activeTestId === 'thoracic') {
         const curShW = Math.abs(leftShoulder.x - rightShoulder.x) * w;
         const curHipW = Math.abs(leftHip.x - rightHip.x) * w;
@@ -1212,24 +1218,20 @@
         const curHipY = (leftHip.y + rightHip.y) / 2;
         const curTorsoH = Math.max(40, Math.abs(curHipY - curShY) * h);
 
-        // 回旋影響を受けない体幹高で距離変化を補正
         const baseTorsoH = AppState.baseOrigin.torsoHeightPx || 180;
         const distScale = Math.max(0.5, Math.min(2.0, curTorsoH / baseTorsoH));
 
         const baseShW = (AppState.calibration.baseShoulderWidth || 120) * distScale;
         const baseHipW = (AppState.calibration.baseHipWidth || 90) * distScale;
 
-        // コサイン則クランプ
         const ratioS = Math.max(0.0, Math.min(1.0, curShW / baseShW));
         const ratioH = Math.max(0.0, Math.min(1.0, curHipW / baseHipW));
 
         const shoulderAngle = Math.acos(ratioS) * (180 / Math.PI);
         const hipAngle = Math.acos(ratioH) * (180 / Math.PI);
 
-        // 真の分離角 X-Factor
         const pureXFactor = Math.max(0, shoulderAngle - (hipAngle * 0.75));
 
-        // 左右回旋判定
         if (rightShoulder.x < leftShoulder.x) {
           if (pureXFactor > AppState.peakMetrics.peakRightTorso) AppState.peakMetrics.peakRightTorso = pureXFactor;
         } else {
@@ -1241,20 +1243,18 @@
         }
         devInfo.textContent = `X-Factor: ${pureXFactor.toFixed(1)}° (MAX: ${AppState.peakMetrics.peakXFactor.toFixed(1)}°)`;
       } 
-      // 2. Tポーズ水平 (安定保持平均を評価)
       else if (AppState.activeTestId === 'tpose') {
         const lAngle = Math.atan2(leftWrist.y - leftShoulder.y, leftWrist.x - leftShoulder.x) * (180 / Math.PI);
         const rAngle = Math.atan2(rightWrist.y - rightShoulder.y, rightShoulder.x - rightWrist.x) * (180 / Math.PI);
         const diff = Math.abs(lAngle - rAngle);
 
-        if (AppState.testElapsed > 1.0) { // 構え遅れを除外
+        if (AppState.testElapsed > 1.0) {
           AppState.metricsBuffer.armDiffHistory.push(diff);
           AppState.metricsBuffer.leftArmHistory.push(lAngle);
           AppState.metricsBuffer.rightArmHistory.push(rAngle);
         }
         devInfo.textContent = `腕傾き差: ${diff.toFixed(1)}° (現在)`;
       } 
-      // 3. 片足立ちキープ (ゼロ点原点ベースの重心動揺)
       else if (AppState.activeTestId === 'oneleg') {
         const ankleDiffPx = Math.abs(leftAnkle.y - rightAnkle.y) * h;
         if (ankleDiffPx > 30) AppState.hasLegLifted = true;
@@ -1264,7 +1264,6 @@
           const swayCm = Math.abs(hipCenter - AppState.baseOrigin.hipCenterX) * w / AppState.calibration.pxPerCmX;
           AppState.metricsBuffer.swayHistory.push(swayCm);
 
-          // 1.5秒以降に着地が確認されたら終了
           if (ankleDiffPx < 15 && AppState.testElapsed > 1.5) {
             if (!AppState.peakMetrics.footContactLostTime) {
               AppState.peakMetrics.footContactLostTime = AppState.testElapsed;
@@ -1274,7 +1273,6 @@
         }
         devInfo.textContent = `耐久: ${AppState.testElapsed.toFixed(1)}s (片足検知: ${AppState.hasLegLifted ? 'OK' : '準備中'})`;
       } 
-      // 4. 目隠し足踏み (ゼロ点原点ベースの累積偏位)
       else if (AppState.activeTestId === 'stepping') {
         const hipCenter = (leftHip.x + rightHip.x) / 2;
         const devCm = Math.abs(hipCenter - AppState.baseOrigin.hipCenterX) * w / AppState.calibration.pxPerCmX;
@@ -1294,7 +1292,6 @@
         try { AppState.mediaRecorder.stop(); } catch (e) {}
       }
 
-      // バッファ集計（トリム平均・ロバスト推計）
       if (AppState.activeTestId === 'tpose') {
         const arr = AppState.metricsBuffer.armDiffHistory;
         if (arr.length > 0) {
@@ -1494,7 +1491,6 @@
       const counterDisplay = document.getElementById('drillCounterDisplay');
       const banner = document.getElementById('drillHoldBanner');
 
-      // 1. 片足立ち
       if (AppState.activeDrillId === 'drill_singleleg') {
         const isLeftHigher = leftAnkle.y < rightAnkle.y;
         const liftedAnkle = isLeftHigher ? leftAnkle : rightAnkle;
@@ -1534,7 +1530,6 @@
         }
       }
 
-      // 2. 胸回し
       if (AppState.activeDrillId === 'drill_thoracic') {
         const handsBehindHead = (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) &&
                                 (Math.abs(leftWrist.x - nose.x) < 0.25 && Math.abs(rightWrist.x - nose.x) < 0.25);
@@ -1578,7 +1573,6 @@
         }
       }
 
-      // 3. Tポーズ水平
       if (AppState.activeDrillId === 'drill_shoulder') {
         const isLeftArmRaised = Math.abs(leftWrist.y - leftShoulder.y) < 0.10 && (leftWrist.x > leftShoulder.x + 0.05);
         const isRightArmRaised = Math.abs(rightWrist.y - rightShoulder.y) < 0.10 && (rightWrist.x < rightShoulder.x - 0.05);
@@ -1614,7 +1608,6 @@
         }
       }
 
-      // 4. ハイキック
       if (AppState.activeDrillId === 'drill_stepping') {
         const hipCenterX = (leftHip.x + rightHip.x) / 2;
         const hipDevCm = Math.abs(hipCenterX - 0.5) * w / AppState.calibration.pxPerCmX;
@@ -1823,11 +1816,11 @@
 
     function enterSleepMode() {
       stopCamera();
-      document.getElementById('sleepOverlay').classList.remove('hidden');
+      document.getElementById('sleepOverlay').classList.add('active');
     }
 
     async function wakeUpFromSleep() {
-      document.getElementById('sleepOverlay').classList.add('hidden');
+      document.getElementById('sleepOverlay').classList.remove('active');
       resetSleepTimer();
       const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
       if (cameraScreens.includes(AppState.currentScreen)) {
@@ -1835,8 +1828,8 @@
       }
     }
 
-    /* --- 16. イベントリスナー登録 --- */
-    document.addEventListener('DOMContentLoaded', () => {
+    /* --- 16. アプリケーション初期化 & リスナー登録 --- */
+    function initApplication() {
       const profiles = DB.getProfiles();
       AppState.currentUserId = profiles[0].id;
       renderLobbyProfiles();
@@ -1898,13 +1891,14 @@
         }
       });
 
-      // スキャン実行（直近の実検出フレームを確実に使用）
+      // スキャン実行
       document.getElementById('btnGoScan').addEventListener('click', () => switchScreen('screenScan'));
       document.getElementById('btnCancelScan').addEventListener('click', () => switchScreen('screenLobby'));
       document.getElementById('btnCaptureScan').addEventListener('click', () => {
         captureScanCalibration(AppState.lastDetectedLandmarks);
       });
 
+      // 4大テスト選択
       document.querySelectorAll('.btn-test').forEach(btn => {
         btn.addEventListener('click', () => {
           const testId = btn.getAttribute('data-testid');
@@ -1941,17 +1935,18 @@
       document.getElementById('btnGoDrillLobby').addEventListener('click', () => startDrillSession('drill_thoracic'));
       document.getElementById('btnCancelDrill').addEventListener('click', () => switchScreen('screenLobby'));
 
+      // ドリル切替モーダル
       document.getElementById('btnSwitchDrillModal').addEventListener('click', () => {
-        document.getElementById('modalDrillSelector').classList.remove('hidden');
+        document.getElementById('modalDrillSelector').classList.add('active');
       });
       document.getElementById('btnCloseDrillModal').addEventListener('click', () => {
-        document.getElementById('modalDrillSelector').classList.add('hidden');
+        document.getElementById('modalDrillSelector').classList.remove('active');
       });
 
       document.querySelectorAll('.btn-select-drill').forEach(btn => {
         btn.addEventListener('click', () => {
           const dId = btn.getAttribute('data-drill');
-          document.getElementById('modalDrillSelector').classList.add('hidden');
+          document.getElementById('modalDrillSelector').classList.remove('active');
           startDrillSession(dId);
         });
       });
@@ -1982,7 +1977,14 @@
           console.warn('SW registration error:', err);
         });
       }
-    });
+    }
+
+    // ライフサイクル同期（PWA/キャッシュ環境でも確実に発火）
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApplication);
+    } else {
+      initApplication();
+    }
   </script>
 </body>
 </html>
