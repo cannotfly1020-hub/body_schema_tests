@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身体図式・脳内GPSドック v1.3</title>
+  <title>身体図式・脳内GPSドック v1.4</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0F172A">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -140,11 +140,11 @@
         <button id="btnSoundToggle" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm active:scale-95 transition-all shadow" aria-label="消音切替">
           <span id="soundIcon">🔊</span>
         </button>
-        <button id="btnCameraFacing" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm active:scale-95 transition-all shadow" aria-label="カメラ切替">
-          <span>🔄</span>
+        <button id="btnCameraFacing" class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm active:scale-95 transition-all shadow" aria-label="カメラ切替" title="カメラ切替（内/外）">
+          <span id="cameraFacingIcon">🔄</span>
         </button>
         <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[11px] font-black border border-amber-500/30 shadow-inner">
-          v1.3
+          v1.4
         </span>
       </div>
     </header>
@@ -265,8 +265,8 @@
 
     <!-- ================= 2. スキャン校正画面 ================= -->
     <section id="screenScan" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
-      <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
-      <canvas id="scanCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
+      <video id="scanVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted></video>
+      <canvas id="scanCanvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
 
       <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 pt-safe pb-safe">
         <div class="bg-slate-900/85 backdrop-blur-md rounded-2xl p-3 border border-blue-500/40 text-center shadow-xl">
@@ -294,8 +294,8 @@
 
     <!-- ================= 3. 測定テスト画面 ================= -->
     <section id="screenTest" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
-      <video id="testVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
-      <canvas id="testCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
+      <video id="testVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted></video>
+      <canvas id="testCanvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
 
       <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 pt-safe pb-safe">
         <div class="flex items-center justify-between bg-slate-900/90 backdrop-blur-md rounded-2xl p-2.5 border border-slate-700 shadow-xl pointer-events-auto">
@@ -375,7 +375,7 @@
               </button>
             </div>
           </div>
-          <video id="resultReplayVideo" class="w-full h-44 bg-black rounded-xl object-contain mirror-mode" playsinline controls></video>
+          <video id="resultReplayVideo" class="w-full h-44 bg-black rounded-xl object-contain" playsinline controls></video>
         </div>
       </div>
 
@@ -392,8 +392,8 @@
 
     <!-- ================= 5. ドリル画面 ================= -->
     <section id="screenDrill" class="app-screen relative flex-1 flex-col overflow-hidden bg-black">
-      <video id="drillVideo" class="absolute inset-0 w-full h-full object-cover mirror-mode" playsinline muted></video>
-      <canvas id="drillCanvas" class="absolute inset-0 w-full h-full object-cover mirror-mode z-10"></canvas>
+      <video id="drillVideo" class="absolute inset-0 w-full h-full object-cover" playsinline muted></video>
+      <canvas id="drillCanvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
 
       <div class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 pt-safe pb-safe">
         <div class="bg-slate-900/90 backdrop-blur-md rounded-2xl p-2.5 border border-emerald-500/40 flex items-center justify-between pointer-events-auto shadow-xl">
@@ -509,7 +509,8 @@
     const AppState = {
       currentScreen: 'screenLobby',
       isMuted: false,
-      cameraFacing: 'user',
+      cameraFacing: 'user', // 'user' (インカメラ) or 'environment' (外カメラ)
+      recordedCameraFacing: 'user',
       cameraStream: null,
       animFrameId: null,
       poseDetector: null,
@@ -591,7 +592,28 @@
       lastActivityTime: Date.now()
     };
 
-    /* --- 2. 音響＆音声合成エンジン (SoundFX) --- */
+    /* --- 2. カメラのミラーリング（反転）状態同期 --- */
+    function updateCameraMirroring() {
+      const isUserFacing = (AppState.cameraFacing === 'user');
+      const videoCanvasPairs = [
+        'scanVideo', 'scanCanvas',
+        'testVideo', 'testCanvas',
+        'drillVideo', 'drillCanvas'
+      ];
+
+      videoCanvasPairs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (isUserFacing) {
+            el.classList.add('mirror-mode');
+          } else {
+            el.classList.remove('mirror-mode');
+          }
+        }
+      });
+    }
+
+    /* --- 3. 音響＆音声合成エンジン (SoundFX) --- */
     const SoundFX = {
       audioCtx: null,
 
@@ -699,7 +721,7 @@
       }
     };
 
-    /* --- 3. ストレージ管理 (DB) --- */
+    /* --- 4. ストレージ管理 (DB) --- */
     const DB = {
       PREFIX: 'brain_gps_v13_',
 
@@ -745,7 +767,7 @@
       }
     };
 
-    /* --- 4. 画面遷移制御 --- */
+    /* --- 5. 画面遷移制御 --- */
     async function switchScreen(targetScreenId) {
       cleanupTestSession();
       cleanupDrillSession();
@@ -772,7 +794,7 @@
       }
     }
 
-    /* --- 5. カメラ & MediaPipe Pose --- */
+    /* --- 6. カメラ & MediaPipe Pose --- */
     async function initMediaPipePose() {
       if (AppState.poseDetector) return;
       try {
@@ -803,6 +825,8 @@
       if (screenId === 'screenTest') videoEl = document.getElementById('testVideo');
       if (screenId === 'screenDrill') videoEl = document.getElementById('drillVideo');
       if (!videoEl) return;
+
+      updateCameraMirroring();
 
       const constraints = {
         audio: false,
@@ -839,7 +863,6 @@
         AppState.cameraStream.getTracks().forEach(t => t.stop());
         AppState.cameraStream = null;
       }
-      // iOS Safari等のカメラ使用中インジケータ消去を徹底
       ['scanVideo', 'testVideo', 'drillVideo'].forEach(id => {
         const v = document.getElementById(id);
         if (v) v.srcObject = null;
@@ -860,7 +883,7 @@
       AppState.animFrameId = requestAnimationFrame(step);
     }
 
-    /* --- 6. 録画エンジン --- */
+    /* --- 7. 録画エンジン --- */
     function getSupportedMimeType() {
       const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
       for (const t of types) {
@@ -889,7 +912,14 @@
             const blob = new Blob(AppState.recordedChunks, { type: AppState.mediaRecorder.mimeType || 'video/mp4' });
             AppState.replayBlobUrl = URL.createObjectURL(blob);
             const replayVideo = document.getElementById('resultReplayVideo');
-            if (replayVideo) replayVideo.src = AppState.replayBlobUrl;
+            if (replayVideo) {
+              replayVideo.src = AppState.replayBlobUrl;
+              if (AppState.recordedCameraFacing === 'user') {
+                replayVideo.classList.add('mirror-mode');
+              } else {
+                replayVideo.classList.remove('mirror-mode');
+              }
+            }
           }
         };
       } catch (e) {
@@ -897,7 +927,7 @@
       }
     }
 
-    /* --- 7. MediaPipe 結果ディスパッチャー --- */
+    /* --- 8. MediaPipe 結果ディスパッチャー --- */
     function onPoseResults(results) {
       const landmarks = results.poseLandmarks;
       if (!landmarks) return;
@@ -913,7 +943,7 @@
       }
     }
 
-    /* --- 8. スキャン判定ロジック --- */
+    /* --- 9. スキャン判定ロジック --- */
     function handleScanFrame(landmarks) {
       const canvas = document.getElementById('scanCanvas');
       const video = document.getElementById('scanVideo');
@@ -967,7 +997,6 @@
       const bodyHeightPx = Math.abs(avgAnkleY - nose.y) * h;
       const torsoHeightPx = Math.abs(((leftHip.y + rightHip.y) / 2) - ((leftShoulder.y + rightShoulder.y) / 2)) * h;
 
-      // 【生体力学修正】身長165cmにおける「鼻〜足首」の解剖学的実寸長は約135.3cm（全長の82%）
       const estimatedHeightCm = 165;
       const effectiveNoseToAnkleCm = estimatedHeightCm * 0.82; 
       const pxPerCm = Math.max(1.0, bodyHeightPx / effectiveNoseToAnkleCm);
@@ -987,7 +1016,7 @@
       switchScreen('screenLobby');
     }
 
-    /* --- 9. 4大テスト測定エンジン --- */
+    /* --- 10. 4大テスト測定エンジン --- */
     const TEST_CONFIGS = {
       stepping: {
         title: '目隠し足踏み',
@@ -1021,6 +1050,7 @@
 
     async function startTestSession(testId) {
       AppState.activeTestId = testId;
+      AppState.recordedCameraFacing = AppState.cameraFacing;
       const cfg = TEST_CONFIGS[testId];
       AppState.testDuration = cfg.duration;
       AppState.testElapsed = 0;
@@ -1247,8 +1277,8 @@
 
         const pureXFactor = Math.max(0, shoulderAngle - (hipAngle * 0.75));
 
-        // 【幾何学バグ解消】Z深度の前後差から時計回り・反時計回りを正確に判別
-        // 鏡像インカメラ：左肩が手前（zが小）なら被験者は「右回旋」、右肩が手前なら「左回旋」
+        // カメラ向きを考慮した左右回旋判定
+        // 被験者の左肩（11）が手前（zが小）なら被験者は右回旋
         const isRightRotation = leftShoulder.z < rightShoulder.z;
 
         if (isRightRotation) {
@@ -1271,7 +1301,6 @@
         const rAngle = Math.atan2(rightWrist.y - rightShoulder.y, rightShoulder.x - rightWrist.x) * (180 / Math.PI);
         const diff = Math.abs(lAngle - rAngle);
         
-        // 【論理矛盾解消】両腕同時下垂（ハの字）を見逃さない複合水平エラーメトリクス
         const absoluteDeviation = Math.sqrt((lAngle * lAngle + rAngle * rAngle) / 2);
         const combinedError = absoluteDeviation * 0.7 + diff * 0.3;
 
@@ -1292,7 +1321,6 @@
           const swayCm = Math.abs(hipCenter - AppState.baseOrigin.hipCenterX) * w / AppState.calibration.pxPerCmX;
           AppState.metricsBuffer.swayHistory.push(swayCm);
 
-          // 相対スネ長比率（15%未満）で確実な着地検知
           if (ankleDiffPx < (AppState.baseOrigin.shinLengthPx || 80) * 0.15 && AppState.testElapsed > 1.5) {
             if (!AppState.peakMetrics.footContactLostTime) {
               AppState.peakMetrics.footContactLostTime = AppState.testElapsed;
@@ -1305,7 +1333,6 @@
       else if (AppState.activeTestId === 'stepping') {
         const hipCenter = (leftHip.x + rightHip.x) / 2;
         
-        // 【生体力学バグ解消】左右ステップの歩行動揺ノイズをEMAローパスフィルタで除去し、真の空間偏位ドリフトを抽出
         if (AppState.smoothedHipX === null) AppState.smoothedHipX = hipCenter;
         AppState.smoothedHipX = AppState.smoothedHipX * 0.95 + hipCenter * 0.05;
 
@@ -1369,7 +1396,7 @@
       }
     }
 
-    /* --- 10. 結果レポート描画 --- */
+    /* --- 11. 結果レポート描画 --- */
     function presentResults() {
       switchScreen('screenResult');
       const cfg = TEST_CONFIGS[AppState.activeTestId];
@@ -1388,7 +1415,7 @@
             <p class="font-num text-xl font-black text-rose-400">${xFactor.toFixed(1)}°</p>
           </div>
           <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700">
-            <span class="text-slate-400 text-[10px] font-bold">左右分離ピーク (Z深度計測)</span>
+            <span class="text-slate-400 text-[10px] font-bold">左右分離ピーク</span>
             <p class="font-num text-xl font-black text-white">R:${AppState.peakMetrics.peakRightTorso.toFixed(0)}° / L:${AppState.peakMetrics.peakLeftTorso.toFixed(0)}°</p>
           </div>
         `;
@@ -1454,7 +1481,7 @@
       });
     }
 
-    /* --- 11. ドリルエンジン --- */
+    /* --- 12. ドリルエンジン --- */
     const DRILL_CONFIGS = {
       drill_thoracic: {
         title: '🪑 イス座り頭後ろ胸回しドリル',
@@ -1720,7 +1747,7 @@
       AppState.drillReps = 0;
     }
 
-    /* --- 12. 骨格描画 --- */
+    /* --- 13. 骨格描画 --- */
     function checkFullBodyVisible(landmarks) {
       if (!landmarks) return false;
       const needed = [0, 11, 12, 23, 24, 25, 26, 27, 28];
@@ -1770,7 +1797,7 @@
       ctx.restore();
     }
 
-    /* --- 13. カルテ推移 --- */
+    /* --- 14. カルテ推移 --- */
     function renderRecordChart() {
       const records = DB.getRecords(AppState.currentUserId);
       const testId = document.getElementById('selectRecordTest').value;
@@ -1832,7 +1859,7 @@
       `).join('');
     }
 
-    /* --- 14. プロファイル管理 --- */
+    /* --- 15. プロファイル管理 --- */
     function renderLobbyProfiles() {
       const profiles = DB.getProfiles();
       const select = document.getElementById('selectProfile');
@@ -1853,7 +1880,7 @@
       }
     }
 
-    /* --- 15. スリープ管理 --- */
+    /* --- 16. スリープ管理 --- */
     function resetSleepTimer() {
       AppState.lastActivityTime = Date.now();
       if (AppState.sleepTimer) clearTimeout(AppState.sleepTimer);
@@ -1874,7 +1901,7 @@
       }
     }
 
-    /* --- 16. アプリケーション初期化 & リスナー登録 --- */
+    /* --- 17. アプリケーション初期化 & リスナー登録 --- */
     function initApplication() {
       const profiles = DB.getProfiles();
       AppState.currentUserId = profiles[0].id;
@@ -1900,6 +1927,7 @@
 
       document.getElementById('btnCameraFacing').addEventListener('click', async () => {
         AppState.cameraFacing = (AppState.cameraFacing === 'user') ? 'environment' : 'user';
+        updateCameraMirroring();
         const cameraScreens = ['screenScan', 'screenTest', 'screenDrill'];
         if (cameraScreens.includes(AppState.currentScreen)) {
           await startCamera(AppState.currentScreen);
@@ -2017,6 +2045,9 @@
         a.click();
         URL.revokeObjectURL(url);
       });
+
+      // 初期ミラー状態適用
+      updateCameraMirroring();
 
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(err => {
